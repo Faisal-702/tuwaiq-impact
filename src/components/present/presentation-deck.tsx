@@ -16,7 +16,7 @@ import type { HomeStats, LeaderboardRow, ProjectCardData } from "@/lib/types";
 import { cn, excerpt } from "@/lib/utils";
 import heroArt from "../../../public/images/hero-students.webp";
 
-const SLIDE_MS = 9000;
+const SLIDE_MS = 8500;
 
 export function PresentationDeck({
   stats,
