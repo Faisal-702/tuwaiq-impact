@@ -1,2 +1,156 @@
-# tuwaiq-impact
-Official student projects and achievements platform for Technical Talented High School.
+# Tuwaiq Impact | أثر طويق
+
+Official platform of **Technical Talented High School** (ثانوية الموهوبين التقنية) for showcasing student projects, achievements and innovation.
+
+English is the default language; Arabic is fully supported with right-to-left layout.
+
+---
+
+## Stack
+
+| Layer | Technology |
+| --- | --- |
+| Framework | Next.js 16 (App Router, Turbopack), React 19, TypeScript |
+| Styling | Tailwind CSS 4 (design tokens in `src/app/globals.css`) |
+| Motion | `motion` (Framer Motion) — restrained fades and reveals; honours *reduced motion* |
+| Database | Supabase PostgreSQL, accessed **server-side only** via `postgres` |
+| Media | Supabase Storage, with direct-to-storage signed uploads |
+| UI primitives | Radix UI (dialogs, menus, tabs, switch), lucide icons, sonner toasts |
+| Fonts | Inter + IBM Plex Sans Arabic (self-hosted via Fontsource) |
+
+## Getting started
+
+```bash
+cp .env.example .env.local      # then fill in the values
+npm install
+npm run db:migrate              # applies supabase/migrations/*.sql
+npm run dev
+```
+
+Open http://localhost:3000. The first visit goes to the entry page, where visitors choose **Admin Access** or **Continue as Guest**.
+
+### Environment variables
+
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_URL` | Supabase Postgres connection string. On serverless hosts, use the **transaction pooler** (port 6543). |
+| `ADMIN_ACCESS_CODE` | The administrator access code. It is validated on the server only and never sent to the browser. |
+| `SESSION_SECRET` | Long random string (`openssl rand -hex 32`) used to sign upload URLs and anonymise view counts. |
+| `STORAGE_DRIVER` | `supabase` (production) or `local` (development only — stores files in `.data/uploads`). |
+| `SUPABASE_URL` | Your project URL, e.g. `https://xyz.supabase.co`. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service-role key. Used only on the server for issuing signed upload URLs and deleting media. |
+| `SUPABASE_STORAGE_BUCKET` | Defaults to `project-media` (created by the storage migration). |
+
+No variable is prefixed with `NEXT_PUBLIC_`, so none of them reach browser code.
+
+## Deploying with Supabase
+
+1. Create a Supabase project.
+2. Apply the migrations: either `DATABASE_URL=… npm run db:migrate` (direct connection, port 5432) or `supabase db push`. This creates the schema, the initial categories and the `project-media` storage bucket.
+3. Configure the environment variables on your host (e.g. Vercel) and deploy.
+4. **Upload size:** the Supabase Free plan caps each file at 50 MB. Original 4K videos (up to 5 minutes) need a paid plan with a raised *global file size limit* (Storage → Settings).
+
+## Architecture notes
+
+### Security
+
+- **Admin access**: the submitted code is compared on the server against `ADMIN_ACCESS_CODE` with a constant-time comparison. A wrong code adds a short fixed delay; by design there is no lockout.
+- **Sessions**: on success, a random 256-bit token is created. Only its SHA-256 hash is stored, in `admin_sessions`. The browser holds the token in an `httpOnly`, `SameSite=Lax` cookie (`Secure` in production). Sessions expire after 12 hours and can be revoked from **Settings → Sign out all sessions**.
+- **Route protection**:
+  - `src/proxy.ts` redirects early when the session cookie is missing.
+  - The admin layout re-verifies the session against the database (`requireAdmin()`).
+  - **Every server action** independently calls `requireAdmin()`, so hiding UI is never the only protection.
+- **Database**: all queries run on the server. Row Level Security is enabled on every table with **no** policies for the `anon` / `authenticated` roles, and their grants are revoked. The public Supabase API therefore cannot read or write any table.
+- **Uploads**: the server validates MIME type, size and video length, then issues short-lived signed upload URLs for unguessable paths (`media/<yyyy>/<mm>/<uuid>/…`). SVG and HTML uploads are not accepted.
+- **User content** is rendered as plain text (never as HTML). External links accept only `http(s)` and open with `rel="noopener noreferrer"`.
+- Redirect targets after sign-in are restricted to same-site relative paths.
+
+### Media pipeline
+
+- Originals are uploaded **untouched**, at full quality (including 4K images and videos).
+- The browser generates optimised WebP variants before upload:
+  - `large` (≤ 2560 px) for the gallery and lightbox
+  - `thumb` (≤ 800 px) for cards
+  - a poster frame for each video
+- Pages load only these variants; the lightbox offers **Open original**.
+- Video duration is read client-side; uploads longer than 5 minutes are rejected. The database also enforces the limit.
+- Videos never autoplay. The custom player supports play/pause, timeline, volume and full screen. If a browser can't play a format, the player offers a download instead.
+
+### Data model (`supabase/migrations`)
+
+`categories`, `students`, `projects`, `project_students` (group projects), `project_media` (images, video, documents, links), `project_views` (anonymous, deduplicated per visitor per day), `admin_sessions`, `activity_logs`, `settings`.
+
+- Projects use **soft delete** (`deleted_at`) → **Trash** → restore, or delete permanently (which also removes the stored media).
+- Default project points are `10`, configurable in **Settings** and per project.
+
+### Homepage statistics
+
+All four figures come from published projects in the database:
+
+| Statistic | What it counts |
+| --- | --- |
+| Projects | Published entries in *project*-type categories |
+| Participating Students | Distinct students in published entries |
+| Awards | Published entries with an award recorded |
+| Activities | Published entries in *activity*-type categories (e.g. Volunteering, National Day) |
+
+Administrators choose each category's type.
+
+### Search
+
+Search covers student names (English and Arabic), project titles, categories (including keyword aliases such as `ai`) and grade.
+
+- Latin terms match at word starts. One- and two-letter terms must match whole words, so `AI` finds Artificial Intelligence but not *Air* or *Faisal*.
+- Arabic text is normalised: أ/إ/آ → ا, ة → ه, ى → ي, and diacritics are stripped.
+
+## Development / demo data
+
+`npm run demo:seed` inserts clearly labelled **demo** records ("Demo Student A", "Demo: …", "Sample award (demo data)") with generated placeholder media. Every demo row is flagged `is_demo = true`.
+
+Remove them before launch with either:
+- `npm run demo:purge`, or
+- **Admin → Settings → Remove demo data**.
+
+## Verification
+
+```bash
+npm run lint && npm run typecheck && npm run build
+# Functional end-to-end checks against a running server (dev or `next start`):
+BASE_URL=http://localhost:3000 ADMIN_CODE=… QA_IMAGE=/path/to/large.jpg npm run test:e2e
+```
+
+`tests/e2e/verify.mjs` walks through the full functional checklist in a real browser. It covers:
+
+- entry, guest and admin flows, and admin-route protection
+- English/Arabic and RTL
+- search, filters and sorting
+- gallery, video player and PDF preview
+- creating students, categories and projects with uploads
+- draft, preview, publish and featured states
+- points and leaderboard, trash, restore and permanent delete
+- activity log, mobile navigation and Presentation Mode
+
+It fails on any console or hydration error. Records it creates are prefixed with `QA`.
+
+## Project structure
+
+```
+src/
+  app/(site)/        public pages (home, projects, students, leaderboard, about)
+  app/welcome/       entry page + sign-in server actions
+  app/admin/         administrator dashboard (server-guarded)
+  app/present/       Presentation Mode
+  app/api/, media/   search, view tracking, local upload/media routes
+  components/        UI, brand, home, projects, admin, presentation
+  i18n/              EN/AR dictionaries, server + client helpers
+  server/            db, auth, storage drivers, queries, server actions
+supabase/migrations/ schema, seed categories, storage bucket
+scripts/             migrate, demo seed/purge (+ demo assets)
+docs/references/     the supplied visual references
+```
+
+## Brand assets
+
+- `public/brand/moe-logo.png` and `public/brand/tuwaiq-academy-logo.png` are the supplied official logos. Only their transparent margins were trimmed; the logos are otherwise unaltered and are always displayed at their native aspect ratio. The original files are in `docs/references/`.
+- `public/images/hero-students.webp` is the supplied homepage artwork, unmodified.
+- `public/images/entry-scene-*.webp` are the side scenes of the supplied login reference (building and Riyadh skyline). The baked-in card, logos and language pill were removed so the live UI can sit on top.
