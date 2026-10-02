@@ -176,7 +176,7 @@ export function StudentPicker({
                   <>
                     <UserRound className="size-4 text-muted" aria-hidden />
                     <span className="flex-1 text-ink">{localName(entry.option, locale)}</span>
-                    {entry.option.grade ? <span className="text-xs text-muted">{gradeLabel(entry.option.grade, t.grades.label)}</span> : null}
+                    {entry.option.grade ? <span className="text-xs text-muted">{gradeLabel(entry.option.grade, t.grades)}</span> : null}
                   </>
                 ) : (
                   <>

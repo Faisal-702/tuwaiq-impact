@@ -169,7 +169,7 @@ export function SearchDialog({ open, onOpenChange }: { open: boolean; onOpenChan
                             <span className="min-w-0 flex-1">
                               <span className="block truncate font-medium text-ink">{localName(s, locale)}</span>
                               {s.grade ? (
-                                <span className="block text-sm text-muted">{gradeLabel(s.grade, t.grades.label)}</span>
+                                <span className="block text-sm text-muted">{gradeLabel(s.grade, t.grades)}</span>
                               ) : null}
                             </span>
                           </Link>

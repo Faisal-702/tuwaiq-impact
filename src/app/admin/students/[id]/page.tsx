@@ -26,7 +26,7 @@ export default async function AdminStudentPage(props: PageProps<"/admin/students
       </Link>
       <AdminPageHeader
         title={name}
-        description={[student.grade ? gradeLabel(student.grade, t.grades.label) : null, `${formatNumber(student.points, locale)} ${t.common.points}`]
+        description={[student.grade ? gradeLabel(student.grade, t.grades) : null, `${formatNumber(student.points, locale)} ${t.common.points}`]
           .filter(Boolean)
           .join(" · ")}
         actions={

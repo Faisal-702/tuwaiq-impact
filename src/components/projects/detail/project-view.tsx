@@ -86,7 +86,7 @@ export function ProjectView({
         </ul>
       ),
     },
-    ...(project.grade ? [{ label: t.project.grade, value: gradeLabel(project.grade, t.grades.label) }] : []),
+    ...(project.grade ? [{ label: t.project.grade, value: gradeLabel(project.grade, t.grades) }] : []),
     ...(project.class_name ? [{ label: t.project.className, value: <span dir="auto">{project.class_name}</span> }] : []),
     { label: t.project.category, value: category },
     ...(project.academic_year ? [{ label: t.project.academicYear, value: <span dir="auto">{project.academic_year}</span> }] : []),
@@ -148,7 +148,7 @@ export function ProjectView({
                     <span className="font-medium text-ink">{localName(s, locale)}</span>
                   </span>
                 ))}
-                {project.grade ? <span> · {gradeLabel(project.grade, t.grades.label)}</span> : null}
+                {project.grade ? <span> · {gradeLabel(project.grade, t.grades)}</span> : null}
               </p>
               {project.published_at ? (
                 <span className="inline-flex items-center gap-1.5">

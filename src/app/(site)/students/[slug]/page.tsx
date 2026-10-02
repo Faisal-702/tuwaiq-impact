@@ -50,7 +50,7 @@ export default async function StudentPage(props: PageProps<"/students/[slug]">) 
                   {other}
                 </p>
               ) : null}
-              {student.grade ? <p className="mt-2 text-ink-soft">{gradeLabel(student.grade, t.grades.label)}</p> : null}
+              {student.grade ? <p className="mt-2 text-ink-soft">{gradeLabel(student.grade, t.grades)}</p> : null}
             </div>
           </div>
           <dl className="relative mt-8 grid grid-cols-3 gap-3 sm:max-w-xl">

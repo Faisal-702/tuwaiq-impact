@@ -72,7 +72,7 @@ export default async function LeaderboardPage(props: PageProps<"/leaderboard">) 
                     </div>
                     <p className="mt-6 text-lg font-semibold text-ink group-hover:text-purple">{name}</p>
                     <p className="mt-1 text-sm text-muted">
-                      {[row.grade ? gradeLabel(row.grade, t.grades.label) : null, projectCount(row.projects, locale)]
+                      {[row.grade ? gradeLabel(row.grade, t.grades) : null, projectCount(row.projects, locale)]
                         .filter(Boolean)
                         .join(" · ")}
                     </p>
