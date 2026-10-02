@@ -62,7 +62,7 @@ export function PresentationDeck({
             </h2>
             <p className="mt-[1.2vw] text-[clamp(1.1rem,1.5vw,1.75rem)] font-medium text-ink-soft">
               {names(p)}
-              {p.grade ? <span className="text-muted"> · {gradeLabel(p.grade, t.grades.label)}</span> : null}
+              {p.grade ? <span className="text-muted"> · {gradeLabel(p.grade, t.grades)}</span> : null}
             </p>
             {p.award ? (
               <p className="mt-[1.2vw] inline-flex items-center gap-2 rounded-full bg-[#fdf6e7] px-4 py-2 text-[clamp(0.9rem,1.1vw,1.25rem)] font-medium text-[#8a6413] ring-1 ring-inset ring-[#e9cf8f]/70">
@@ -122,7 +122,7 @@ export function PresentationDeck({
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[clamp(1.1rem,1.6vw,1.9rem)] font-semibold text-ink">{localName(r, locale)}</p>
                         <p className="text-[clamp(0.85rem,1vw,1.15rem)] text-muted">
-                          {[r.grade ? gradeLabel(r.grade, t.grades.label) : null, projectCount(r.projects, locale)].filter(Boolean).join(" · ")}
+                          {[r.grade ? gradeLabel(r.grade, t.grades) : null, projectCount(r.projects, locale)].filter(Boolean).join(" · ")}
                         </p>
                       </div>
                       <p className="text-[clamp(1.4rem,2.2vw,2.6rem)] font-bold tabular-nums text-ink">

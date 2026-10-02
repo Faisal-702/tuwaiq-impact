@@ -274,7 +274,7 @@ export function ProjectEditor({
                   <option value="">{t.admin.editor.gradePlaceholder}</option>
                   {GRADES.map((g) => (
                     <option key={g} value={g}>
-                      {gradeLabel(g, t.grades.label)}
+                      {gradeLabel(g, t.grades)}
                     </option>
                   ))}
                 </Select>

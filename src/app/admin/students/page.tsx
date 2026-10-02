@@ -66,7 +66,7 @@ export default async function AdminStudentsPage(props: PageProps<"/admin/student
                       {other && other !== name ? <p dir="auto" className="text-muted">{other}</p> : null}
                       {s.is_demo ? <Badge tone="amber" className="mt-1">{t.common.demo}</Badge> : null}
                     </td>
-                    <td className="hidden px-3 py-3.5 text-ink-soft sm:table-cell">{s.grade ? gradeLabel(s.grade, t.grades.label) : "—"}</td>
+                    <td className="hidden px-3 py-3.5 text-ink-soft sm:table-cell">{s.grade ? gradeLabel(s.grade, t.grades) : "—"}</td>
                     <td className="px-3 py-3.5 text-end tabular-nums">{formatNumber(s.projects, locale)}</td>
                     <td className="hidden px-3 py-3.5 text-end font-medium tabular-nums sm:table-cell">{formatNumber(s.points, locale)}</td>
                     <td className="px-5 py-3.5">

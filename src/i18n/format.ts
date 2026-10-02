@@ -77,9 +77,13 @@ export function localName(
   return (locale === "ar" ? ar || en : en || ar) ?? "";
 }
 
-export function gradeLabel(grade: number | null | undefined, template: string): string {
+/** Display label for a stored grade (10/11/12…); stored values never change. */
+export function gradeLabel(
+  grade: number | null | undefined,
+  grades: { label: string; names: Record<string, string> },
+): string {
   if (grade === null || grade === undefined) return "";
-  return fmt(template, { n: grade });
+  return grades.names[String(grade)] ?? fmt(grades.label, { n: grade });
 }
 
 /** "1 project" / "3 projects" with Arabic dual and plural forms. */

@@ -77,7 +77,7 @@ export function ExplorerShell({ options, children }: { options: ExplorerOptions;
   const activeFilters = FILTER_KEYS.filter((k) => params.get(k));
 
   const filterLabel = (key: (typeof FILTER_KEYS)[number], value: string) => {
-    if (key === "grade") return gradeLabel(Number(value), t.grades.label);
+    if (key === "grade") return gradeLabel(Number(value), t.grades);
     if (key === "type") return t.projects.contentTypes[value as ContentTypeFilter] ?? value;
     if (key === "student") {
       const s = options.students.find((x) => x.slug === value);
@@ -323,7 +323,7 @@ function FiltersDialog({
             <option value="">{t.projects.anyGrade}</option>
             {options.grades.map((g) => (
               <option key={g} value={g}>
-                {gradeLabel(g, t.grades.label)}
+                {gradeLabel(g, t.grades)}
               </option>
             ))}
           </Select>

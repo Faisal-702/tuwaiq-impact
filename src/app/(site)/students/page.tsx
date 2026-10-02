@@ -48,7 +48,7 @@ export default async function StudentsPage(props: PageProps<"/students">) {
                         <p className="truncate font-semibold text-ink group-hover:text-purple">{name}</p>
                         <p className="mt-0.5 text-sm text-muted">
                           {[
-                            s.grade ? gradeLabel(s.grade, t.grades.label) : null,
+                            s.grade ? gradeLabel(s.grade, t.grades) : null,
                             projectCount(s.projects, locale),
                           ]
                             .filter(Boolean)

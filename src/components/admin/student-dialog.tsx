@@ -109,7 +109,7 @@ export function StudentDialog({ student, trigger }: { student?: Student; trigger
               <option value="">{t.admin.students.noGrade}</option>
               {[10, 11, 12].map((g) => (
                 <option key={g} value={g}>
-                  {gradeLabel(g, t.grades.label)}
+                  {gradeLabel(g, t.grades)}
                 </option>
               ))}
             </Select>

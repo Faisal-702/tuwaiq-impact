@@ -301,6 +301,8 @@ const en = {
   },
   grades: {
     label: "Grade {n}",
+    /** Optional per-grade display names; when absent the label template is used. */
+    names: {} as Record<string, string>,
   },
   admin: {
     title: "Administration",

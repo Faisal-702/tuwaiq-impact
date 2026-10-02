@@ -57,7 +57,7 @@ export function ProjectCard({
           <div className="mt-auto flex items-center justify-between gap-3 pt-3 text-sm text-muted">
             <p className="min-w-0 truncate">
               <span className="text-ink-soft">{studentLine(project, locale)}</span>
-              {project.grade ? <span> · {gradeLabel(project.grade, t.grades.label)}</span> : null}
+              {project.grade ? <span> · {gradeLabel(project.grade, t.grades)}</span> : null}
             </p>
             {showViews ? (
               <span className="inline-flex shrink-0 items-center gap-1 text-xs">
@@ -122,7 +122,7 @@ export function FeaturedProjectCard({
                 <p className="truncate font-medium text-ink">{studentLine(project, locale)}</p>
                 <p className="mt-0.5 text-muted">
                   {[
-                    project.grade ? gradeLabel(project.grade, t.grades.label) : null,
+                    project.grade ? gradeLabel(project.grade, t.grades) : null,
                     project.published_at ? formatDate(project.published_at, locale, "short") : null,
                   ]
                     .filter(Boolean)

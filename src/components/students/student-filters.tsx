@@ -72,7 +72,7 @@ export function StudentFilters({ grades, children }: { grades: number[]; childre
             <option value="">{t.students.allGrades}</option>
             {grades.map((g) => (
               <option key={g} value={g}>
-                {gradeLabel(g, t.grades.label)}
+                {gradeLabel(g, t.grades)}
               </option>
             ))}
           </Select>

@@ -80,7 +80,7 @@ export default async function AdminAnalyticsPage() {
             <HorizontalBars
               data={byGrade.map((g) => ({
                 key: String(g.grade),
-                label: g.grade ? gradeLabel(g.grade, t.grades.label) : "—",
+                label: g.grade ? gradeLabel(g.grade, t.grades) : "—",
                 value: g.count,
               }))}
               caption={t.admin.analytics.byGrade}

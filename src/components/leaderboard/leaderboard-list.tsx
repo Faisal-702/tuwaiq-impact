@@ -39,7 +39,7 @@ export function LeaderboardList({
               <p className="truncate font-medium text-ink">{localName(row, locale)}</p>
               <p className="text-sm text-muted">
                 {[
-                  row.grade ? gradeLabel(row.grade, t.grades.label) : null,
+                  row.grade ? gradeLabel(row.grade, t.grades) : null,
                   projectCount(row.projects, locale),
                 ]
                   .filter(Boolean)
