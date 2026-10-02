@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { logActivity } from "@/server/activity";
 import { createAdminSession, isValidAccessCode, setGuestEntry } from "@/server/auth";
+import { HOME_PATH } from "@/lib/routes";
 import { safeNextPath } from "@/lib/safe-next";
 
 export type AdminLoginState = { error: "required" | "invalid" | null; attempt: number };
@@ -27,5 +28,6 @@ export async function adminLogin(prev: AdminLoginState, formData: FormData): Pro
 export async function enterAsGuest(formData: FormData): Promise<void> {
   await setGuestEntry();
   const next = safeNextPath(formData.get("next"));
-  redirect(next && !next.startsWith("/admin") ? next : "/");
+  // Guests always land on the public website, never the dashboard.
+  redirect(next && !next.startsWith("/admin") ? next : HOME_PATH);
 }

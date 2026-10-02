@@ -1,38 +1,45 @@
 import { NextResponse, type NextRequest } from "next/server";
-
-const ADMIN_COOKIE = "ti_admin_session";
-const ENTRY_COOKIE = "ti_entry";
+import { ADMIN_COOKIE, ENTRY_COOKIE, LEGACY_COOKIES } from "@/lib/routes";
 
 /**
  * Fast, optimistic routing guard.
+ *  - "/" always goes to the entry page (/welcome).
  *  - /admin requires an admin session cookie (the session itself is verified
  *    against the database in the admin layout and in every server action).
- *  - Public pages require an entry choice (guest or admin) made on /welcome.
+ *  - Public pages require an entry choice (guest or admin) made on /welcome
+ *    during the current browser session.
  */
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const hasAdminCookie = Boolean(request.cookies.get(ADMIN_COOKIE)?.value);
   const hasEntry = Boolean(request.cookies.get(ENTRY_COOKIE)?.value) || hasAdminCookie;
 
-  if (pathname.startsWith("/admin")) {
-    if (!hasAdminCookie) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/welcome";
-      url.search = `?mode=admin&next=${encodeURIComponent(pathname + search)}`;
-      return NextResponse.redirect(url);
-    }
-    return NextResponse.next();
-  }
-
-  if (pathname === "/welcome") return NextResponse.next();
-
-  if (!hasEntry) {
+  const toWelcome = (query: string) => {
     const url = request.nextUrl.clone();
     url.pathname = "/welcome";
-    url.search = pathname === "/" ? "" : `?next=${encodeURIComponent(pathname + search)}`;
+    url.search = query;
     return NextResponse.redirect(url);
+  };
+
+  let response: NextResponse;
+  if (pathname === "/") {
+    response = toWelcome("");
+  } else if (pathname.startsWith("/admin")) {
+    response = hasAdminCookie
+      ? NextResponse.next()
+      : toWelcome(`?mode=admin&next=${encodeURIComponent(pathname + search)}`);
+  } else if (pathname === "/welcome" || hasEntry) {
+    response = NextResponse.next();
+  } else {
+    response = toWelcome(`?next=${encodeURIComponent(pathname + search)}`);
   }
-  return NextResponse.next();
+
+  // Remove persistent cookies left by earlier versions so they cannot outlive
+  // the browser session.
+  for (const name of LEGACY_COOKIES) {
+    if (request.cookies.has(name)) response.cookies.delete(name);
+  }
+  return response;
 }
 
 export const config = {

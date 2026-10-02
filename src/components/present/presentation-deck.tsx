@@ -13,6 +13,7 @@ import { CategoryChip } from "@/components/ui/chip";
 import { useI18n } from "@/i18n/client";
 import { fmt, formatNumber, gradeLabel, localName, projectCount } from "@/i18n/format";
 import type { HomeStats, LeaderboardRow, ProjectCardData } from "@/lib/types";
+import { HOME_PATH } from "@/lib/routes";
 import { cn, excerpt } from "@/lib/utils";
 import heroArt from "../../../public/images/hero-students.webp";
 
@@ -266,7 +267,7 @@ export function PresentationDeck({
           {fullscreen ? <Shrink className="size-5" aria-hidden /> : <Expand className="size-5" aria-hidden />}
         </CtrlButton>
         <Link
-          href="/"
+          href={HOME_PATH}
           className="grid size-10 place-items-center rounded-xl text-ink-soft transition hover:bg-canvas hover:text-ink"
           aria-label={t.present.exit}
           title={t.present.exit}

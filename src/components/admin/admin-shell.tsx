@@ -24,6 +24,7 @@ import { useState, type ReactNode } from "react";
 import { LanguageSwitcher } from "@/components/brand/language-switcher";
 import { PartnerLogos } from "@/components/brand/partner-logos";
 import { useI18n } from "@/i18n/client";
+import { HOME_PATH } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { signOut } from "@/server/actions/settings";
 
@@ -57,7 +58,7 @@ export function AdminShell({ children, trashCount }: { children: ReactNode; tras
   const nav = (
     <div className="flex h-full flex-col">
       <div className="px-5 pb-5 pt-6">
-        <Link href="/" className="block rounded-lg">
+        <Link href={HOME_PATH} className="block rounded-lg">
           <PartnerLogos size="sm" moeAlt={t.brand.moeAlt} tuwaiqAlt={t.brand.tuwaiqAlt} />
         </Link>
         <div className="mt-5 flex items-center justify-between rounded-xl bg-canvas px-3 py-2.5 ring-1 ring-inset ring-line-soft">
@@ -110,7 +111,7 @@ export function AdminShell({ children, trashCount }: { children: ReactNode; tras
           {t.admin.presentation}
         </Link>
         <Link
-          href="/"
+          href={HOME_PATH}
           className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[0.9375rem] text-ink-soft transition hover:bg-canvas hover:text-ink"
         >
           <ExternalLink className="size-[1.125rem] text-muted" aria-hidden />

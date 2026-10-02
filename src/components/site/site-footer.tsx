@@ -3,10 +3,11 @@ import { LanguageSwitcher } from "@/components/brand/language-switcher";
 import { PartnerLogos } from "@/components/brand/partner-logos";
 import { DotMotif } from "@/components/brand/wordmark";
 import type { Dictionary } from "@/i18n/dictionaries";
+import { HOME_PATH } from "@/lib/routes";
 
 export function SiteFooter({ t }: { t: Dictionary }) {
   const links = [
-    { href: "/", label: t.nav.home },
+    { href: HOME_PATH, label: t.nav.home },
     { href: "/projects", label: t.nav.projects },
     { href: "/students", label: t.nav.students },
     { href: "/leaderboard", label: t.nav.leaderboard },
