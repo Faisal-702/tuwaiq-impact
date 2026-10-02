@@ -27,7 +27,7 @@ npm run db:migrate              # applies supabase/migrations/*.sql
 npm run dev
 ```
 
-Open http://localhost:3000. The first visit goes to the entry page, where visitors choose **Admin Access** or **Continue as Guest**.
+Open http://localhost:3000. Every visit starts at the entry page (`/welcome`), where visitors choose **Admin Access** or **Continue as Guest**. The public homepage is at `/home`; `/` always redirects to `/welcome`.
 
 ### Environment variables
 
@@ -55,7 +55,12 @@ No variable is prefixed with `NEXT_PUBLIC_`, so none of them reach browser code.
 ### Security
 
 - **Admin access**: the submitted code is compared on the server against `ADMIN_ACCESS_CODE` with a constant-time comparison. A wrong code adds a short fixed delay; by design there is no lockout.
-- **Sessions**: on success, a random 256-bit token is created. Only its SHA-256 hash is stored, in `admin_sessions`. The browser holds the token in an `httpOnly`, `SameSite=Lax` cookie (`Secure` in production). Sessions expire after 12 hours and can be revoked from **Settings → Sign out all sessions**.
+- **Sessions**: on success, a random 256-bit token is created. Only its SHA-256 hash is stored, in `admin_sessions`. The browser holds the token in an `httpOnly`, `SameSite=Lax` **browser-session cookie** (`Secure` in production), so closing the browser ends the admin session and the code must be entered again.
+  - Server-side, a session also ends after 2 hours without activity, or 12 hours at most.
+  - **Sign out** revokes the session, clears the admin and visit cookies, and returns to `/welcome`. **Continue as Guest** also ends any admin session in that browser.
+  - Sessions can be revoked for everyone from **Settings → Sign out all sessions**.
+  - A previous login never skips the entry page: `/` and `/welcome` always show the entry page.
+  - Note: browsers set to restore the previous session on startup (e.g. Chrome's "Continue where you left off") also restore session cookies; the 2-hour idle limit still applies.
 - **Route protection**:
   - `src/proxy.ts` redirects early when the session cookie is missing.
   - The admin layout re-verifies the session against the database (`requireAdmin()`).
@@ -131,6 +136,11 @@ BASE_URL=http://localhost:3000 ADMIN_CODE=… QA_IMAGE=/path/to/large.jpg npm ru
 - activity log, mobile navigation and Presentation Mode
 
 It fails on any console or hydration error. Records it creates are prefixed with `QA`.
+
+`npm run test:session` (same `BASE_URL` / `ADMIN_CODE` variables) checks the entry and session rules:
+- `/` → `/welcome`, guest entry, admin login, and direct `/admin` without a session
+- logout, and closing and reopening the browser
+- returning after a previous admin login
 
 ## Project structure
 

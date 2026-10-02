@@ -93,7 +93,7 @@ await check("Public visitors cannot open admin routes", async () => {
     assert(new URL(vp.url()).pathname === "/welcome", `${p} → ${vp.url()}`);
   }
   const forged = await visitor.request.get(BASE + "/admin", {
-    headers: { cookie: "ti_admin_session=forged-token-value-forged-token-value" },
+    headers: { cookie: "ti_admin_sid=forged-token-value-forged-token-value" },
     maxRedirects: 0,
   });
   assert([302, 303, 307, 308].includes(forged.status()), `forged cookie status ${forged.status()}`);
@@ -110,7 +110,7 @@ await check("Guest access works", async () => {
   await vp.goto(BASE + "/welcome");
   await vp.getByRole("tab", { name: "Continue as Guest" }).click();
   await vp.getByRole("button", { name: "Continue as Guest" }).click();
-  await vp.waitForURL(BASE + "/");
+  await vp.waitForURL(BASE + "/home");
   await vp.getByRole("heading", { name: /Student Ideas/ }).waitFor();
 });
 
@@ -121,7 +121,7 @@ await check("Guest still cannot access admin and sees no dashboard link", async 
 });
 
 await check("Homepage hero artwork and header logos render", async () => {
-  await vp.goto(BASE + "/");
+  await vp.goto(BASE + "/home");
   await vp.waitForLoadState("networkidle");
   const imgs = await vp.evaluate(() =>
     [...document.images].map((i) => ({ src: i.currentSrc, ok: i.complete && i.naturalWidth > 0, w: i.getBoundingClientRect().width })),
@@ -295,7 +295,7 @@ await check("About page renders", async () => {
 });
 
 await check("Header search dialog returns results", async () => {
-  await vp.goto(BASE + "/");
+  await vp.goto(BASE + "/home");
   await vp.getByRole("button", { name: "Search", exact: true }).first().click();
   await vp.getByPlaceholder("Search projects, students, categories…").fill("robot");
   await vp.getByRole("dialog").getByRole("link", { name: /Line-Following Robot/ }).waitFor();
@@ -304,7 +304,7 @@ await check("Header search dialog returns results", async () => {
 
 await check("No dead internal links on public pages", async () => {
   const seen = new Set();
-  for (const p of ["/", "/projects", "/students", "/leaderboard", "/about"]) {
+  for (const p of ["/home", "/projects", "/students", "/leaderboard", "/about"]) {
     await vp.goto(BASE + p);
     const hrefs = await vp.locator("a[href^='/']").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
     hrefs.forEach((h) => seen.add(h.split("#")[0]));
@@ -322,16 +322,16 @@ await check("No dead internal links on public pages", async () => {
 // Mobile
 // ---------------------------------------------------------------------------
 const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
-await mobile.addCookies([{ name: "ti_entry", value: "1", url: BASE }]);
+await mobile.addCookies([{ name: "ti_visit", value: "1", url: BASE }]);
 const mp = await mobile.newPage();
 watch(mp, "mobile");
 
 await check("Mobile navigation menu works and pages have no horizontal overflow", async () => {
-  await mp.goto(BASE + "/");
+  await mp.goto(BASE + "/home");
   await mp.getByRole("button", { name: "Open menu" }).click();
   await mp.locator("#mobile-nav").getByRole("link", { name: "Leaderboard" }).click();
   await mp.waitForURL(/\/leaderboard/);
-  for (const p of ["/", "/projects", "/projects/demo-smart-irrigation-prototype", "/students", "/leaderboard", "/about", "/welcome"]) {
+  for (const p of ["/home", "/projects", "/projects/demo-smart-irrigation-prototype", "/students", "/leaderboard", "/about", "/welcome"]) {
     await mp.goto(BASE + p);
     const overflow = await mp.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     assert(overflow <= 0, `${p} overflows by ${overflow}px`);
@@ -353,7 +353,7 @@ await check("Correct access code signs in and redirects to /admin", async () => 
   await ap.waitForURL(BASE + "/admin");
   await ap.getByRole("heading", { name: "Overview" }).waitFor();
   const cookies = await admin.cookies();
-  const session = cookies.find((c) => c.name === "ti_admin_session");
+  const session = cookies.find((c) => c.name === "ti_admin_sid");
   assert(session && session.httpOnly, "session cookie must be httpOnly");
 });
 
@@ -453,7 +453,7 @@ await check("Publish with Featured → appears on homepage featured section", as
   await ap.getByRole("switch", { name: "Feature on homepage" }).click();
   await ap.getByRole("button", { name: "Publish" }).click();
   await ap.getByText("Project published").waitFor();
-  await vp.goto(BASE + "/");
+  await vp.goto(BASE + "/home");
   const featured = vp.locator("section[aria-labelledby=featured-title]");
   await featured.getByText("QA Verification Project").waitFor();
   const pub = await vp.request.get(BASE + "/projects/qa-verification-project");

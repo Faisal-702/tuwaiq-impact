@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { logActivity } from "../activity";
-import { destroyAdminSession, requireAdmin, revokeAllAdminSessions } from "../auth";
+import { requireAdmin, revokeAllAdminSessions, signOutCompletely } from "../auth";
 import { sql } from "../db";
 import { storage } from "../storage";
 import type { ActionResult } from "./shared";
@@ -30,15 +30,15 @@ export async function saveSettings(input: z.input<typeof settingsSchema>): Promi
 }
 
 export async function signOut(): Promise<void> {
-  await destroyAdminSession();
-  redirect("/welcome?mode=admin");
+  await signOutCompletely();
+  redirect("/welcome");
 }
 
 export async function signOutEverywhere(): Promise<void> {
   await requireAdmin();
   await logActivity({ action: "admin.sessions_revoked", targetType: "session" });
   await revokeAllAdminSessions();
-  redirect("/welcome?mode=admin");
+  redirect("/welcome");
 }
 
 /** Removes every record flagged as development/demo data, including its media. */

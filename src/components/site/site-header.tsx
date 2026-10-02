@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { LanguageSwitcher } from "@/components/brand/language-switcher";
 import { PartnerLogos } from "@/components/brand/partner-logos";
 import { useI18n } from "@/i18n/client";
+import { HOME_PATH } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { SearchDialog } from "./search-dialog";
 
@@ -44,13 +45,13 @@ export function SiteHeader({ isAdmin }: { isAdmin: boolean }) {
   }, []);
 
   const links = [
-    { href: "/", label: t.nav.home },
+    { href: HOME_PATH, label: t.nav.home },
     { href: "/projects", label: t.nav.projects },
     { href: "/students", label: t.nav.students },
     { href: "/leaderboard", label: t.nav.leaderboard },
     { href: "/about", label: t.nav.about },
   ];
-  const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
 
   return (
     <>
@@ -69,7 +70,7 @@ export function SiteHeader({ isAdmin }: { isAdmin: boolean }) {
         )}
       >
         <div className="container-page flex h-[var(--header-h)] items-center gap-6">
-          <Link href="/" aria-label={`${t.brand.name} — ${t.nav.home}`} className="shrink-0 rounded-lg">
+          <Link href={HOME_PATH} aria-label={`${t.brand.name} — ${t.nav.home}`} className="shrink-0 rounded-lg">
             <PartnerLogos size="sm" moeAlt={t.brand.moeAlt} tuwaiqAlt={t.brand.tuwaiqAlt} priority />
           </Link>
 

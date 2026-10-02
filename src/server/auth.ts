@@ -6,9 +6,20 @@ import { cache } from "react";
 import { sql } from "./db";
 import { env } from "./env";
 
-export const ADMIN_COOKIE = "ti_admin_session";
-export const ENTRY_COOKIE = "ti_entry";
-const SESSION_HOURS = 12;
+import { ADMIN_COOKIE, ENTRY_COOKIE } from "@/lib/routes";
+
+/** Hard upper limit for one admin session, even with continuous activity. */
+const SESSION_MAX_HOURS = 12;
+/** A session that sees no requests for this long is no longer valid. */
+const SESSION_IDLE_MINUTES = 120;
+
+/**
+ * Both cookies are browser-session cookies (no Expires / Max-Age): they are
+ * discarded when the browser is closed, so every new visit starts at /welcome
+ * and an admin must enter the access code again.
+ */
+const sessionCookie = () =>
+  ({ httpOnly: true, secure: env.isProduction, sameSite: "lax", path: "/" }) as const;
 
 const sha256 = (value: string) => createHash("sha256").update(value).digest();
 
@@ -22,7 +33,7 @@ export function isValidAccessCode(code: string): boolean {
 export async function createAdminSession(): Promise<void> {
   const token = randomBytes(32).toString("base64url");
   const tokenHash = sha256(token).toString("hex");
-  const expiresAt = new Date(Date.now() + SESSION_HOURS * 60 * 60 * 1000);
+  const expiresAt = new Date(Date.now() + SESSION_MAX_HOURS * 60 * 60 * 1000);
   const userAgent = (await headers()).get("user-agent")?.slice(0, 300) ?? null;
 
   await sql`
@@ -32,31 +43,14 @@ export async function createAdminSession(): Promise<void> {
   await sql`delete from admin_sessions where expires_at < now() - interval '7 days'`;
 
   const store = await cookies();
-  store.set(ADMIN_COOKIE, token, {
-    httpOnly: true,
-    secure: env.isProduction,
-    sameSite: "lax",
-    path: "/",
-    expires: expiresAt,
-  });
-  store.set(ENTRY_COOKIE, "1", {
-    httpOnly: true,
-    secure: env.isProduction,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 365,
-  });
+  store.set(ADMIN_COOKIE, token, sessionCookie());
+  store.set(ENTRY_COOKIE, "1", sessionCookie());
 }
 
+/** Enters the public site as a guest. Any admin session in this browser ends. */
 export async function setGuestEntry(): Promise<void> {
-  const store = await cookies();
-  store.set(ENTRY_COOKIE, "1", {
-    httpOnly: true,
-    secure: env.isProduction,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 365,
-  });
+  await destroyAdminSession();
+  (await cookies()).set(ENTRY_COOKIE, "1", sessionCookie());
 }
 
 /** Returns the active admin session (validated against the database), or null. */
@@ -70,6 +64,7 @@ export const getAdminSession = cache(async (): Promise<{ id: string } | null> =>
      where token_hash = ${tokenHash}
        and revoked_at is null
        and expires_at > now()
+       and last_seen_at > now() - make_interval(mins => ${SESSION_IDLE_MINUTES})
     returning id`;
   return rows[0] ?? null;
 });
@@ -94,7 +89,15 @@ export async function destroyAdminSession(): Promise<void> {
   store.delete(ADMIN_COOKIE);
 }
 
+/** Logout: ends the admin session and clears the visit so the next page is /welcome. */
+export async function signOutCompletely(): Promise<void> {
+  await destroyAdminSession();
+  (await cookies()).delete(ENTRY_COOKIE);
+}
+
 export async function revokeAllAdminSessions(): Promise<void> {
   await sql`update admin_sessions set revoked_at = now() where revoked_at is null`;
-  (await cookies()).delete(ADMIN_COOKIE);
+  const store = await cookies();
+  store.delete(ADMIN_COOKIE);
+  store.delete(ENTRY_COOKIE);
 }
