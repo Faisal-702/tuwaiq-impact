@@ -66,6 +66,7 @@ No variable is prefixed with `NEXT_PUBLIC_`, so none of them reach browser code.
   - The admin layout re-verifies the session against the database (`requireAdmin()`).
   - **Every server action** independently calls `requireAdmin()`, so hiding UI is never the only protection.
 - **Database**: all queries run on the server. Row Level Security is enabled on every table with **no** policies for the `anon` / `authenticated` roles, and their grants are revoked. The public Supabase API therefore cannot read or write any table.
+- **Suggestions**: visitors submit through a server action that validates the input (zod, also enforced by table `check` constraints), drops honeypot submissions and rate-limits each visitor (best-effort, per server instance). The `suggestions` table has no public policies or grants, so submissions can only be read on the admin **Suggestions** page.
 - **Uploads**: the server validates MIME type, size and video length, then issues short-lived signed upload URLs for unguessable paths (`media/<yyyy>/<mm>/<uuid>/…`). SVG and HTML uploads are not accepted.
 - **User content** is rendered as plain text (never as HTML). External links accept only `http(s)` and open with `rel="noopener noreferrer"`.
 - Redirect targets after sign-in are restricted to same-site relative paths.
@@ -83,7 +84,7 @@ No variable is prefixed with `NEXT_PUBLIC_`, so none of them reach browser code.
 
 ### Data model (`supabase/migrations`)
 
-`categories`, `students`, `projects`, `project_students` (group projects), `project_media` (images, video, documents, links), `project_views` (anonymous, deduplicated per visitor per day), `admin_sessions`, `activity_logs`, `settings`.
+`categories`, `students`, `projects`, `project_students` (group projects), `project_media` (images, video, documents, links), `project_views` (anonymous, deduplicated per visitor per day), `admin_sessions`, `activity_logs`, `settings`, `suggestions` (visitor suggestions: name, grade 10/11/12, text up to 500 characters).
 
 - Projects use **soft delete** (`deleted_at`) → **Trash** → restore, or delete permanently (which also removes the stored media).
 - Default project points are `10`, configurable in **Settings** and per project.
@@ -141,6 +142,15 @@ It fails on any console or hydration error. Records it creates are prefixed with
 - `/` → `/welcome`, guest entry, admin login, and direct `/admin` without a session
 - logout, and closing and reopening the browser
 - returning after a previous admin login
+
+`npm run test:suggestions` (same variables; reads `DATABASE_URL` from `.env.local` when present) checks the Suggestions feature:
+- the nav item and form in English and Arabic, on desktop and mobile
+- required fields, the grade dropdown and the 500-character limit
+- server-side rejection of invalid payloads, and the rate limit
+- stored rows, RLS and grants on the table
+- the admin page, its sidebar position, and that guests cannot open it
+
+It removes only the rows it created.
 
 ## Project structure
 

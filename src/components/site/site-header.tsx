@@ -1,16 +1,20 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { LayoutDashboard, Menu, Search, X } from "lucide-react";
+import { LayoutDashboard, Menu, MessageSquareText, Search, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { LanguageSwitcher } from "@/components/brand/language-switcher";
 import { PartnerLogos } from "@/components/brand/partner-logos";
+import { SuggestionsDialog, SuggestionsNavButton } from "@/components/suggestions/suggestion-dialog";
 import { useI18n } from "@/i18n/client";
 import { HOME_PATH } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { SearchDialog } from "./search-dialog";
+
+/** "Suggestions" sits between Leaderboard and About. */
+const SUGGESTIONS_AFTER = "/leaderboard";
 
 export function SiteHeader({ isAdmin }: { isAdmin: boolean }) {
   const { t } = useI18n();
@@ -18,6 +22,7 @@ export function SiteHeader({ isAdmin }: { isAdmin: boolean }) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [suggestOpen, setSuggestOpen] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -79,13 +84,20 @@ export function SiteHeader({ isAdmin }: { isAdmin: boolean }) {
               {links.map((l) => {
                 const active = isActive(l.href);
                 return (
-                  <li key={l.href}>
-                    <Link href={l.href} aria-current={active ? "page" : undefined} className="nav-link">
-                      <span aria-hidden className="nav-link__pill" />
-                      <span className="nav-link__label">{l.label}</span>
-                      <span aria-hidden className="nav-link__line" />
-                    </Link>
-                  </li>
+                  <Fragment key={l.href}>
+                    <li>
+                      <Link href={l.href} aria-current={active ? "page" : undefined} className="nav-link">
+                        <span aria-hidden className="nav-link__pill" />
+                        <span className="nav-link__label">{l.label}</span>
+                        <span aria-hidden className="nav-link__line" />
+                      </Link>
+                    </li>
+                    {l.href === SUGGESTIONS_AFTER ? (
+                      <li>
+                        <SuggestionsNavButton />
+                      </li>
+                    ) : null}
+                  </Fragment>
                 );
               })}
             </ul>
@@ -136,18 +148,36 @@ export function SiteHeader({ isAdmin }: { isAdmin: boolean }) {
               <nav aria-label={t.nav.primary} className="container-page py-4">
                 <ul className="space-y-1">
                   {links.map((l) => (
-                    <li key={l.href}>
-                      <Link
-                        href={l.href}
-                        aria-current={isActive(l.href) ? "page" : undefined}
-                        className={cn(
-                          "flex items-center justify-between rounded-xl px-4 py-3 text-base transition",
-                          isActive(l.href) ? "bg-lavender-soft font-semibold text-purple-ink" : "text-ink hover:bg-canvas",
-                        )}
-                      >
-                        {l.label}
-                      </Link>
-                    </li>
+                    <Fragment key={l.href}>
+                      <li>
+                        <Link
+                          href={l.href}
+                          aria-current={isActive(l.href) ? "page" : undefined}
+                          className={cn(
+                            "flex items-center justify-between rounded-xl px-4 py-3 text-base transition",
+                            isActive(l.href) ? "bg-lavender-soft font-semibold text-purple-ink" : "text-ink hover:bg-canvas",
+                          )}
+                        >
+                          {l.label}
+                        </Link>
+                      </li>
+                      {l.href === SUGGESTIONS_AFTER ? (
+                        <li>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMenuOpen(false);
+                              setSuggestOpen(true);
+                            }}
+                            aria-haspopup="dialog"
+                            className="flex w-full items-center justify-between rounded-xl px-4 py-3 text-start text-base text-ink transition hover:bg-canvas"
+                          >
+                            {t.nav.suggestions}
+                            <MessageSquareText className="size-4 text-muted" aria-hidden />
+                          </button>
+                        </li>
+                      ) : null}
+                    </Fragment>
                   ))}
                   {isAdmin ? (
                     <li>
@@ -171,6 +201,7 @@ export function SiteHeader({ isAdmin }: { isAdmin: boolean }) {
         </AnimatePresence>
       </header>
       <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+      <SuggestionsDialog open={suggestOpen} onOpenChange={setSuggestOpen} />
     </>
   );
 }
