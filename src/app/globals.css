@@ -334,3 +334,45 @@
   opacity: 1;
   transform: scaleX(1);
 }
+
+/* "Suggestions" nav item: while its form is open it reads as the current item. */
+.nav-link[aria-expanded="true"] {
+  color: var(--color-teal-deep);
+  font-weight: 600;
+}
+.nav-link[aria-expanded="true"] .nav-link__pill {
+  opacity: 1;
+  transform: scale(1);
+}
+.nav-link[aria-expanded="true"] .nav-link__line {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+/* Suggestion popover: subtle drop-in from its nav item. */
+@keyframes suggestion-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes suggestion-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-4px) scale(0.99); }
+}
+.suggestion-popover {
+  transform-origin: var(--radix-popover-content-transform-origin);
+}
+.suggestion-popover[data-state="open"] {
+  animation: suggestion-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.suggestion-popover[data-state="closed"] {
+  animation: suggestion-out 140ms ease-in;
+}
+
+/* Mobile suggestion dialog: centred with `translate`, so animate only opacity/offset. */
+@keyframes suggestion-dialog-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.suggestion-dialog[data-state="open"] {
+  animation: suggestion-dialog-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
