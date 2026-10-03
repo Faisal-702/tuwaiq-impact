@@ -80,22 +80,10 @@ export function SiteHeader({ isAdmin }: { isAdmin: boolean }) {
                 const active = isActive(l.href);
                 return (
                   <li key={l.href}>
-                    <Link
-                      href={l.href}
-                      aria-current={active ? "page" : undefined}
-                      className={cn(
-                        "relative block rounded-lg px-3.5 py-2 text-[0.9375rem] transition-colors duration-200",
-                        active ? "font-semibold text-ink" : "text-ink-soft hover:text-ink",
-                      )}
-                    >
-                      {l.label}
-                      {active ? (
-                        <motion.span
-                          layoutId="nav-underline"
-                          className="absolute inset-x-3.5 -bottom-0.5 h-0.5 rounded-full bg-purple"
-                          transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
-                        />
-                      ) : null}
+                    <Link href={l.href} aria-current={active ? "page" : undefined} className="nav-link">
+                      <span aria-hidden className="nav-link__pill" />
+                      <span className="nav-link__label">{l.label}</span>
+                      <span aria-hidden className="nav-link__line" />
                     </Link>
                   </li>
                 );

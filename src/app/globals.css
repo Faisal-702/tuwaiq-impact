@@ -231,3 +231,106 @@
   border-radius: 999px;
   background: #fff;
 }
+
+/* ---------------------------------------------------------------------------
+   Desktop top navigation links: soft teal pill + centre-out underline.
+   Hover effects only apply to precise pointers (mouse/trackpad), never touch.
+   --------------------------------------------------------------------------- */
+.nav-link {
+  --nav-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --nav-dur: 260ms;
+  position: relative;
+  isolation: isolate;
+  display: block;
+  border-radius: 999px;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.9375rem;
+  color: var(--color-ink-soft);
+  transition: color var(--nav-dur) var(--nav-ease);
+}
+
+/* Pill: very light teal with a faint Tuwaiq-purple tint at the far edge. */
+.nav-link__pill {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(100deg, #dff8f4 0%, #dff8f4 62%, #e7f2fa 88%, #ecebff 100%);
+  box-shadow:
+    inset 0 0 0 1px rgb(20 184 166 / 0.14),
+    0 1px 8px -3px rgb(109 74 255 / 0.12);
+  opacity: 0;
+  transform: scale(0.94);
+  transition:
+    opacity var(--nav-dur) var(--nav-ease),
+    transform var(--nav-dur) var(--nav-ease);
+}
+[dir="rtl"] .nav-link__pill {
+  background: linear-gradient(260deg, #dff8f4 0%, #dff8f4 62%, #e7f2fa 88%, #ecebff 100%);
+}
+
+.nav-link__label {
+  display: inline-block;
+  transition: transform var(--nav-dur) var(--nav-ease);
+}
+
+/* Thin underline that grows from the centre. */
+.nav-link__line {
+  position: absolute;
+  inset-inline: 1.125rem;
+  bottom: 0.3rem;
+  height: 1.5px;
+  border-radius: 999px;
+  background: #14b8a6;
+  opacity: 0;
+  transform: scaleX(0);
+  transform-origin: center;
+  transition:
+    transform var(--nav-dur) var(--nav-ease),
+    opacity var(--nav-dur) var(--nav-ease);
+}
+
+/* Current page: same system, calmer. */
+.nav-link[aria-current="page"] {
+  color: var(--color-teal-deep);
+  font-weight: 600;
+}
+.nav-link[aria-current="page"] .nav-link__pill {
+  opacity: 0.55;
+  transform: scale(1);
+}
+.nav-link[aria-current="page"] .nav-link__line {
+  opacity: 0.6;
+  transform: scaleX(1);
+}
+
+/* Hover (precise pointers only) and keyboard focus share the full state. */
+@media (hover: hover) and (pointer: fine) {
+  .nav-link:hover {
+    color: var(--color-teal-deep);
+  }
+  .nav-link:hover .nav-link__pill {
+    opacity: 1;
+    transform: scale(1);
+  }
+  .nav-link:hover .nav-link__label {
+    transform: translateY(-1.5px);
+  }
+  .nav-link:hover .nav-link__line {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+.nav-link:focus-visible {
+  color: var(--color-teal-deep);
+  border-radius: 999px;
+  outline-offset: 2px;
+}
+.nav-link:focus-visible .nav-link__pill {
+  opacity: 1;
+  transform: scale(1);
+}
+.nav-link:focus-visible .nav-link__line {
+  opacity: 1;
+  transform: scaleX(1);
+}
