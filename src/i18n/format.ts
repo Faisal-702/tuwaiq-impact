@@ -96,3 +96,11 @@ export function projectCount(n: number, locale: Locale): string {
   }
   return `${formatNumber(n, locale)} ${n === 1 ? "project" : "projects"}`;
 }
+
+export type PluralForms = { one: string; two: string; few: string; many: string };
+
+/** Picks the plural form for n (Arabic: 1, 2, 3–10, 11+; English: 1 / other) and fills {n}. */
+export function plural(n: number, forms: PluralForms, locale: Locale): string {
+  const form = n === 1 ? forms.one : n === 2 ? forms.two : locale === "ar" && n >= 3 && n <= 10 ? forms.few : forms.many;
+  return fmt(form, { n: formatNumber(n, locale) });
+}

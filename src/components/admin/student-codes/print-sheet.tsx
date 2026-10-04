@@ -13,6 +13,7 @@ export type PrintableStudent = {
   name_en: string | null;
   name_ar: string | null;
   grade: number | null;
+  section?: number | null;
   code: string | null;
 };
 
@@ -63,16 +64,18 @@ export function CodesSheet({
       ) : (
         <div className={compact ? "mt-3 space-y-4" : "mt-6 space-y-7"}>
           {groups.map((group) => (
-            <section key={group.grade ?? "other"} className="print-avoid-break-heading" data-testid="print-group">
+            <section key={`${group.grade ?? "other"}-${group.section ?? "none"}`} className="print-avoid-break-heading" data-testid="print-group">
               <h2
                 className={cn(
                   "rounded-t-lg bg-lavender-soft font-bold text-purple-ink",
                   compact ? "px-2 py-1.5 text-[0.8125rem]" : "px-3 py-2 text-base",
                 )}
               >
-                {group.grade !== null && [10, 11, 12].includes(group.grade)
-                  ? fmt(s.gradeGroup, { grade: gradeLabel(group.grade, t.grades) })
-                  : s.otherGroup}
+                {group.grade === null
+                  ? s.otherGroup
+                  : group.section !== null
+                    ? fmt(s.gradeSectionGroup, { grade: gradeLabel(group.grade, t.grades), section: group.section })
+                    : fmt(group.mixed ? s.gradeNoSectionGroup : s.gradeGroup, { grade: gradeLabel(group.grade, t.grades) })}
               </h2>
               <table className="w-full border-collapse">
                 <thead>
@@ -135,6 +138,12 @@ export function StudentCodeCard({
           <div className="flex justify-between gap-4">
             <dt className="text-muted">{s.grade}</dt>
             <dd className="font-semibold">{gradeLabel(row.grade, t.grades)}</dd>
+          </div>
+        ) : null}
+        {row.section ? (
+          <div className="flex justify-between gap-4">
+            <dt className="text-muted">{s.section}</dt>
+            <dd className="font-semibold tabular-nums">{row.section}</dd>
           </div>
         ) : null}
       </dl>

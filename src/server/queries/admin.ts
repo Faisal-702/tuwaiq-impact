@@ -191,6 +191,7 @@ export type AdminStudentRow = {
   name_en: string | null;
   name_ar: string | null;
   grade: number | null;
+  section: number | null;
   is_demo: boolean;
   projects: number;
   published: number;
@@ -200,7 +201,7 @@ export type AdminStudentRow = {
 export async function listStudentsAdmin(q?: string): Promise<AdminStudentRow[]> {
   const term = q?.trim().toLowerCase().replace(/[\\%_]/g, (c) => `\\${c}`);
   return sql<AdminStudentRow[]>`
-    select s.id, s.slug, s.name_en, s.name_ar, s.grade, s.is_demo,
+    select s.id, s.slug, s.name_en, s.name_ar, s.grade, s.section, s.is_demo,
            count(p.id)::int as projects,
            count(p.id) filter (where p.status = 'published')::int as published,
            coalesce(sum(p.points) filter (where p.status = 'published'), 0)::int as points
@@ -227,7 +228,7 @@ export async function getStudentAdmin(id: string) {
 
 async function listStudentsAdminById(id: string) {
   return sql<AdminStudentRow[]>`
-    select s.id, s.slug, s.name_en, s.name_ar, s.grade, s.is_demo,
+    select s.id, s.slug, s.name_en, s.name_ar, s.grade, s.section, s.is_demo,
            count(p.id)::int as projects,
            count(p.id) filter (where p.status = 'published')::int as published,
            coalesce(sum(p.points) filter (where p.status = 'published'), 0)::int as points

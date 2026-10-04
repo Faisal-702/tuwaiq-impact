@@ -384,7 +384,7 @@ await check("Admin can create a category", async () => {
 
 await check("Admin can create a student", async () => {
   await ap.goto(BASE + "/admin/students");
-  await ap.getByRole("button", { name: "Add Student" }).click();
+  await ap.getByRole("button", { name: "Add Student", exact: true }).click();
   await ap.getByLabel("Name (English)").fill("QA Student One");
   await ap.getByLabel("Name (Arabic)").fill("طالب الاختبار الأول");
   await ap.getByLabel("Grade").selectOption("11");

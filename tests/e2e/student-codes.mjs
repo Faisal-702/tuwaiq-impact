@@ -246,7 +246,7 @@ await check("Student Codes page loads every existing student record", async () =
   await students.close();
   assert(listed === total, `students page ${listed} vs codes page ${total}`);
   const heads = (await A.locator('[data-testid="codes-table"] thead th').allInnerTexts()).map((t) => t.trim());
-  assert(JSON.stringify(heads) === JSON.stringify(["#", "Student name", "Grade", "Student code", "Status", "Actions"]), JSON.stringify(heads));
+  assert(JSON.stringify(heads) === JSON.stringify(["#", "Student name", "Grade", "Section", "Student code", "Status", "Actions"]), JSON.stringify(heads));
 });
 
 await check("Generate code for one student: 8 random digits, shown as Active", async () => {
@@ -322,7 +322,7 @@ await check("Search, grade filter and status filter", async () => {
   const none = await A.getByTestId("code-row").evaluateAll((rs) => rs.map((r) => r.dataset.student));
   assert(none.includes("Demo Student E") && none.every((n) => n !== "Demo Student A"), JSON.stringify(none));
   await A.selectOption("#code-status", "has");
-  const statuses = await A.locator('[data-testid="code-row"] td:nth-child(5)').allInnerTexts();
+  const statuses = await A.locator('[data-testid="code-row"] td:nth-child(6)').allInnerTexts();
   assert(statuses.length > 0 && statuses.every((t) => t.trim() === "Active"), JSON.stringify(statuses));
   await showAll();
   await rowOf("Demo Student E").getByRole("button", { name: "Generate Code" }).click();

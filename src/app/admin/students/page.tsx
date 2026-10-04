@@ -2,6 +2,7 @@ import { Search, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AdminPageHeader } from "@/components/admin/page-header";
+import { StudentBulkDialog } from "@/components/admin/student-bulk-dialog";
 import { DeleteStudentButton, StudentDialog } from "@/components/admin/student-dialog";
 import { Badge } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -22,7 +23,13 @@ export default async function AdminStudentsPage(props: PageProps<"/admin/student
 
   return (
     <>
-      <AdminPageHeader title={t.admin.students.title} description={t.admin.students.intro} actions={<StudentDialog trigger="add" />} />
+      <AdminPageHeader title={t.admin.students.title} description={t.admin.students.intro} actions={
+          <>
+            <StudentBulkDialog />
+            <StudentDialog trigger="add" />
+          </>
+        }
+      />
       <form role="search" className="relative mb-5 max-w-sm">
         <label htmlFor="admin-student-search" className="sr-only">
           {t.admin.students.search}
