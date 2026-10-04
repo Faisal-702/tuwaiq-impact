@@ -8,6 +8,7 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { getI18n } from "@/i18n/server";
 import { formatNumber, gradeLabel, localName, projectCount } from "@/i18n/format";
 import { getFilterOptions, getPublicStudents } from "@/server/queries/public";
+import { requireViewer } from "@/server/auth";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n();
@@ -15,6 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function StudentsPage(props: PageProps<"/students">) {
+  await requireViewer();
   const sp = await props.searchParams;
   const { t, locale } = await getI18n();
   const q = typeof sp.q === "string" ? sp.q.slice(0, 80) : undefined;

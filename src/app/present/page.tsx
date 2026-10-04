@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { PresentationDeck } from "@/components/present/presentation-deck";
 import { getI18n } from "@/i18n/server";
 import { getFeaturedProjects, getHomeStats, getLeaderboard, searchProjects } from "@/server/queries/public";
+import { requireViewer } from "@/server/auth";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n();
@@ -9,6 +10,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function PresentPage() {
+  await requireViewer();
   const [stats, featured, latest, leaders] = await Promise.all([
     getHomeStats(),
     getFeaturedProjects(4),

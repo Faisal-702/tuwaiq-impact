@@ -11,7 +11,8 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function WelcomePage(props: PageProps<"/welcome">) {
   const params = await props.searchParams;
   const next = safeNextPath(typeof params.next === "string" ? params.next : null);
-  const mode = params.mode === "guest" ? "guest" : "admin";
+  // Students are the default audience; /admin redirects arrive with ?mode=admin.
+  const mode = params.mode === "admin" ? "admin" : "student";
 
   // The entry page is always shown: a previous admin login never skips it.
 

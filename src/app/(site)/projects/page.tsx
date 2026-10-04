@@ -10,6 +10,7 @@ import { getI18n } from "@/i18n/server";
 import { fmt, formatNumber } from "@/i18n/format";
 import type { ContentTypeFilter, ProjectSort } from "@/lib/types";
 import { getFilterOptions, getPublicCategories, searchProjects } from "@/server/queries/public";
+import { requireViewer } from "@/server/auth";
 
 const PAGE_SIZE = 12;
 const SORTS = new Set(["newest", "views", "points", "active"]);
@@ -23,6 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
 const str = (v: string | string[] | undefined) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
 
 export default async function ProjectsPage(props: PageProps<"/projects">) {
+  await requireViewer();
   const sp = await props.searchParams;
   const { t, locale } = await getI18n();
 

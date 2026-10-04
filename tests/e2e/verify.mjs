@@ -9,6 +9,7 @@
  */
 import { chromium } from "playwright";
 import path from "node:path";
+import { ensureStudentCode, studentLogin, studentSessionCookies } from "./lib/student.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const CODE = process.env.ADMIN_CODE;
@@ -62,6 +63,7 @@ await check("Entry page renders both official logos", async () => {
 });
 
 await check("Empty access code shows a prompt", async () => {
+  await vp.getByRole("tab", { name: "Admin Access" }).click();
   await vp.getByRole("button", { name: "Access Dashboard" }).click();
   await vp.getByText("Please enter the access code.").waitFor({ timeout: 5000 });
 });
@@ -106,16 +108,14 @@ await check("Unsigned uploads are rejected", async () => {
   assert(res.status() === 403, `status ${res.status()}`);
 });
 
-await check("Guest access works", async () => {
-  await vp.goto(BASE + "/welcome");
-  await vp.getByRole("tab", { name: "Continue as Guest" }).click();
-  await vp.getByRole("button", { name: "Continue as Guest" }).click();
-  await vp.waitForURL(BASE + "/home");
+await check("Student access works (Student Login with a code)", async () => {
+  const code = await ensureStudentCode(browser, { base: BASE, adminCode: CODE });
+  await studentLogin(vp, BASE, code);
   await vp.getByRole("heading", { name: /Student Ideas/ }).waitFor();
 });
 
-await check("Guest still cannot access admin and sees no dashboard link", async () => {
-  assert((await vp.getByRole("link", { name: "Dashboard" }).count()) === 0, "dashboard link visible to guest");
+await check("Student still cannot access admin and sees no dashboard link", async () => {
+  assert((await vp.getByRole("link", { name: "Dashboard" }).count()) === 0, "dashboard link visible to student");
   await vp.goto(BASE + "/admin");
   assert(new URL(vp.url()).pathname === "/welcome", vp.url());
 });
@@ -322,7 +322,7 @@ await check("No dead internal links on public pages", async () => {
 // Mobile
 // ---------------------------------------------------------------------------
 const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
-await mobile.addCookies([{ name: "ti_visit", value: "1", url: BASE }]);
+await mobile.addCookies((await studentSessionCookies(browser, { base: BASE, adminCode: CODE })).cookies);
 const mp = await mobile.newPage();
 watch(mp, "mobile");
 
@@ -348,6 +348,7 @@ ap.on("dialog", (d) => d.accept());
 
 await check("Correct access code signs in and redirects to /admin", async () => {
   await ap.goto(BASE + "/welcome");
+  await ap.getByRole("tab", { name: "Admin Access" }).click();
   await ap.getByLabel("Access Code").fill(CODE);
   await ap.getByRole("button", { name: "Access Dashboard" }).click();
   await ap.waitForURL(BASE + "/admin");

@@ -5,6 +5,7 @@
  *   BASE_URL=http://localhost:3000 ADMIN_CODE=… node tests/e2e/grades-ar.mjs
  */
 import { chromium } from "playwright";
+import { ensureStudentCode, studentLogin } from "./lib/student.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const CODE = process.env.ADMIN_CODE;
@@ -39,10 +40,10 @@ async function session(lang) {
   await page.goto(BASE + "/welcome");
   return { context, page };
 }
-async function enterAsGuest(page, guestTab, guestButton) {
-  await page.getByRole("tab", { name: guestTab }).click();
-  await page.getByRole("button", { name: guestButton }).click();
-  await page.waitForURL(BASE + "/home");
+const studentCode = await ensureStudentCode(browser, { base: BASE, adminCode: CODE });
+/** Enters the platform with a student code (Student Login on /welcome). */
+async function enterAsStudent(page) {
+  await studentLogin(page, BASE, studentCode);
 }
 /** All visible text plus <option> labels (which innerText omits). */
 async function pageText(page) {
@@ -61,10 +62,10 @@ async function expectArabicGrades(page, path, { min = 1 } = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Arabic — public / guest pages
+// Arabic — student-facing pages
 // ---------------------------------------------------------------------------
 const ar = await session("ar");
-await enterAsGuest(ar.page, "المتابعة كزائر", "المتابعة كزائر");
+await enterAsStudent(ar.page);
 
 for (const [name, path, min] of [
   ["Homepage (project cards, leaderboard preview)", "/home", 2],
@@ -123,6 +124,7 @@ await ar.context.close();
 // ---------------------------------------------------------------------------
 const adm = await session("ar");
 await check("AR · Admin login", async () => {
+  await adm.page.getByRole("tab", { name: "دخول المسؤول" }).click();
   await adm.page.getByLabel("رمز الدخول").fill(CODE);
   await adm.page.getByRole("button", { name: "الدخول إلى لوحة التحكم" }).click();
   await adm.page.waitForURL(BASE + "/admin");
@@ -173,7 +175,7 @@ await adm.context.close();
 // English is unchanged
 // ---------------------------------------------------------------------------
 const en = await session("en");
-await enterAsGuest(en.page, "Continue as Guest", "Continue as Guest");
+await enterAsStudent(en.page);
 for (const path of ["/projects", "/students", "/leaderboard", "/projects/demo-smart-irrigation-prototype"]) {
   await check(`EN · ${path} still shows "Grade 1x"`, async () => {
     await en.page.goto(BASE + path);

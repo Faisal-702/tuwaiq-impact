@@ -1,6 +1,6 @@
 /**
- * Suggestions: public nav item + form (desktop popover, mobile dialog),
- * validation, persistence, admin-only reading.
+ * Suggestions: nav item + form (desktop popover, mobile dialog),
+ * validation, persistence, admin-only reading. Runs as a signed-in student.
  *
  *   BASE_URL=http://localhost:3000 ADMIN_CODE=… node --env-file-if-exists=.env.local tests/e2e/suggestions.mjs
  *
@@ -9,6 +9,7 @@
  * (only rows carrying this run's unique marker).
  */
 import { chromium } from "playwright";
+import { studentSessionCookies } from "./lib/student.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const CODE = process.env.ADMIN_CODE;
@@ -52,10 +53,13 @@ const replayHeaders = (sender) => {
   return h;
 };
 
+// The platform requires a student session: sign a demo student in once.
+const { cookies: studentCookies } = await studentSessionCookies(browser, { base: BASE, adminCode: CODE });
+
 async function open(lang, { viewport = { width: 1440, height: 900 }, guest = true, n = 0, ...extra } = {}) {
   const context = await browser.newContext({ viewport, extraHTTPHeaders: { "x-forwarded-for": ip(n) }, ...extra });
   const cookies = [{ name: "ti_lang", value: lang, url: BASE }];
-  if (guest) cookies.push({ name: "ti_visit", value: "1", url: BASE });
+  if (guest) cookies.push(...studentCookies);
   await context.addCookies(cookies);
   const page = await context.newPage();
   page.on("pageerror", (e) => errors.push(e.message));
@@ -304,7 +308,7 @@ if (sql) {
 // ---------------------------------------------------------------------------
 // Admin-only reading
 // ---------------------------------------------------------------------------
-await check("Guest cannot open /admin/suggestions (redirected to /welcome)", async () => {
+await check("Student cannot open /admin/suggestions (redirected to /welcome)", async () => {
   const { context, page } = await open("en", { n: 5 });
   await page.goto(BASE + "/admin/suggestions");
   assert(new URL(page.url()).pathname === "/welcome", page.url());
@@ -340,7 +344,7 @@ for (const lang of ["en", "ar"]) {
         };
   const { context, page } = await open(lang, { guest: false, n: 6 });
   await check(`${L} · Admin sidebar: "${A.nav}" directly below "${A.categories}"`, async () => {
-    await page.goto(BASE + "/welcome");
+    await page.goto(BASE + "/welcome?mode=admin");
     await page.getByLabel(A.code).fill(CODE);
     await page.getByRole("button", { name: A.enter }).click();
     await page.waitForURL(BASE + "/admin");

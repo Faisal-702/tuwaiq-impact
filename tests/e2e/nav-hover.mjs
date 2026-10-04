@@ -1,10 +1,11 @@
 /**
  * Top navigation hover interaction (desktop only).
  *
- *   BASE_URL=http://localhost:3000 node tests/e2e/nav-hover.mjs
+ *   BASE_URL=http://localhost:3000 ADMIN_CODE=… node tests/e2e/nav-hover.mjs
  *   MEASURE_ONLY=1 … prints nav item boxes (for before/after layout comparison)
  */
 import { chromium } from "playwright";
+import { studentSessionCookies } from "./lib/student.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const results = [];
@@ -25,13 +26,13 @@ const assert = (c, m) => {
 
 const TEAL_DEEP = "rgb(15, 118, 110)";
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH });
+if (!process.env.ADMIN_CODE) throw new Error("ADMIN_CODE is required (to issue a student code)");
+// The platform requires a student session: sign a demo student in once.
+const { cookies: studentCookies } = await studentSessionCookies(browser, { base: BASE, adminCode: process.env.ADMIN_CODE });
 
 async function open(lang, viewport = { width: 1440, height: 900 }, extra = {}) {
   const context = await browser.newContext({ viewport, ...extra });
-  await context.addCookies([
-    { name: "ti_lang", value: lang, url: BASE },
-    { name: "ti_visit", value: "1", url: BASE },
-  ]);
+  await context.addCookies([{ name: "ti_lang", value: lang, url: BASE }, ...studentCookies]);
   const page = await context.newPage();
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
