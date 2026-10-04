@@ -90,7 +90,7 @@ export function SiteHeader({
             <SchoolBrand school={t.brand.school} moeAlt={t.brand.moeAlt} priority />
           </Link>
 
-          <nav aria-label={t.nav.primary} className="hidden flex-1 justify-center xl:flex">
+          <nav aria-label={t.nav.primary} className="hidden flex-1 justify-center lg:flex">
             <ul className="flex items-center gap-1">
               {links.map((l) => {
                 const active = isActive(l.href);
@@ -114,7 +114,7 @@ export function SiteHeader({
             </ul>
           </nav>
 
-          <div className="ms-auto flex items-center gap-2 xl:ms-0">
+          <div className="ms-auto flex items-center gap-2 lg:ms-0">
             <button
               type="button"
               onClick={() => setSearchOpen(true)}
@@ -178,7 +178,7 @@ export function SiteHeader({
               aria-expanded={menuOpen}
               aria-controls="mobile-nav"
               aria-label={menuOpen ? t.common.closeMenu : t.common.openMenu}
-              className="grid size-10 place-items-center rounded-xl text-ink transition hover:bg-canvas xl:hidden"
+              className="grid size-10 place-items-center rounded-xl text-ink transition hover:bg-canvas lg:hidden"
             >
               {menuOpen ? <X className="size-5" aria-hidden /> : <Menu className="size-5" aria-hidden />}
             </button>
@@ -193,7 +193,7 @@ export function SiteHeader({
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-              className="overflow-hidden border-t border-line-soft xl:hidden"
+              className="overflow-hidden border-t border-line-soft lg:hidden"
             >
               <nav aria-label={t.nav.primary} className="container-page py-4">
                 <ul className="space-y-1">
