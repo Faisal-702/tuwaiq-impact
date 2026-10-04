@@ -28,6 +28,7 @@ import { Input, Select } from "@/components/ui/field";
 import { useI18n } from "@/i18n/client";
 import type { Locale } from "@/i18n/config";
 import { fmt, formatNumber, gradeLabel, localName } from "@/i18n/format";
+import { STUDENT_SECTIONS } from "@/lib/students";
 import { cn } from "@/lib/utils";
 import {
   generateMissingStudentCodes,
@@ -60,6 +61,7 @@ export function StudentCodesManager({ rows, today }: { rows: StudentCodeRow[]; t
 
   const [query, setQuery] = useState("");
   const [grade, setGrade] = useState("");
+  const [section, setSection] = useState("");
   const [status, setStatus] = useState<"" | "has" | "none">("");
   const [pageSize, setPageSize] = useState<number>(10);
   const [page, setPage] = useState(1);
@@ -76,9 +78,10 @@ export function StudentCodesManager({ rows, today }: { rows: StudentCodeRow[]; t
       (r) =>
         (!q || `${r.name_ar ?? ""} ${r.name_en ?? ""}`.toLocaleLowerCase().includes(q)) &&
         (!grade || String(r.grade) === grade) &&
+        (!section || String(r.section) === section) &&
         (!status || (status === "has" ? Boolean(r.code) : !r.code)),
     );
-  }, [rows, query, grade, status]);
+  }, [rows, query, grade, section, status]);
 
   const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const current = Math.min(page, pages);
@@ -259,7 +262,28 @@ export function StudentCodesManager({ rows, today }: { rows: StudentCodeRow[]; t
                   ))}
                 </Select>
               </div>
-              <div className="sm:w-40">
+              <div className="sm:w-36">
+                <label htmlFor="code-section" className="sr-only">
+                  {s.sectionFilter}
+                </label>
+                <Select
+                  id="code-section"
+                  value={section}
+                  className="h-10 text-sm"
+                  onChange={(e) => {
+                    setSection(e.target.value);
+                    resetPage();
+                  }}
+                >
+                  <option value="">{s.allSections}</option>
+                  {STUDENT_SECTIONS.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div className="col-span-2 sm:col-span-1 sm:w-40">
                 <label htmlFor="code-status" className="sr-only">
                   {s.statusFilter}
                 </label>
@@ -288,12 +312,13 @@ export function StudentCodesManager({ rows, today }: { rows: StudentCodeRow[]; t
             <p className="px-5 py-14 text-center text-sm text-muted">{s.noMatches}</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[44rem] text-sm" data-testid="codes-table">
+              <table className="w-full min-w-[48rem] text-sm" data-testid="codes-table">
                 <thead className="border-b border-line-soft bg-canvas/70 text-[0.8125rem] text-ink-soft">
                   <tr>
                     <th scope="col" className="w-12 px-4 py-3 text-start font-semibold">{s.number}</th>
                     <th scope="col" className="px-3 py-3 text-start font-semibold">{s.name}</th>
                     <th scope="col" className="px-3 py-3 text-start font-semibold">{s.grade}</th>
+                    <th scope="col" className="px-3 py-3 text-start font-semibold">{s.section}</th>
                     <th scope="col" className="px-3 py-3 text-start font-semibold">{s.code}</th>
                     <th scope="col" className="px-3 py-3 text-start font-semibold">{s.status}</th>
                     <th scope="col" className="px-4 py-3 text-center font-semibold">{s.actions}</th>
@@ -367,7 +392,7 @@ export function StudentCodesManager({ rows, today }: { rows: StudentCodeRow[]; t
         <aside className="rounded-[1.25rem] bg-white p-5 shadow-soft ring-1 ring-line-soft" aria-label={s.printPreview}>
           <h2 className="font-semibold text-ink">{s.printPreview}</h2>
           <div className="mt-4 max-h-[36rem] overflow-y-auto rounded-xl p-4 ring-1 ring-line-soft">
-            <CodesSheet rows={rows} t={t} locale={locale} date={today} compact />
+            <CodesSheet rows={filtered} t={t} locale={locale} date={today} compact />
           </div>
         </aside>
       </div>
@@ -379,7 +404,7 @@ export function StudentCodesManager({ rows, today }: { rows: StudentCodeRow[]; t
               {printTarget?.code ? (
                 <StudentCodeCard row={{ ...printTarget, code: printTarget.code }} t={t} locale={locale} date={today} />
               ) : (
-                <CodesSheet rows={rows} t={t} locale={locale} date={today} />
+                <CodesSheet rows={filtered} t={t} locale={locale} date={today} />
               )}
             </div>,
             document.body,
@@ -452,6 +477,13 @@ function CodeRow({
         <span dir="auto">{name}</span>
       </td>
       <td className="px-3 py-3.5">{row.grade ? <SuggestionGradeBadge grade={row.grade} /> : <span className="text-muted">—</span>}</td>
+      <td className="px-3 py-3.5" data-testid="student-section">
+        {row.section ? (
+          <span className="font-medium tabular-nums text-ink">{formatNumber(row.section, locale)}</span>
+        ) : (
+          <span className="text-muted">{s.noSection}</span>
+        )}
+      </td>
       <td className="px-3 py-3.5">
         {row.code ? (
           <span dir="ltr" data-testid="student-code" className="font-semibold tabular-nums tracking-wider text-ink">

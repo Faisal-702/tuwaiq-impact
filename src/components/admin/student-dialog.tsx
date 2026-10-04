@@ -10,9 +10,10 @@ import { Modal } from "@/components/ui/dialog";
 import { Field, Input, Select } from "@/components/ui/field";
 import { useI18n } from "@/i18n/client";
 import { fmt, gradeLabel } from "@/i18n/format";
+import { STUDENT_SECTIONS } from "@/lib/students";
 import { deleteStudent, saveStudent } from "@/server/actions/students";
 
-type Student = { id: string; name_en: string | null; name_ar: string | null; grade: number | null };
+type Student = { id: string; name_en: string | null; name_ar: string | null; grade: number | null; section?: number | null };
 
 export function StudentDialog({ student, trigger }: { student?: Student; trigger: "add" | "edit" }) {
   const { t } = useI18n();
@@ -21,6 +22,7 @@ export function StudentDialog({ student, trigger }: { student?: Student; trigger
   const [nameEn, setNameEn] = useState(student?.name_en ?? "");
   const [nameAr, setNameAr] = useState(student?.name_ar ?? "");
   const [grade, setGrade] = useState<number | null>(student?.grade ?? null);
+  const [section, setSection] = useState<number | null>(student?.section ?? null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -28,6 +30,7 @@ export function StudentDialog({ student, trigger }: { student?: Student; trigger
     setNameEn(student?.name_en ?? "");
     setNameAr(student?.name_ar ?? "");
     setGrade(student?.grade ?? null);
+    setSection(student?.section ?? null);
     setError(null);
   };
 
@@ -37,7 +40,7 @@ export function StudentDialog({ student, trigger }: { student?: Student; trigger
       return;
     }
     setBusy(true);
-    const res = await saveStudent({ id: student?.id, nameEn, nameAr, grade });
+    const res = await saveStudent({ id: student?.id, nameEn, nameAr, grade, section });
     setBusy(false);
     if (!res.ok) {
       toast.error(t.common.somethingWrong);
@@ -110,6 +113,16 @@ export function StudentDialog({ student, trigger }: { student?: Student; trigger
               {[10, 11, 12].map((g) => (
                 <option key={g} value={g}>
                   {gradeLabel(g, t.grades)}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label={t.admin.students.section} htmlFor="student-section-input">
+            <Select id="student-section-input" value={section ?? ""} onChange={(e) => setSection(e.target.value ? Number(e.target.value) : null)}>
+              <option value="">{t.admin.students.noSection}</option>
+              {STUDENT_SECTIONS.map((n) => (
+                <option key={n} value={n}>
+                  {n}
                 </option>
               ))}
             </Select>

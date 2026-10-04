@@ -98,6 +98,7 @@ No variable is prefixed with `NEXT_PUBLIC_`, so none of them reach browser code.
 ### Data model (`supabase/migrations`)
 
 `categories`, `students`, `projects`, `project_students` (group projects), `project_media` (images, video, documents, links), `project_views` (anonymous, deduplicated per visitor per day), `admin_sessions`, `activity_logs`, `settings`, `suggestions` (student suggestions: name, grade 10/11/12, text up to 500 characters), `student_access_codes` (one 8-digit code per student), `student_sessions`, `student_login_attempts`.
+- Students have an optional `section` (الشعبة: 1, 2 or 3; empty = not set). **Students → Add students in bulk** creates many students at once (one name per line, same grade and section for all) in a single transaction: blank lines are ignored, repeated lines count once, and names already in that grade and section are skipped.
 
 - Projects use **soft delete** (`deleted_at`) → **Trash** → restore, or delete permanently (which also removes the stored media).
 - Default project points are `10`, configurable in **Settings** and per project.
@@ -174,6 +175,14 @@ It removes only the rows it created.
 - generate, regenerate (old code stops working, new code works), remove and bulk generation (existing codes are never overwritten)
 - unique 8-digit codes, search and filters
 - the print sheet grouped first → second → third secondary year
+
+`npm run test:student-sections` (same variables; reads `DATABASE_URL` from `.env.local` when present) checks:
+- the section field on add/edit
+- bulk add: blank lines, duplicates, re-submitting the same list, and 120 names at once
+- the Section column and filter on Student Codes, combined with the other filters
+- print grouping by grade and section, which follows the active filters
+
+It removes only the students it created.
 
 The other end-to-end suites sign in as a demo student through the same flow (`tests/e2e/lib/student.mjs`), so they also need `ADMIN_CODE`.
 
