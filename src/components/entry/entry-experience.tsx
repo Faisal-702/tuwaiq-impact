@@ -86,7 +86,7 @@ export function EntryExperience({
                 className="text-[1.0625rem] font-semibold text-ink"
                 style={{ fontFamily: "var(--font-arabic)" }}
               >
-                ثانوية الموهوبين التقنية بجدة
+                ثانوية الموهوبين التقنية 
               </p>
             </div>
             <p className="mx-auto mt-4 max-w-[26rem] text-[0.9375rem] leading-relaxed text-muted [@media(max-height:820px)]:mt-2.5">
