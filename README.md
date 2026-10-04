@@ -27,7 +27,9 @@ npm run db:migrate              # applies supabase/migrations/*.sql
 npm run dev
 ```
 
-Open http://localhost:3000. Every visit starts at the entry page (`/welcome`), where visitors choose **Admin Access** or **Continue as Guest**. The public homepage is at `/home`; `/` always redirects to `/welcome`.
+Open http://localhost:3000. Every visit starts at the entry page (`/welcome`), which has two modes: **Student Login** (the default; students enter their personal 8-digit code) and **Admin Access**. There is no guest access. The platform homepage is at `/home`; `/` always redirects to `/welcome`.
+
+To let students in, sign in as admin and open **Admin → Student Codes**. Generate a code for each student, or click **Generate Codes for All**, then print the sheet with **Print Codes**.
 
 ### Environment variables
 
@@ -57,7 +59,7 @@ No variable is prefixed with `NEXT_PUBLIC_`, so none of them reach browser code.
 - **Admin access**: the submitted code is compared on the server against `ADMIN_ACCESS_CODE` with a constant-time comparison. A wrong code adds a short fixed delay; by design there is no lockout.
 - **Sessions**: on success, a random 256-bit token is created. Only its SHA-256 hash is stored, in `admin_sessions`. The browser holds the token in an `httpOnly`, `SameSite=Lax` **browser-session cookie** (`Secure` in production), so closing the browser ends the admin session and the code must be entered again.
   - Server-side, a session also ends after 2 hours without activity, or 12 hours at most.
-  - **Sign out** revokes the session, clears the admin and visit cookies, and returns to `/welcome`. **Continue as Guest** also ends any admin session in that browser.
+  - **Sign out** revokes the session, clears the session cookies, and returns to `/welcome`. One role per browser: a student login ends any admin session there, and vice versa.
   - Sessions can be revoked for everyone from **Settings → Sign out all sessions**.
   - A previous login never skips the entry page: `/` and `/welcome` always show the entry page.
   - Note: browsers set to restore the previous session on startup (e.g. Chrome's "Continue where you left off") also restore session cookies; the 2-hour idle limit still applies.
@@ -66,7 +68,18 @@ No variable is prefixed with `NEXT_PUBLIC_`, so none of them reach browser code.
   - The admin layout re-verifies the session against the database (`requireAdmin()`).
   - **Every server action** independently calls `requireAdmin()`, so hiding UI is never the only protection.
 - **Database**: all queries run on the server. Row Level Security is enabled on every table with **no** policies for the `anon` / `authenticated` roles, and their grants are revoked. The public Supabase API therefore cannot read or write any table.
-- **Suggestions**: visitors submit through a server action that validates the input (zod, also enforced by table `check` constraints), drops honeypot submissions and rate-limits each visitor (best-effort, per server instance). The `suggestions` table has no public policies or grants, so submissions can only be read on the admin **Suggestions** page.
+- **Student access codes**:
+  - Each student can have one active code: 8 random digits from a cryptographically secure generator, unique across students and enforced by a unique constraint (collisions are retried).
+  - Codes live in their own table (`student_access_codes`), never in `students`. They are only read by admin-only server code (Admin → Student Codes). They never appear in student-facing pages, client bundles, URLs, cookies or the activity log.
+  - Student login is validated on the server only, with generic errors ("Incorrect student code."). Failed attempts are recorded per client (salted hash of the address). After 10 failures within 15 minutes, that client's logins are paused, even with a valid code.
+  - A successful login creates a student session, stored like admin sessions: a token hash in `student_sessions`, held in an httpOnly browser-session cookie `ti_student_sid`. Limits are 2 hours idle and 12 hours at most.
+  - Regenerating or removing a code immediately invalidates the old code and ends that student's sessions.
+  - Students never get admin rights. Admin pages and actions keep requiring the admin session.
+- **Student-facing routes** (`/home`, `/projects`, `/students`, `/leaderboard`, `/about`, `/present`, detail pages):
+  - the proxy redirects to `/welcome` when no session cookie is present
+  - every page also verifies the student or admin session against the database (`requireViewer()`)
+  - so do the search and view-counter APIs and the suggestion action
+- **Suggestions**: signed-in students submit through a server action that validates the input (zod, also enforced by table `check` constraints), drops honeypot submissions and rate-limits each visitor (best-effort, per server instance). The `suggestions` table has no public policies or grants, so submissions can only be read on the admin **Suggestions** page.
 - **Uploads**: the server validates MIME type, size and video length, then issues short-lived signed upload URLs for unguessable paths (`media/<yyyy>/<mm>/<uuid>/…`). SVG and HTML uploads are not accepted.
 - **User content** is rendered as plain text (never as HTML). External links accept only `http(s)` and open with `rel="noopener noreferrer"`.
 - Redirect targets after sign-in are restricted to same-site relative paths.
@@ -84,7 +97,7 @@ No variable is prefixed with `NEXT_PUBLIC_`, so none of them reach browser code.
 
 ### Data model (`supabase/migrations`)
 
-`categories`, `students`, `projects`, `project_students` (group projects), `project_media` (images, video, documents, links), `project_views` (anonymous, deduplicated per visitor per day), `admin_sessions`, `activity_logs`, `settings`, `suggestions` (visitor suggestions: name, grade 10/11/12, text up to 500 characters).
+`categories`, `students`, `projects`, `project_students` (group projects), `project_media` (images, video, documents, links), `project_views` (anonymous, deduplicated per visitor per day), `admin_sessions`, `activity_logs`, `settings`, `suggestions` (student suggestions: name, grade 10/11/12, text up to 500 characters), `student_access_codes` (one 8-digit code per student), `student_sessions`, `student_login_attempts`.
 
 - Projects use **soft delete** (`deleted_at`) → **Trash** → restore, or delete permanently (which also removes the stored media).
 - Default project points are `10`, configurable in **Settings** and per project.
@@ -127,7 +140,7 @@ BASE_URL=http://localhost:3000 ADMIN_CODE=… QA_IMAGE=/path/to/large.jpg npm ru
 
 `tests/e2e/verify.mjs` walks through the full functional checklist in a real browser. It covers:
 
-- entry, guest and admin flows, and admin-route protection
+- entry, student and admin flows, and admin-route protection
 - English/Arabic and RTL
 - search, filters and sorting
 - gallery, video player and PDF preview
@@ -139,7 +152,7 @@ BASE_URL=http://localhost:3000 ADMIN_CODE=… QA_IMAGE=/path/to/large.jpg npm ru
 It fails on any console or hydration error. Records it creates are prefixed with `QA`.
 
 `npm run test:session` (same `BASE_URL` / `ADMIN_CODE` variables) checks the entry and session rules:
-- `/` → `/welcome`, guest entry, admin login, and direct `/admin` without a session
+- `/` → `/welcome`, student login, admin login, and direct `/admin` without a session
 - logout, and closing and reopening the browser
 - returning after a previous admin login
 
@@ -148,9 +161,21 @@ It fails on any console or hydration error. Records it creates are prefixed with
 - required fields, the grade dropdown and the 500-character limit
 - server-side rejection of invalid payloads, and the rate limit
 - stored rows, RLS and grants on the table
-- the admin page, its sidebar position, and that guests cannot open it
+- the admin page, its sidebar position, and that students cannot open it
 
 It removes only the rows it created.
+
+`npm run test:student-codes` (same `BASE_URL` / `ADMIN_CODE` variables; uses the demo students and changes their codes) checks:
+- the Student Login page (English and Arabic)
+- valid and invalid codes, throttling of repeated failures, and Arabic-Indic digits
+- redirects of every student-facing route without a session, including old guest and forged cookies
+- the student session cookie, sign-out and token revocation
+- that students cannot open admin pages or run admin actions
+- generate, regenerate (old code stops working, new code works), remove and bulk generation (existing codes are never overwritten)
+- unique 8-digit codes, search and filters
+- the print sheet grouped first → second → third secondary year
+
+The other end-to-end suites sign in as a demo student through the same flow (`tests/e2e/lib/student.mjs`), so they also need `ADMIN_CODE`.
 
 ## Project structure
 

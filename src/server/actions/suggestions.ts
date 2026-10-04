@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { SUGGESTION_GRADES, SUGGESTION_MAX_LENGTH, SUGGESTION_NAME_MAX_LENGTH } from "@/lib/suggestions";
+import { getViewer } from "../auth";
 import { sql } from "../db";
 import { env } from "../env";
 
@@ -34,8 +35,8 @@ async function visitorKey(): Promise<string> {
 }
 
 /**
- * Public: stores a visitor's suggestion. No authentication is required to
- * submit; nothing is ever returned from the table to the visitor.
+ * Stores a suggestion from a signed-in student (or admin). Nothing is ever
+ * returned from the table to the submitter.
  */
 export async function submitSuggestion(input: {
   name: string;
@@ -44,6 +45,9 @@ export async function submitSuggestion(input: {
   /** Honeypot: hidden from people, often filled by bots. */
   website?: string;
 }): Promise<SubmitSuggestionResult> {
+  // Only signed-in students (or admins) can reach the platform and its form.
+  if (!(await getViewer())) return { ok: false, error: "server" };
+
   const data = (input && typeof input === "object" ? input : {}) as Partial<typeof input>;
   if (data.website) return { ok: true }; // silently drop bot submissions
 

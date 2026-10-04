@@ -17,8 +17,10 @@ import {
   getPublicCategories,
   searchProjects,
 } from "@/server/queries/public";
+import { requireViewer } from "@/server/auth";
 
 export default async function HomePage() {
+  await requireViewer();
   const { t, locale } = await getI18n();
   const [stats, featured, latest, categories, leaders] = await Promise.all([
     getHomeStats(),

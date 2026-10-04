@@ -1,7 +1,8 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { LayoutDashboard, Menu, MessageSquareText, Search, X } from "lucide-react";
+import { LayoutDashboard, LogOut, Menu, MessageSquareText, Search, UserRound, X } from "lucide-react";
+import { DropdownMenu } from "radix-ui";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Fragment, useEffect, useState } from "react";
@@ -9,15 +10,25 @@ import { LanguageSwitcher } from "@/components/brand/language-switcher";
 import { PartnerLogos } from "@/components/brand/partner-logos";
 import { SuggestionsDialog, SuggestionsNavButton } from "@/components/suggestions/suggestion-dialog";
 import { useI18n } from "@/i18n/client";
+import { localName } from "@/i18n/format";
 import { HOME_PATH } from "@/lib/routes";
 import { cn } from "@/lib/utils";
+import { signOut } from "@/server/actions/settings";
 import { SearchDialog } from "./search-dialog";
 
 /** "Suggestions" sits between Leaderboard and About. */
 const SUGGESTIONS_AFTER = "/leaderboard";
 
-export function SiteHeader({ isAdmin }: { isAdmin: boolean }) {
-  const { t } = useI18n();
+export function SiteHeader({
+  isAdmin,
+  student = null,
+}: {
+  isAdmin: boolean;
+  /** The signed-in student (name only), when the viewer is a student. */
+  student?: { name_en: string | null; name_ar: string | null } | null;
+}) {
+  const { t, locale, dir } = useI18n();
+  const studentName = student ? localName(student, locale) : "";
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -122,6 +133,45 @@ export function SiteHeader({ isAdmin }: { isAdmin: boolean }) {
                 {t.nav.dashboard}
               </Link>
             ) : null}
+            {student ? (
+              <DropdownMenu.Root dir={dir}>
+                <DropdownMenu.Trigger
+                  aria-label={`${t.nav.account}: ${studentName}`}
+                  data-testid="student-menu"
+                  className="hidden max-w-44 items-center gap-2 rounded-xl px-2.5 py-2 text-sm font-medium text-ink-soft transition hover:bg-canvas hover:text-ink data-[state=open]:bg-canvas md:inline-flex"
+                >
+                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-lavender text-purple">
+                    <UserRound className="size-4" aria-hidden />
+                  </span>
+                  <span dir="auto" className="truncate">
+                    {studentName.split(/\s+/)[0]}
+                  </span>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Portal>
+                  <DropdownMenu.Content
+                    align="end"
+                    sideOffset={8}
+                    className="z-50 min-w-56 rounded-xl bg-white p-1.5 shadow-lift ring-1 ring-line data-[state=open]:animate-[fade-in_140ms_ease-out]"
+                  >
+                    <p dir="auto" className="truncate px-3 pb-2 pt-1.5 text-sm font-semibold text-ink">
+                      {studentName}
+                    </p>
+                    <DropdownMenu.Separator className="mx-1 my-1 h-px bg-line-soft" />
+                    <form action={signOut}>
+                      <DropdownMenu.Item asChild onSelect={(e) => e.preventDefault()}>
+                        <button
+                          type="submit"
+                          className="flex w-full cursor-pointer select-none items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-ink outline-none data-[highlighted]:bg-danger-soft data-[highlighted]:text-danger-ink"
+                        >
+                          <LogOut className="size-4 rtl:-scale-x-100" aria-hidden />
+                          {t.nav.signOut}
+                        </button>
+                      </DropdownMenu.Item>
+                    </form>
+                  </DropdownMenu.Content>
+                </DropdownMenu.Portal>
+              </DropdownMenu.Root>
+            ) : null}
             <button
               type="button"
               onClick={() => setMenuOpen((o) => !o)}
@@ -191,6 +241,21 @@ export function SiteHeader({ isAdmin }: { isAdmin: boolean }) {
                     </li>
                   ) : null}
                 </ul>
+                {student ? (
+                  <form action={signOut} className="mt-4 flex items-center justify-between gap-3 border-t border-line-soft pt-4">
+                    <span dir="auto" className="flex min-w-0 items-center gap-2 text-sm font-medium text-ink">
+                      <UserRound className="size-4 shrink-0 text-purple" aria-hidden />
+                      <span className="truncate">{studentName}</span>
+                    </span>
+                    <button
+                      type="submit"
+                      className="flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm text-ink-soft transition hover:bg-danger-soft hover:text-danger-ink"
+                    >
+                      <LogOut className="size-4 rtl:-scale-x-100" aria-hidden />
+                      {t.nav.signOut}
+                    </button>
+                  </form>
+                ) : null}
                 <div className="mt-4 flex items-center justify-between border-t border-line-soft pt-4 sm:hidden">
                   <span className="text-sm text-muted">{t.common.language}</span>
                   <LanguageSwitcher variant="compact" />

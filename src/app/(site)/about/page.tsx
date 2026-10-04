@@ -6,6 +6,7 @@ import { DotMotif } from "@/components/brand/wordmark";
 import { buttonClasses } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
 import { getI18n } from "@/i18n/server";
+import { requireViewer } from "@/server/auth";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n();
@@ -13,6 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function AboutPage() {
+  await requireViewer();
   const { t } = await getI18n();
   const pillars = [
     { icon: Target, title: t.about.purposeTitle, body: t.about.purposeBody },

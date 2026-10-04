@@ -1,11 +1,11 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, KeyRound, LoaderCircle, ShieldCheck, UserRound } from "lucide-react";
+import { ArrowRight, Info, KeyRound, LoaderCircle, ShieldCheck, UserRound } from "lucide-react";
 import { Tabs } from "radix-ui";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { adminLogin, enterAsGuest, type AdminLoginState } from "@/app/welcome/actions";
+import { adminLogin, studentLogin, type AdminLoginState, type StudentLoginState } from "@/app/welcome/actions";
 import { LanguageSwitcher } from "@/components/brand/language-switcher";
 import { PartnerLogos } from "@/components/brand/partner-logos";
 import { useI18n } from "@/i18n/client";
@@ -20,11 +20,11 @@ export function EntryExperience({
   expired,
 }: {
   next: string | null;
-  initialMode: "admin" | "guest";
+  initialMode: "admin" | "student";
   expired: boolean;
 }) {
   const { t, dir } = useI18n();
-  const [mode, setMode] = useState<"admin" | "guest">(initialMode);
+  const [mode, setMode] = useState<"admin" | "student">(initialMode);
 
   return (
     <div className="relative isolate flex min-h-dvh flex-col overflow-hidden">
@@ -96,7 +96,7 @@ export function EntryExperience({
 
           <Tabs.Root
             value={mode}
-            onValueChange={(v) => setMode(v as "admin" | "guest")}
+            onValueChange={(v) => setMode(v as "admin" | "student")}
             dir={dir}
             className="mt-7 [@media(max-height:820px)]:mt-5"
           >
@@ -104,8 +104,8 @@ export function EntryExperience({
               aria-label={t.entry.accessModes}
               className="grid grid-cols-2 gap-1 rounded-2xl bg-[#f1f3f7] p-1 ring-1 ring-inset ring-line-soft"
             >
+              <EntryTab value="student" active={mode === "student"} icon={UserRound} label={t.entry.studentTab} />
               <EntryTab value="admin" active={mode === "admin"} icon={ShieldCheck} label={t.entry.adminTab} />
-              <EntryTab value="guest" active={mode === "guest"} icon={UserRound} label={t.entry.guestTab} />
             </Tabs.List>
 
             <AnimatePresence mode="wait" initial={false}>
@@ -121,14 +121,14 @@ export function EntryExperience({
                   </motion.div>
                 </Tabs.Content>
               ) : (
-                <Tabs.Content key="guest" value="guest" forceMount asChild>
+                <Tabs.Content key="student" value="student" forceMount asChild>
                   <motion.div
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -4 }}
                     transition={{ duration: 0.25, ease: EASE }}
                   >
-                    <GuestPanel next={next} />
+                    <StudentForm next={next} />
                   </motion.div>
                 </Tabs.Content>
               )}
@@ -280,19 +280,86 @@ function AdminForm({ next, expired }: { next: string | null; expired: boolean })
   );
 }
 
-function GuestPanel({ next }: { next: string | null }) {
+function StudentForm({ next }: { next: string | null }) {
   const { t } = useI18n();
+  const [state, formAction] = useActionState<StudentLoginState, FormData>(studentLogin, {
+    error: null,
+    attempt: 0,
+  });
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (state.error) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [state]);
+
+  const message =
+    state.error === "invalid"
+      ? t.entry.studentInvalid
+      : state.error === "required"
+        ? t.entry.studentRequired
+        : state.error === "locked"
+          ? t.entry.studentLocked
+          : null;
+
   return (
-    <form action={enterAsGuest} className="mt-7 [@media(max-height:820px)]:mt-5">
+    <form action={formAction} className="mt-7 [@media(max-height:820px)]:mt-5" noValidate>
       {next ? <input type="hidden" name="next" value={next} /> : null}
-      <div className="rounded-2xl bg-gradient-to-br from-mint-soft via-white to-lavender-soft px-5 py-5 ring-1 ring-inset ring-line-soft">
-        <p className="text-[0.9375rem] font-semibold text-ink">{t.entry.guestTitle}</p>
-        <p className="mt-1.5 text-[0.9375rem] leading-relaxed text-muted">{t.entry.guestBody}</p>
+      <label htmlFor="student-code" className="block text-[0.9375rem] font-medium text-ink">
+        {t.entry.studentCodeLabel}
+      </label>
+      <div className="relative mt-2.5">
+        <KeyRound
+          aria-hidden
+          className="pointer-events-none absolute start-5 top-1/2 size-5 -translate-y-1/2 text-ink-soft"
+          strokeWidth={1.9}
+        />
+        <motion.input
+          key={state.attempt}
+          ref={inputRef}
+          id="student-code"
+          name="code"
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          spellCheck={false}
+          required
+          maxLength={20}
+          placeholder={t.entry.studentCodePlaceholder}
+          aria-invalid={state.error ? true : undefined}
+          aria-describedby={`student-code-hint${message ? " student-code-message" : ""}`}
+          animate={state.error === "invalid" ? { x: [0, -6, 6, -4, 4, 0] } : undefined}
+          transition={{ duration: 0.4 }}
+          className={cn(
+            "h-14 w-full rounded-2xl border bg-white ps-14 pe-5 text-[1.0625rem] text-ink placeholder:text-[#9aa1ad] transition-[border-color,box-shadow] duration-200 focus:outline-none focus:ring-4",
+            state.error
+              ? "border-danger-ink/45 focus:border-danger-ink/60 focus:ring-danger-ink/10"
+              : "border-[#d9d4f5] shadow-[0_0_0_3px_rgb(109_74_255/0.06)] hover:border-violet focus:border-purple/70 focus:ring-purple/12",
+          )}
+        />
       </div>
+      <p
+        id="student-code-hint"
+        className="mt-3 flex items-center gap-2.5 rounded-xl bg-lavender-soft px-4 py-3 text-[0.875rem] text-purple-ink ring-1 ring-inset ring-purple/10"
+      >
+        <Info aria-hidden className="size-[1.125rem] shrink-0 text-purple" strokeWidth={2} />
+        {t.entry.studentHint}
+      </p>
       <div className="mt-5">
-        <SubmitButton label={t.entry.guestCta} pendingLabel={t.entry.entering} />
+        <SubmitButton label={t.entry.studentSubmit} pendingLabel={t.entry.entering} />
       </div>
-      <p className="mt-4 min-h-5 text-center text-[0.8125rem] text-muted">{t.entry.adminNote}</p>
+      <p
+        id="student-code-message"
+        aria-live="polite"
+        className={cn(
+          "mt-4 min-h-5 text-center text-[0.875rem]",
+          message ? "text-danger-ink" : "text-muted",
+        )}
+      >
+        {message ?? t.entry.studentNote}
+      </p>
     </form>
   );
 }

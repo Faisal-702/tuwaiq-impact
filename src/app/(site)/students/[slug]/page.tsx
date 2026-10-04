@@ -8,8 +8,10 @@ import { Reveal } from "@/components/ui/reveal";
 import { getI18n } from "@/i18n/server";
 import { formatDate, formatNumber, gradeLabel, localName } from "@/i18n/format";
 import { getStudentProfile } from "@/server/queries/public";
+import { getViewer, requireViewer } from "@/server/auth";
 
 export async function generateMetadata(props: PageProps<"/students/[slug]">): Promise<Metadata> {
+  if (!(await getViewer())) return {};
   const { slug } = await props.params;
   const { locale } = await getI18n();
   const profile = await getStudentProfile(decodeURIComponent(slug));
@@ -17,6 +19,7 @@ export async function generateMetadata(props: PageProps<"/students/[slug]">): Pr
 }
 
 export default async function StudentPage(props: PageProps<"/students/[slug]">) {
+  await requireViewer();
   const { slug } = await props.params;
   const { t, locale } = await getI18n();
   const profile = await getStudentProfile(decodeURIComponent(slug));
