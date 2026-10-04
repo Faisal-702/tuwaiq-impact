@@ -7,7 +7,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Fragment, useEffect, useState } from "react";
 import { LanguageSwitcher } from "@/components/brand/language-switcher";
-import { PartnerLogos } from "@/components/brand/partner-logos";
+import { SchoolBrand } from "@/components/brand/school-brand";
 import { SuggestionsDialog, SuggestionsNavButton } from "@/components/suggestions/suggestion-dialog";
 import { useI18n } from "@/i18n/client";
 import { localName } from "@/i18n/format";
@@ -87,7 +87,7 @@ export function SiteHeader({
       >
         <div className="container-page flex h-[var(--header-h)] items-center gap-6">
           <Link href={HOME_PATH} aria-label={`${t.brand.name} — ${t.nav.home}`} className="shrink-0 rounded-lg">
-            <PartnerLogos size="sm" moeAlt={t.brand.moeAlt} tuwaiqAlt={t.brand.tuwaiqAlt} priority />
+            <SchoolBrand school={t.brand.school} moeAlt={t.brand.moeAlt} priority />
           </Link>
 
           <nav aria-label={t.nav.primary} className="hidden flex-1 justify-center lg:flex">

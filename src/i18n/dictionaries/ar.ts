@@ -104,6 +104,9 @@ const ar: Dictionary = {
     ctaSecondary: "لوحة الصدارة",
     heroAlt: "طالب وطالبة سعوديان ينظران إلى المستقبل وخلفهما أفق مدينة الرياض",
     statsLabel: "المنصة في أرقام",
+    partnersTitle: "شركاؤنا",
+    partnersBody: "شركاء في بناء جيل من المبدعين وصناعة الأثر",
+    partnersVisit: "زيارة الموقع",
     stats: {
       projects: "مشروع",
       students: "طالب وطالبة مشاركون",

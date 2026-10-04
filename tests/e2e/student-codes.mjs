@@ -124,8 +124,8 @@ await check("EN · empty and malformed codes are rejected with generic messages"
   await page.getByText(EN.required, { exact: true }).waitFor();
   for (const bad of ["abc", "1234567", "123456789", "' or 1=1 --"]) {
     await submitCode(page, bad);
-    const message = (await page.locator("#student-code-message").innerText()).trim();
-    assert(message === EN.invalid, `${bad}: ${message}`);
+    // The response has arrived; wait for React to render its message.
+    await page.locator("#student-code-message").filter({ hasText: EN.invalid }).waitFor({ timeout: 5000 });
   }
   await context.close();
 });

@@ -1,6 +1,7 @@
 import { ArrowRight, FolderSearch, Search, Star, Trophy } from "lucide-react";
 import Link from "next/link";
 import { Hero } from "@/components/home/hero";
+import { Partners } from "@/components/home/partners";
 import { StatsBar } from "@/components/home/stats-bar";
 import { LeaderboardList } from "@/components/leaderboard/leaderboard-list";
 import { FeaturedProjectCard, ProjectCard } from "@/components/projects/project-card";
@@ -35,6 +36,7 @@ export default async function HomePage() {
     <>
       <Hero t={t} />
       <StatsBar stats={stats} t={t} locale={locale} />
+      <Partners t={t} locale={locale} />
 
       {/* Featured */}
       <section aria-labelledby="featured-title" className="container-page pt-24 sm:pt-28">
