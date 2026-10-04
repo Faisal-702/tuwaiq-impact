@@ -127,7 +127,19 @@ await check("Homepage hero artwork and header logos render", async () => {
     [...document.images].map((i) => ({ src: i.currentSrc, ok: i.complete && i.naturalWidth > 0, w: i.getBoundingClientRect().width })),
   );
   assert(imgs.some((i) => /hero-students/.test(i.src) && i.ok && i.w > 300), "hero missing");
-  assert(imgs.filter((i) => /moe-logo|tuwaiq-academy-logo/.test(i.src) && i.ok).length >= 2, "header logos missing");
+  // Header: Ministry of Education logo + the school's name as text (no Tuwaiq Academy logo).
+  const header = await vp.locator("header").first().evaluate((h) => ({
+    moe: [...h.querySelectorAll("img")].some((i) => /moe-logo/.test(i.currentSrc) && i.naturalWidth > 0),
+    tuwaiq: [...h.querySelectorAll("img")].some((i) => /tuwaiq-academy-logo/.test(i.currentSrc)),
+    text: h.innerText,
+  }));
+  assert(header.moe && !header.tuwaiq && header.text.includes("Technical Talented High School"), JSON.stringify(header).slice(0, 160));
+});
+
+await check("Homepage partners section: 4 cards in order", async () => {
+  await vp.getByRole("heading", { name: "Our Partners" }).waitFor();
+  const names = await vp.getByTestId("partner-card").evaluateAll((cs) => cs.map((c) => c.getAttribute("aria-label")));
+  assert(JSON.stringify(names) === JSON.stringify(["Abdul Latif Jameel", "Tuwaiq Academy", "SDAIA", "ETEC"]), JSON.stringify(names));
 });
 
 await check("Homepage statistics come from the database", async () => {

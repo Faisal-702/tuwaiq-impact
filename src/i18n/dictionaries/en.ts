@@ -104,6 +104,8 @@ const en = {
     ctaSecondary: "View Leaderboard",
     heroAlt: "Two Saudi students looking ahead, with the Riyadh skyline behind them",
     statsLabel: "Platform at a glance",
+    partnersTitle: "Our Partners",
+    partnersBody: "Partners in building a generation of innovators and creating impact.",
     stats: {
       projects: "Projects",
       students: "Participating Students",
