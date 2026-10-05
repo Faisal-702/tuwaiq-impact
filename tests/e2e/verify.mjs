@@ -1,7 +1,7 @@
 /**
  * End-to-end functional verification for Tuwaiq Impact.
  *
- *   BASE_URL=http://localhost:3000 ADMIN_CODE=… QA_IMAGE=/path/4k.jpg node tests/e2e/verify.mjs
+ *   BASE_URL=http://localhost:3000 ADMIN_EMAIL=… ADMIN_PASSWORD=… QA_IMAGE=/path/4k.jpg node tests/e2e/verify.mjs
  *
  * Walks through the platform's functional checklist in a real browser and
  * reports PASS/FAIL per check, plus any console or hydration errors seen.
@@ -9,13 +9,13 @@
  */
 import { chromium } from "playwright";
 import path from "node:path";
-import { ensureStudentCode, studentLogin, studentSessionCookies } from "./lib/student.mjs";
+import { adminCredentials, ensureStudentCode, fillAdminLogin, studentLogin, studentSessionCookies } from "./lib/student.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
-const CODE = process.env.ADMIN_CODE;
+const ADMIN = adminCredentials();
 const QA_IMAGE = process.env.QA_IMAGE;
 const ASSETS = path.join(process.cwd(), "scripts", "demo-assets");
-if (!CODE || !QA_IMAGE) throw new Error("ADMIN_CODE and QA_IMAGE are required");
+if (!QA_IMAGE) throw new Error("QA_IMAGE is required");
 
 const results = [];
 const consoleErrors = [];
@@ -62,31 +62,30 @@ await check("Entry page renders both official logos", async () => {
   assert(ok >= 2, `logos loaded: ${ok}`);
 });
 
-await check("Empty access code shows a prompt", async () => {
+await check("Empty email/password shows a prompt", async () => {
   await vp.getByRole("tab", { name: "Admin Access" }).click();
   await vp.getByRole("button", { name: "Access Dashboard" }).click();
-  await vp.getByText("Please enter the access code.").waitFor({ timeout: 5000 });
+  await vp.getByText("Please enter your email and password.").waitFor({ timeout: 5000 });
 });
 
-await check("Wrong access code shows the exact error", async () => {
-  await vp.getByLabel("Access Code").fill("1234");
-  await vp.getByRole("button", { name: "Access Dashboard" }).click();
-  await vp.getByText("Invalid access code. Please contact the administrator.").waitFor({ timeout: 5000 });
+await check("Wrong password shows the generic error", async () => {
+  await fillAdminLogin(vp, { email: ADMIN.email, password: "wrong-password-1234" });
+  await vp.getByText("Incorrect email or password.").waitFor({ timeout: 5000 });
   assert(new URL(vp.url()).pathname === "/welcome", "should stay on welcome");
+  assert((await vp.locator("#admin-email").inputValue()) === ADMIN.email, "email not kept");
+  assert((await vp.locator("#admin-password").inputValue()) === "", "password not cleared");
 });
 
-await check("Access code is not present in page HTML or client JS", async () => {
+await check("Admin password and Supabase keys are not in page HTML or client JS", async () => {
   const html = await vp.content();
   const scripts = await vp.evaluate(() => [...document.scripts].map((s) => s.src).filter(Boolean));
-  let leaked = html.includes(`"${CODE}"`) || html.includes(`'${CODE}'`);
+  const secrets = [ADMIN.password, "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_ANON_KEY", process.env.SUPABASE_ANON_KEY].filter(Boolean);
+  assert(!secrets.some((x) => html.includes(x)), "secret found in HTML");
   for (const src of scripts) {
     const body = await (await fetch(src)).text();
-    if (body.includes(`"${CODE}"`) || body.includes(`'${CODE}'`) || body.includes("ADMIN_ACCESS_CODE")) {
-      leaked = true;
-      throw new Error(`found in ${src}`);
-    }
+    const found = secrets.find((x) => body.includes(x));
+    if (found) throw new Error(`secret found in ${src}`);
   }
-  assert(!leaked, "code literal found in HTML");
 });
 
 await check("Public visitors cannot open admin routes", async () => {
@@ -109,7 +108,7 @@ await check("Unsigned uploads are rejected", async () => {
 });
 
 await check("Student access works (Student Login with a code)", async () => {
-  const code = await ensureStudentCode(browser, { base: BASE, adminCode: CODE });
+  const code = await ensureStudentCode(browser, { base: BASE, admin: ADMIN });
   await studentLogin(vp, BASE, code);
   await vp.getByRole("heading", { name: /Student Ideas/ }).waitFor();
 });
@@ -334,7 +333,7 @@ await check("No dead internal links on public pages", async () => {
 // Mobile
 // ---------------------------------------------------------------------------
 const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
-await mobile.addCookies((await studentSessionCookies(browser, { base: BASE, adminCode: CODE })).cookies);
+await mobile.addCookies((await studentSessionCookies(browser, { base: BASE, admin: ADMIN })).cookies);
 const mp = await mobile.newPage();
 watch(mp, "mobile");
 
@@ -358,11 +357,10 @@ const ap = await admin.newPage();
 watch(ap, "admin");
 ap.on("dialog", (d) => d.accept());
 
-await check("Correct access code signs in and redirects to /admin", async () => {
+await check("Correct email + password signs in and redirects to /admin", async () => {
   await ap.goto(BASE + "/welcome");
   await ap.getByRole("tab", { name: "Admin Access" }).click();
-  await ap.getByLabel("Access Code").fill(CODE);
-  await ap.getByRole("button", { name: "Access Dashboard" }).click();
+  await fillAdminLogin(ap, ADMIN);
   await ap.waitForURL(BASE + "/admin");
   await ap.getByRole("heading", { name: "Overview" }).waitFor();
   const cookies = await admin.cookies();

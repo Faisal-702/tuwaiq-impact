@@ -8,11 +8,28 @@
 /** A random client address, so per-client login throttling never carries over between runs. */
 export const randomClientIp = () => `10.${[0, 0, 0].map(() => Math.floor(Math.random() * 250) + 1).join(".")}`;
 
+/**
+ * Administrator credentials for the tests: a user registered in Supabase Auth
+ * (or in tests/e2e/mock-supabase-auth.mjs when running without Supabase).
+ */
+export function adminCredentials() {
+  const email = process.env.ADMIN_EMAIL;
+  const password = process.env.ADMIN_PASSWORD;
+  if (!email || !password) throw new Error("ADMIN_EMAIL and ADMIN_PASSWORD are required");
+  return { email, password };
+}
+
+/** Fills and submits the Admin Access form (email + password) on /welcome. */
+export async function fillAdminLogin(page, admin) {
+  await page.locator("#admin-email").fill(admin.email);
+  await page.locator("#admin-password").fill(admin.password);
+  await page.locator("#admin-password").press("Enter");
+}
+
 /** Signs in as admin on the given page (English or Arabic UI). */
-export async function adminLogin(page, base, adminCode) {
+export async function adminLogin(page, base, admin) {
   await page.goto(base + "/welcome?mode=admin");
-  await page.locator("#access-code").fill(adminCode);
-  await page.locator("#access-code").press("Enter");
+  await fillAdminLogin(page, admin);
   await page.waitForURL(base + "/admin");
 }
 
@@ -20,11 +37,11 @@ export async function adminLogin(page, base, adminCode) {
  * Returns the student's current code, generating one if they have none.
  * `student` is the student's English name as shown in the admin list.
  */
-export async function ensureStudentCode(browser, { base, adminCode, student = "Demo Student A" }) {
+export async function ensureStudentCode(browser, { base, admin, student = "Demo Student A" }) {
   const context = await browser.newContext({ extraHTTPHeaders: { "x-forwarded-for": randomClientIp() } });
   await context.addCookies([{ name: "ti_lang", value: "en", url: base }]);
   const page = await context.newPage();
-  await adminLogin(page, base, adminCode);
+  await adminLogin(page, base, admin);
   await page.goto(base + "/admin/student-codes");
   await page.locator("#code-search").fill(student);
   const row = page.locator(`[data-testid="code-row"][data-student="${student}"]`);
@@ -51,8 +68,8 @@ export async function studentLogin(page, base, code) {
  * Signs a student in once and returns the session cookie(s), to be added to
  * other browser contexts with `context.addCookies(...)`.
  */
-export async function studentSessionCookies(browser, { base, adminCode, student }) {
-  const code = await ensureStudentCode(browser, { base, adminCode, student });
+export async function studentSessionCookies(browser, { base, admin, student }) {
+  const code = await ensureStudentCode(browser, { base, admin, student });
   const context = await browser.newContext({ extraHTTPHeaders: { "x-forwarded-for": randomClientIp() } });
   const page = await context.newPage();
   await studentLogin(page, base, code);

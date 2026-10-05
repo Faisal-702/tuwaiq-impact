@@ -2,32 +2,50 @@
 
 import { redirect } from "next/navigation";
 import { logActivity } from "@/server/activity";
-import { createAdminSession, createStudentSession, isValidAccessCode } from "@/server/auth";
+import { verifyAdminCredentials } from "@/server/admin-auth";
+import { createAdminSession, createStudentSession } from "@/server/auth";
 import { verifyStudentCode } from "@/server/student-codes";
 import { HOME_PATH } from "@/lib/routes";
 import { safeNextPath } from "@/lib/safe-next";
 import { normalizeStudentCode } from "@/lib/student-codes";
 
-export type AdminLoginState = { error: "required" | "invalid" | null; attempt: number };
+export type AdminLoginState = {
+  error: "required" | "invalid" | "locked" | "unavailable" | null;
+  attempt: number;
+  /** Echoed back so the email field keeps its value after a failed attempt. */
+  email: string;
+};
 export type StudentLoginState = { error: "required" | "invalid" | "locked" | null; attempt: number };
 
 /** Small constant delay on failures to slow down guessing. */
 const failureDelay = () => new Promise((resolve) => setTimeout(resolve, 450));
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Administrator login: email + password of a user registered in Supabase Auth
+ * (Authentication → Users), verified on the server only. Errors are generic.
+ */
 export async function adminLogin(prev: AdminLoginState, formData: FormData): Promise<AdminLoginState> {
-  const code = String(formData.get("code") ?? "");
+  const email = String(formData.get("email") ?? "").trim().toLowerCase().slice(0, 254);
+  const password = String(formData.get("password") ?? "");
   const next = safeNextPath(formData.get("next"));
+  const fail = (error: AdminLoginState["error"]) => ({ error, attempt: prev.attempt + 1, email });
 
-  if (code.trim().length === 0) return { error: "required", attempt: prev.attempt + 1 };
-
-  if (code.length > 64 || !isValidAccessCode(code)) {
-    // Small constant delay to slow down guessing (no lockout by design).
+  if (!email || !password) return fail("required");
+  if (!EMAIL_RE.test(email) || password.length > 200) {
     await failureDelay();
-    return { error: "invalid", attempt: prev.attempt + 1 };
+    return fail("invalid");
   }
 
-  await createAdminSession();
-  await logActivity({ action: "admin.signed_in", targetType: "session" });
+  const result = await verifyAdminCredentials(email, password);
+  if (!result.ok) {
+    if (result.reason !== "unavailable") await failureDelay();
+    return fail(result.reason);
+  }
+
+  await createAdminSession({ userId: result.userId, email: result.email });
+  await logActivity({ action: "admin.signed_in", targetType: "session", targetLabel: result.email });
   redirect(next && next.startsWith("/admin") ? next : "/admin");
 }
 

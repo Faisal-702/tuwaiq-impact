@@ -2,18 +2,17 @@
  * Suggestions: nav item + form (desktop popover, mobile dialog),
  * validation, persistence, admin-only reading. Runs as a signed-in student.
  *
- *   BASE_URL=http://localhost:3000 ADMIN_CODE=… node --env-file-if-exists=.env.local tests/e2e/suggestions.mjs
+ *   BASE_URL=http://localhost:3000 ADMIN_EMAIL=… ADMIN_PASSWORD=… node --env-file-if-exists=.env.local tests/e2e/suggestions.mjs
  *
  * With DATABASE_URL set (e.g. from .env.local) it also checks the stored rows,
  * the table's RLS/grants and the rate limit, and removes the rows it created
  * (only rows carrying this run's unique marker).
  */
 import { chromium } from "playwright";
-import { studentSessionCookies } from "./lib/student.mjs";
+import { adminCredentials, fillAdminLogin, studentSessionCookies } from "./lib/student.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
-const CODE = process.env.ADMIN_CODE;
-if (!CODE) throw new Error("ADMIN_CODE is required");
+const ADMIN = adminCredentials();
 
 const RUN = `qa-${Date.now().toString(36)}`;
 const results = [];
@@ -54,7 +53,7 @@ const replayHeaders = (sender) => {
 };
 
 // The platform requires a student session: sign a demo student in once.
-const { cookies: studentCookies } = await studentSessionCookies(browser, { base: BASE, adminCode: CODE });
+const { cookies: studentCookies } = await studentSessionCookies(browser, { base: BASE, admin: ADMIN });
 
 async function open(lang, { viewport = { width: 1440, height: 900 }, guest = true, n = 0, ...extra } = {}) {
   const context = await browser.newContext({ viewport, extraHTTPHeaders: { "x-forwarded-for": ip(n) }, ...extra });
@@ -321,7 +320,6 @@ for (const lang of ["en", "ar"]) {
   const A =
     lang === "en"
       ? {
-          code: "Access Code",
           enter: "Access Dashboard",
           categories: "Categories",
           nav: "Suggestions",
@@ -332,7 +330,6 @@ for (const lang of ["en", "ar"]) {
           all: "All grades",
         }
       : {
-          code: "رمز الدخول",
           enter: "الدخول إلى لوحة التحكم",
           categories: "التصنيفات",
           nav: "الاقتراحات",
@@ -345,8 +342,7 @@ for (const lang of ["en", "ar"]) {
   const { context, page } = await open(lang, { guest: false, n: 6 });
   await check(`${L} · Admin sidebar: "${A.nav}" directly below "${A.categories}"`, async () => {
     await page.goto(BASE + "/welcome?mode=admin");
-    await page.getByLabel(A.code).fill(CODE);
-    await page.getByRole("button", { name: A.enter }).click();
+    await fillAdminLogin(page, ADMIN);
     await page.waitForURL(BASE + "/admin");
     const items = (await page.locator("aside nav").first().locator("li").allInnerTexts()).map((t) => t.trim());
     const i = items.indexOf(A.categories);
