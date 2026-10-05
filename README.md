@@ -145,6 +145,13 @@ Every page is rendered per request: sessions are checked in the database and dat
 - **Warm connections.** Idle database connections are kept for 4 minutes (they were closed after 20 s), so the first click after a pause doesn't reconnect, which costs TCP, TLS and authentication round trips.
 - **Deployment:** run the server functions in the same region as the Supabase project (on Netlify: the functions region in the site configuration, where the plan allows it). Every round trip is paid at that distance.
 
+**Loading indicator.** The Lottie animation in `public/lottie/loading.json` is the site's single loading indicator (`src/components/ui/loading-animation.tsx`). It plays through lottie-web's light SVG build, about 47 KB gzipped, which is loaded on demand in its own chunk and warmed up when the browser is idle. Two places show it, and both fade it in only after about 450 ms, so fast transitions never flash it:
+
+- `loading.tsx`, through `PageLoading`, while a route's data loads.
+- `NavigationLoader`, a small centered card, while a link click waits for a page that has no route loading state yet. Links report this pending phase through `useLinkStatus`.
+
+With `prefers-reduced-motion`, a still frame is shown instead. If the animation cannot be loaded, a plain spinner replaces it. `npm run test:loading` checks all this. It simulates slow pages in the browser.
+
 To measure locally with a simulated remote database, run `DELAY=75 npm run perf:latency-proxy` (150 ms round trip in front of the local Postgres on :6432). Start the app with `DATABASE_URL=postgresql://…@127.0.0.1:6432/…?sslmode=require`, then run `BASE_URL=… ADMIN_EMAIL=… ADMIN_PASSWORD=… ADMIN_VERIFICATION_CODE=… npm run perf:measure`. It reports page loads, sidebar and header navigation and a server action. With `PG_LOG` set to the Postgres log file and `log_min_duration_statement = 0`, it also reports the number of SQL statements for each.
 
 ## Development / demo data

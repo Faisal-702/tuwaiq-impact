@@ -2,6 +2,7 @@
 
 import NextLink from "next/link";
 import { useState, type ComponentProps } from "react";
+import { LinkPendingReporter } from "@/components/ui/navigation-loader";
 
 type LinkProps = ComponentProps<typeof NextLink>;
 
@@ -16,8 +17,11 @@ type LinkProps = ComponentProps<typeof NextLink>;
  * opened. Prefetching on intent keeps navigation instant (the route's loading
  * state is prefetched while the pointer is on the link) without that load.
  * `prefetch={false}` still disables prefetching entirely.
+ *
+ * While a click is waiting for its page, the link reports it so the shared
+ * loading animation can be shown (components/ui/navigation-loader.tsx).
  */
-export default function Link({ prefetch, onMouseEnter, onTouchStart, onFocus, ...props }: LinkProps) {
+export default function Link({ prefetch, onMouseEnter, onTouchStart, onFocus, children, ...props }: LinkProps) {
   const [intent, setIntent] = useState(false);
   return (
     <NextLink
@@ -35,6 +39,9 @@ export default function Link({ prefetch, onMouseEnter, onTouchStart, onFocus, ..
         setIntent(true);
         onFocus?.(e);
       }}
-    />
+    >
+      {children}
+      <LinkPendingReporter />
+    </NextLink>
   );
 }

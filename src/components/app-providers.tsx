@@ -4,12 +4,14 @@ import { MotionConfig } from "motion/react";
 import { Direction } from "radix-ui";
 import type { ReactNode } from "react";
 import { Toaster } from "sonner";
+import { NavigationLoader } from "@/components/ui/navigation-loader";
 
 export function AppProviders({ dir, children }: { dir: "ltr" | "rtl"; children: ReactNode }) {
   return (
     <Direction.Provider dir={dir}>
       <MotionConfig reducedMotion="user">
         {children}
+        <NavigationLoader />
         <Toaster
           dir={dir}
           position={dir === "rtl" ? "bottom-left" : "bottom-right"}
