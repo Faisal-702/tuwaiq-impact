@@ -10,26 +10,49 @@ export const randomClientIp = () => `10.${[0, 0, 0].map(() => Math.floor(Math.ra
 
 /**
  * Administrator credentials for the tests: a user registered in Supabase Auth
- * (or in tests/e2e/mock-supabase-auth.mjs when running without Supabase).
+ * (or in tests/e2e/mock-supabase-auth.mjs when running without Supabase), and
+ * that administrator's 8-digit verification code. When the account has no
+ * code yet, the first sign-in of a test run creates it with this value.
  */
 export function adminCredentials() {
   const email = process.env.ADMIN_EMAIL;
   const password = process.env.ADMIN_PASSWORD;
-  if (!email || !password) throw new Error("ADMIN_EMAIL and ADMIN_PASSWORD are required");
-  return { email, password };
+  const code = process.env.ADMIN_VERIFICATION_CODE;
+  if (!email || !password || !code) throw new Error("ADMIN_EMAIL, ADMIN_PASSWORD and ADMIN_VERIFICATION_CODE are required");
+  if (!/^\d{8}$/.test(code)) throw new Error("ADMIN_VERIFICATION_CODE must be 8 digits");
+  return { email, password, code };
 }
 
-/** Fills and submits the Admin Access form (email + password) on /welcome. */
+/** Fills and submits the first Admin Access step (email + password) on /welcome. */
 export async function fillAdminLogin(page, admin) {
   await page.locator("#admin-email").fill(admin.email);
   await page.locator("#admin-password").fill(admin.password);
   await page.locator("#admin-password").press("Enter");
 }
 
+/**
+ * Completes the verification code step that follows a correct password:
+ * enters the code, or creates it (code + confirmation) on a first sign-in.
+ */
+export async function enterAdminCode(page, admin, code = admin.code) {
+  const form = page.locator('form[data-step="verify"], form[data-step="setup"]');
+  await form.waitFor();
+  const step = await form.getAttribute("data-step");
+  await page.locator("#admin-code").fill(code);
+  if (step === "setup") await page.locator("#admin-code-confirm").fill(code);
+  await page.locator("#admin-code").press("Enter");
+}
+
+/** Both sign-in steps: email + password, then the verification code. */
+export async function signInAdmin(page, admin) {
+  await fillAdminLogin(page, admin);
+  await enterAdminCode(page, admin);
+}
+
 /** Signs in as admin on the given page (English or Arabic UI). */
 export async function adminLogin(page, base, admin) {
   await page.goto(base + "/welcome?mode=admin");
-  await fillAdminLogin(page, admin);
+  await signInAdmin(page, admin);
   await page.waitForURL(base + "/admin");
 }
 

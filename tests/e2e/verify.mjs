@@ -9,7 +9,7 @@
  */
 import { chromium } from "playwright";
 import path from "node:path";
-import { adminCredentials, ensureStudentCode, fillAdminLogin, studentLogin, studentSessionCookies } from "./lib/student.mjs";
+import { adminCredentials, signInAdmin, ensureStudentCode, fillAdminLogin, studentLogin, studentSessionCookies } from "./lib/student.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const ADMIN = adminCredentials();
@@ -360,7 +360,7 @@ ap.on("dialog", (d) => d.accept());
 await check("Correct email + password signs in and redirects to /admin", async () => {
   await ap.goto(BASE + "/welcome");
   await ap.getByRole("tab", { name: "Admin Access" }).click();
-  await fillAdminLogin(ap, ADMIN);
+  await signInAdmin(ap, ADMIN);
   await ap.waitForURL(BASE + "/admin");
   await ap.getByRole("heading", { name: "Overview" }).waitFor();
   const cookies = await admin.cookies();

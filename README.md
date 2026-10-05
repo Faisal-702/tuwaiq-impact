@@ -61,7 +61,13 @@ No variable is prefixed with `NEXT_PUBLIC_`, so none of them reach browser code.
   - The password is checked on the server against Supabase Auth (password grant). The temporary Supabase session is revoked right away, and the dashboard uses its own httpOnly session (below). No Supabase token or key reaches the browser.
   - Errors are generic ("Incorrect email or password."). After 10 failures within 15 minutes from one client (salted hash of its address in `admin_login_attempts`), sign-in pauses for that client.
   - To add, remove or reset an administrator, use Supabase → Authentication → Users. **Disable public sign-ups** there (Authentication → Sign In / Providers → "Allow new users to sign up"), or set `ADMIN_EMAILS`, so that nobody can create their own account.
-- **Sessions**: on success, a random 256-bit token is created. Only its SHA-256 hash is stored, in `admin_sessions`. The browser holds the token in an `httpOnly`, `SameSite=Lax` **browser-session cookie** (`Secure` in production), so closing the browser ends the admin session and the code must be entered again.
+- **Verification code (second step)**: after a correct password, the administrator enters a personal **8-digit verification code**. No dashboard session exists until the code is accepted.
+  - On an administrator's first sign-in (no code yet), this step asks them to create the code (entered twice). Codes made of one repeated digit or consecutive digits (`11111111`, `12345678`, `98765432`) are refused.
+  - Codes are stored only as salted scrypt hashes (`admin_verification_codes`). The state between the two steps is a random token in an `httpOnly` cookie (`ti_admin_challenge`), stored as a SHA-256 hash in `admin_login_challenges` and valid for 10 minutes.
+  - After 5 wrong codes, the password must be entered again. Wrong codes also count towards the per-client limit (10 per 15 minutes), and towards a per-account limit (10 per 15 minutes across all clients).
+  - **Settings → Verification codes**: each administrator can change their own code (the current code is required) and reset another administrator's code, so that the other administrator creates a new code at their next sign-in.
+  - If the only administrator forgets their code, remove it in the Supabase SQL editor; a new code is then created at the next sign-in: `delete from admin_verification_codes where email = 'name@example.com';`
+- **Sessions**: on success, a random 256-bit token is created. Only its SHA-256 hash is stored, in `admin_sessions`. The browser holds the token in an `httpOnly`, `SameSite=Lax` **browser-session cookie** (`Secure` in production), so closing the browser ends the admin session and the password and verification code must be entered again.
   - Server-side, a session also ends after 2 hours without activity, or 12 hours at most.
   - **Sign out** revokes the session, clears the session cookies, and returns to `/welcome`. One role per browser: a student login ends any admin session there, and vice versa.
   - Sessions can be revoked for everyone from **Settings → Sign out all sessions**.
@@ -140,7 +146,7 @@ Remove them before launch with either:
 ```bash
 npm run lint && npm run typecheck && npm run build
 # Functional end-to-end checks against a running server (dev or `next start`):
-BASE_URL=http://localhost:3000 ADMIN_EMAIL=… ADMIN_PASSWORD=… QA_IMAGE=/path/to/large.jpg npm run test:e2e
+BASE_URL=http://localhost:3000 ADMIN_EMAIL=… ADMIN_PASSWORD=… ADMIN_VERIFICATION_CODE=… QA_IMAGE=/path/to/large.jpg npm run test:e2e
 ```
 
 `tests/e2e/verify.mjs` walks through the full functional checklist in a real browser. It covers:
@@ -156,7 +162,7 @@ BASE_URL=http://localhost:3000 ADMIN_EMAIL=… ADMIN_PASSWORD=… QA_IMAGE=/path
 
 It fails on any console or hydration error. Records it creates are prefixed with `QA`.
 
-`npm run test:session` (same `BASE_URL` / `ADMIN_EMAIL` / `ADMIN_PASSWORD` variables) checks the entry and session rules:
+`npm run test:session` (same `BASE_URL` / `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_VERIFICATION_CODE` variables) checks the entry and session rules:
 - `/` → `/welcome`, student login, admin login, and direct `/admin` without a session
 - logout, and closing and reopening the browser
 - returning after a previous admin login
@@ -170,7 +176,7 @@ It fails on any console or hydration error. Records it creates are prefixed with
 
 It removes only the rows it created.
 
-`npm run test:student-codes` (same `BASE_URL` / `ADMIN_EMAIL` / `ADMIN_PASSWORD` variables; uses the demo students and changes their codes) checks:
+`npm run test:student-codes` (same `BASE_URL` / `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_VERIFICATION_CODE` variables; uses the demo students and changes their codes) checks:
 - the Student Login page (English and Arabic)
 - valid and invalid codes, throttling of repeated failures, and Arabic-Indic digits
 - redirects of every student-facing route without a session, including old guest and forged cookies
@@ -193,15 +199,17 @@ It removes only the students it created.
 - generic errors for wrong passwords and unknown emails
 - a successful sign-in with no Supabase token in the browser
 - throttling of repeated failures
+- the verification code step: no session before the code; wrong, malformed and empty codes; Arabic-Indic digits; reload; "Back to sign in"; 5 wrong codes; per-account throttling; changing the code in Settings
+- with the mock (below) and `DATABASE_URL`: creating the code on a first sign-in (weak and mismatching codes refused, stored hashed) and resetting another administrator's code
 
-All suites sign in as administrator with `ADMIN_EMAIL` / `ADMIN_PASSWORD`. Without a Supabase project, run `npm run mock:supabase-auth` and start the app against it:
+All suites sign in as administrator with `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_VERIFICATION_CODE` (8 digits). If that administrator has no code yet, the first sign-in of a run creates it with this value. Without a Supabase project, run `npm run mock:supabase-auth` and start the app against it:
 
 ```bash
 SUPABASE_URL=http://127.0.0.1:54399 SUPABASE_ANON_KEY=mock-anon-key npm run dev
-ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=Tuwaiq-Admin-2026 MOCK_AUTH_URL=http://127.0.0.1:54399 npm run test:admin-login
+ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=Tuwaiq-Admin-2026 ADMIN_VERIFICATION_CODE=29473816 MOCK_AUTH_URL=http://127.0.0.1:54399 npm run test:admin-login
 ```
 
-The other end-to-end suites sign in as a demo student through the same flow (`tests/e2e/lib/student.mjs`), so they also need `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
+The other end-to-end suites sign in as a demo student through the same flow (`tests/e2e/lib/student.mjs`), so they also need `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_VERIFICATION_CODE`.
 
 ## Project structure
 

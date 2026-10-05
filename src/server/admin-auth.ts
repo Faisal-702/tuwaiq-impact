@@ -12,15 +12,33 @@ export type AdminCredentialCheck =
   | { ok: true; userId: string; email: string }
   | { ok: false; reason: "invalid" | "locked" | "unavailable" };
 
-async function clientHash(): Promise<string> {
+/** Salted hash identifying this client (no raw IP is stored). */
+export async function clientHash(): Promise<string> {
   const h = await headers();
   const ip = (h.get("x-forwarded-for") ?? "").split(",")[0].trim() || h.get("x-real-ip") || "unknown";
   return createHash("sha256").update(`${env.sessionSecret}|admin-login|${ip}`).digest("hex");
 }
 
-async function recordFailure(client: string, failures: number): Promise<AdminCredentialCheck> {
-  await sql`insert into admin_login_attempts (client_hash) values (${client})`;
+/** Salted hash identifying one administrator account, for per-account throttling. */
+export const accountHash = (userId: string) =>
+  createHash("sha256").update(`${env.sessionSecret}|admin-account|${userId}`).digest("hex");
+
+/** Failed attempts recorded for this key within the throttling window. */
+export async function recentFailures(key: string): Promise<number> {
+  const [{ failures }] = await sql<{ failures: number }[]>`
+    select count(*)::int as failures from admin_login_attempts
+     where client_hash = ${key}
+       and created_at > now() - make_interval(mins => ${ADMIN_LOGIN_WINDOW_MINUTES})`;
+  return failures;
+}
+
+export async function recordAttemptFailure(...keys: string[]): Promise<void> {
+  for (const key of keys) await sql`insert into admin_login_attempts (client_hash) values (${key})`;
   if (Math.random() < 0.05) await sql`delete from admin_login_attempts where created_at < now() - interval '1 day'`;
+}
+
+async function recordFailure(client: string, failures: number): Promise<AdminCredentialCheck> {
+  await recordAttemptFailure(client);
   return { ok: false, reason: failures + 1 >= ADMIN_LOGIN_MAX_FAILURES ? "locked" : "invalid" };
 }
 
@@ -34,10 +52,7 @@ type SupabaseTokenResponse = { access_token?: string; user?: { id?: string; emai
  */
 export async function verifyAdminCredentials(email: string, password: string): Promise<AdminCredentialCheck> {
   const client = await clientHash();
-  const [{ failures }] = await sql<{ failures: number }[]>`
-    select count(*)::int as failures from admin_login_attempts
-     where client_hash = ${client}
-       and created_at > now() - make_interval(mins => ${ADMIN_LOGIN_WINDOW_MINUTES})`;
+  const failures = await recentFailures(client);
   if (failures >= ADMIN_LOGIN_MAX_FAILURES) return { ok: false, reason: "locked" };
 
   const allowlist = env.adminEmails;

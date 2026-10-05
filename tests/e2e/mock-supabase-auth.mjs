@@ -5,7 +5,8 @@
  *   node tests/e2e/mock-supabase-auth.mjs            # listens on :54399
  *   SUPABASE_URL=http://127.0.0.1:54399 SUPABASE_ANON_KEY=mock-anon-key npm run dev
  *
- * One user: MOCK_ADMIN_EMAIL / MOCK_ADMIN_PASSWORD (defaults below).
+ * Users: MOCK_ADMIN_EMAIL / MOCK_ADMIN_PASSWORD (defaults below), plus a
+ * second administrator (second-admin@example.com / Tuwaiq-Second-2026).
  * Implements POST /auth/v1/token?grant_type=password and POST /auth/v1/logout,
  * plus GET /__stats (call counts) for tests.
  */
@@ -16,7 +17,10 @@ const PORT = Number(process.env.MOCK_AUTH_PORT ?? 54399);
 const EMAIL = (process.env.MOCK_ADMIN_EMAIL ?? "admin@example.com").toLowerCase();
 const PASSWORD = process.env.MOCK_ADMIN_PASSWORD ?? "Tuwaiq-Admin-2026";
 const KEY = process.env.MOCK_AUTH_KEY ?? "mock-anon-key";
-const USER_ID = "7a1f3c2e-4b5d-4e6f-8a9b-0c1d2e3f4a5b";
+const USERS = [
+  { id: "7a1f3c2e-4b5d-4e6f-8a9b-0c1d2e3f4a5b", email: EMAIL, password: PASSWORD },
+  { id: "3c9e1b7d-2f4a-4c6e-9b8d-1a2b3c4d5e6f", email: "second-admin@example.com", password: "Tuwaiq-Second-2026" },
+];
 const stats = { token: 0, success: 0, failed: 0, logout: 0 };
 
 const send = (res, status, body) => {
@@ -40,14 +44,15 @@ http
         } catch {
           return send(res, 400, { error: "invalid_request" });
         }
-        if (String(body.email ?? "").toLowerCase() === EMAIL && body.password === PASSWORD) {
+        const user = USERS.find((u) => u.email === String(body.email ?? "").toLowerCase() && u.password === body.password);
+        if (user) {
           stats.success++;
           return send(res, 200, {
             access_token: `mock-${randomUUID()}`,
             token_type: "bearer",
             expires_in: 3600,
             refresh_token: randomUUID(),
-            user: { id: USER_ID, email: EMAIL, aud: "authenticated", role: "authenticated" },
+            user: { id: user.id, email: user.email, aud: "authenticated", role: "authenticated" },
           });
         }
         stats.failed++;
@@ -60,4 +65,4 @@ http
       send(res, 404, { message: "not found" });
     });
   })
-  .listen(PORT, "127.0.0.1", () => console.log(`Mock Supabase Auth on http://127.0.0.1:${PORT} (user ${EMAIL})`));
+  .listen(PORT, "127.0.0.1", () => console.log(`Mock Supabase Auth on http://127.0.0.1:${PORT} (users: ${USERS.map((u) => u.email).join(", ")})`));
