@@ -236,8 +236,10 @@ await check("The player is not part of the first page load (loaded on demand, or
       const body = await r.text().catch(() => "");
       assert(!body.includes("bodymovin"), `player loaded with the page: ${r.url()}`);
     }
-    // ...but it is fetched once the page is idle, so the first loader is ready.
-    await s.page.waitForResponse((r) => r.url().endsWith("/lottie/loading.json"), { timeout: 15000 });
+    // ...but it is fetched once the page is idle, so the first loader is ready
+    // (also before signing in: the file must not be redirected to /welcome).
+    const res = await s.page.waitForResponse((r) => new URL(r.url()).pathname === "/lottie/loading.json", { timeout: 15000 });
+    assert(res.status() === 200 && Array.isArray((await res.json()).layers), `animation not served (HTTP ${res.status()})`);
   }
   await s.context.close();
 });

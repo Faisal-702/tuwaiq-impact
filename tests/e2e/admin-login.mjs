@@ -179,8 +179,8 @@ if (MOCK) {
 }
 
 for (const [lang, L] of [
-  ["en", { title: "Verification code", label: "Verification code", submit: "Verify and continue", account: "Account:" }],
-  ["ar", { title: "رمز التحقق", label: "رمز التحقق", submit: "تحقق ومتابعة", account: "الحساب:" }],
+  ["en", { title: "Additional Verification", label: "Personal verification code", submit: "Verify and continue", account: "Account" }],
+  ["ar", { title: "التحقق الإضافي", label: "رمز التحقق الشخصي", submit: "تحقق ومتابعة", account: "الحساب" }],
 ]) {
   await check(`${lang.toUpperCase()} · Password alone does not open the dashboard: the code step follows`, async () => {
     const { context, page } = await open(lang);
@@ -202,6 +202,50 @@ for (const [lang, L] of [
     await context.close();
   });
 }
+
+await check("8-box code input: digits only, next box / Backspace, paste, max 8, active box", async () => {
+  const { context, page } = await open("en");
+  await page.goto(BASE + "/welcome?mode=admin");
+  await fillAdminLogin(page, ADMIN);
+  await page.locator('form[data-step="verify"]').waitFor();
+  const boxes = page.locator("#admin-code + div > div");
+  assert((await boxes.count()) === 8, "not 8 boxes");
+  const filled = () => boxes.evaluateAll((bs) => bs.filter((b) => b.hasAttribute("data-filled")).length);
+  const activeIndex = () => boxes.evaluateAll((bs) => bs.findIndex((b) => b.hasAttribute("data-active")));
+  const input = page.locator("#admin-code");
+  await input.focus();
+  assert((await activeIndex()) === 0, "first box not highlighted");
+  await page.keyboard.type("12a3");
+  assert((await input.inputValue()) === "123" && (await filled()) === 3, "non-digits accepted or boxes not filled");
+  assert((await activeIndex()) === 3, `active box ${await activeIndex()}`);
+  await page.keyboard.press("Backspace");
+  assert((await input.inputValue()) === "12" && (await filled()) === 2, "Backspace");
+  await input.fill("\u0661\u0662\u0663\u0664 \u0665\u0666\u0667\u0668");
+  assert((await input.inputValue()) === "12345678", `paste of Arabic digits with a space: ${await input.inputValue()}`);
+  await page.keyboard.type("9");
+  assert((await input.inputValue()).length === 8, "more than 8 digits");
+  // Digits read left to right in both languages.
+  assert((await page.locator("#admin-code").evaluate((el) => getComputedStyle(el.parentElement).direction)) === "ltr", "boxes not LTR");
+  const text = await page.locator("form").innerText();
+  assert(!/resend|sent to|code sent/i.test(text), "mentions sending a code");
+  await context.close();
+});
+
+await check("AR · mobile (320 px): the 8 boxes fit without horizontal scrolling", async () => {
+  const context = await browser.newContext({ viewport: { width: 320, height: 700 }, extraHTTPHeaders: { "x-forwarded-for": randomClientIp() } });
+  await context.addCookies([{ name: "ti_lang", value: "ar", url: BASE }]);
+  const page = await context.newPage();
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto(BASE + "/welcome?mode=admin");
+  await fillAdminLogin(page, ADMIN);
+  await page.locator('form[data-step="verify"]').waitFor();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+  assert(overflow <= 0, `page scrolls horizontally by ${overflow}px`);
+  const last = await page.locator("#admin-code + div > div").last().boundingBox();
+  assert(last.x + last.width <= 320, "last box outside the screen");
+  assert(!/أُرسل|إعادة الإرسال|تم إرسال/.test(await page.locator("form").innerText()), "mentions sending a code");
+  await context.close();
+});
 
 await check("Wrong, malformed or empty code: refused, no session", async () => {
   const { context, page } = await open("en");

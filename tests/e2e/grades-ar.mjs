@@ -129,7 +129,7 @@ await check("AR · Admin login", async () => {
   await adm.page.getByLabel("البريد الإلكتروني").fill(ADMIN.email);
   await adm.page.getByLabel("كلمة المرور", { exact: true }).fill(ADMIN.password);
   await adm.page.getByRole("button", { name: "الدخول إلى لوحة التحكم" }).click();
-  await adm.page.getByLabel("رمز التحقق", { exact: true }).fill(ADMIN.code);
+  await adm.page.getByLabel("رمز التحقق الشخصي", { exact: true }).fill(ADMIN.code);
   await adm.page.getByRole("button", { name: "تحقق ومتابعة" }).click();
   await adm.page.waitForURL(BASE + "/admin");
 });
