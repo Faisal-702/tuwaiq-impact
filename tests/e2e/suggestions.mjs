@@ -9,7 +9,7 @@
  * (only rows carrying this run's unique marker).
  */
 import { chromium } from "playwright";
-import { adminCredentials, fillAdminLogin, studentSessionCookies } from "./lib/student.mjs";
+import { adminCredentials, signInAdmin, studentSessionCookies } from "./lib/student.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const ADMIN = adminCredentials();
@@ -342,7 +342,7 @@ for (const lang of ["en", "ar"]) {
   const { context, page } = await open(lang, { guest: false, n: 6 });
   await check(`${L} · Admin sidebar: "${A.nav}" directly below "${A.categories}"`, async () => {
     await page.goto(BASE + "/welcome?mode=admin");
-    await fillAdminLogin(page, ADMIN);
+    await signInAdmin(page, ADMIN);
     await page.waitForURL(BASE + "/admin");
     const items = (await page.locator("aside nav").first().locator("li").allInnerTexts()).map((t) => t.trim());
     const i = items.indexOf(A.categories);

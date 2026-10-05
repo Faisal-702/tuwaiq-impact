@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { isAdminCodeFormat, isWeakAdminCode, normalizeAdminCode } from "@/lib/admin-code";
 import { logActivity } from "../activity";
+import { changeVerificationCode, resetVerificationCode } from "../admin-verification";
 import { requireAdmin, revokeAllAdminSessions, signOutCompletely } from "../auth";
 import { sql } from "../db";
 import { storage } from "../storage";
@@ -39,6 +41,43 @@ export async function signOutEverywhere(): Promise<void> {
   await logActivity({ action: "admin.sessions_revoked", targetType: "session" });
   await revokeAllAdminSessions();
   redirect("/welcome");
+}
+
+export type ChangeCodeError = "unsupported" | "format" | "weak" | "mismatch" | "invalid" | "locked";
+
+/** An administrator changes their own verification code; the current code is required. */
+export async function changeMyVerificationCode(input: {
+  current: string;
+  next: string;
+  confirm: string;
+}): Promise<{ ok: true } | { ok: false; error: ChangeCodeError }> {
+  const session = await requireAdmin();
+  if (!session.authUserId || !session.email) return { ok: false, error: "unsupported" };
+  const current = normalizeAdminCode(String(input.current ?? "").slice(0, 40));
+  const next = normalizeAdminCode(String(input.next ?? "").slice(0, 40));
+  const confirm = normalizeAdminCode(String(input.confirm ?? "").slice(0, 40));
+  if (!isAdminCodeFormat(current) || !isAdminCodeFormat(next)) return { ok: false, error: "format" };
+  if (isWeakAdminCode(next)) return { ok: false, error: "weak" };
+  if (confirm !== next) return { ok: false, error: "mismatch" };
+  const result = await changeVerificationCode(session.authUserId, current, next);
+  if (!result.ok) {
+    await new Promise((resolve) => setTimeout(resolve, 450));
+    return { ok: false, error: result.reason === "locked" ? "locked" : result.reason === "restart" ? "unsupported" : "invalid" };
+  }
+  await logActivity({ action: "admin.verification_code_changed", targetType: "session", targetLabel: session.email });
+  revalidatePath("/admin/settings");
+  return { ok: true };
+}
+
+/** Removes another administrator's code; they create a new one at their next sign-in. */
+export async function resetAdminVerificationCode(userId: string): Promise<ActionResult> {
+  const session = await requireAdmin();
+  if (!z.uuid().safeParse(userId).success || userId === session.authUserId) return { ok: false, error: "invalid" };
+  const email = await resetVerificationCode(userId);
+  if (!email) return { ok: false, error: "not_found" };
+  await logActivity({ action: "admin.verification_code_reset", targetType: "session", targetLabel: email });
+  revalidatePath("/admin/settings");
+  return { ok: true };
 }
 
 /** Removes every record flagged as development/demo data, including its media. */

@@ -27,6 +27,9 @@ export type ActivityAction =
   | "settings.updated"
   | "admin.signed_in"
   | "admin.sessions_revoked"
+  | "admin.verification_code_set"
+  | "admin.verification_code_changed"
+  | "admin.verification_code_reset"
   | "demo.purged";
 
 export async function logActivity(entry: {

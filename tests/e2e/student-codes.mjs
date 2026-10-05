@@ -192,6 +192,8 @@ await check("Existing admin login still works (Admin Access tab)", async () => {
   await A.getByLabel("Email", { exact: true }).fill(ADMIN.email);
   await A.getByLabel("Password", { exact: true }).fill(ADMIN.password);
   await A.getByRole("button", { name: "Access Dashboard" }).click();
+  await A.getByLabel("Verification code", { exact: true }).fill(ADMIN.code);
+  await A.getByRole("button", { name: "Verify and continue" }).click();
   await A.waitForURL(BASE + "/admin");
   await A.getByRole("heading", { name: "Overview" }).waitFor();
 });

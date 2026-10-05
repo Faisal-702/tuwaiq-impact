@@ -8,7 +8,7 @@
  * cookies) and drops browser-session cookies.
  */
 import { chromium } from "playwright";
-import { adminCredentials, ensureStudentCode, fillAdminLogin, studentLogin } from "./lib/student.mjs";
+import { adminCredentials, signInAdmin, ensureStudentCode, fillAdminLogin, studentLogin } from "./lib/student.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const ADMIN = adminCredentials();
@@ -47,7 +47,7 @@ const survivingRestart = (cookies) => cookies.filter((c) => c.expires !== -1);
 async function adminLogin(page) {
   await page.goto(BASE + "/welcome");
   await page.getByRole("tab", { name: "Admin Access" }).click();
-  await fillAdminLogin(page, ADMIN);
+  await signInAdmin(page, ADMIN);
   await page.waitForURL(BASE + "/admin");
   await page.getByRole("heading", { name: "Overview" }).waitFor();
 }

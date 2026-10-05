@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, Eye, EyeOff, Info, KeyRound, LoaderCircle, LockKeyhole, Mail, ShieldCheck, UserRound } from "lucide-react";
 import { Tabs } from "radix-ui";
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState, type RefObject } from "react";
 import { useFormStatus } from "react-dom";
 import { adminLogin, studentLogin, type AdminLoginState, type StudentLoginState } from "@/app/welcome/actions";
 import { LanguageSwitcher } from "@/components/brand/language-switcher";
@@ -18,10 +18,13 @@ export function EntryExperience({
   next,
   initialMode,
   expired,
+  pendingAdmin = null,
 }: {
   next: string | null;
   initialMode: "admin" | "student";
   expired: boolean;
+  /** Set when the password was verified and the verification code step is pending. */
+  pendingAdmin?: PendingAdminStep | null;
 }) {
   const { t, dir } = useI18n();
   const [mode, setMode] = useState<"admin" | "student">(initialMode);
@@ -117,7 +120,7 @@ export function EntryExperience({
                     exit={{ opacity: 0, y: -4 }}
                     transition={{ duration: 0.25, ease: EASE }}
                   >
-                    <AdminForm next={next} expired={expired} />
+                    <AdminForm next={next} expired={expired} pending={pendingAdmin} />
                   </motion.div>
                 </Tabs.Content>
               ) : (
@@ -212,108 +215,195 @@ const adminInputClass = (error: boolean) =>
       : "border-[#d9d4f5] shadow-[0_0_0_3px_rgb(109_74_255/0.06)] hover:border-violet focus:border-purple/70 focus:ring-purple/12",
   );
 
-function AdminForm({ next, expired }: { next: string | null; expired: boolean }) {
+export type PendingAdminStep = { step: "verify" | "setup"; email: string };
+
+function AdminForm({ next, expired, pending }: { next: string | null; expired: boolean; pending: PendingAdminStep | null }) {
   const { t } = useI18n();
   const [state, formAction] = useActionState<AdminLoginState, FormData>(adminLogin, {
+    step: pending?.step ?? "credentials",
     error: null,
     attempt: 0,
-    email: "",
+    email: pending?.email ?? "",
   });
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
+  const codeRef = useRef<HTMLInputElement>(null);
+  const confirmRef = useRef<HTMLInputElement>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [showCode, setShowCode] = useState(false);
+  const codeStep = state.step !== "credentials";
 
   useEffect(() => {
+    if (state.attempt === 0) return;
+    if (codeStep) {
+      // Only a mismatching confirmation keeps the first code and asks again.
+      if (state.error === "code_mismatch") confirmRef.current?.focus();
+      else codeRef.current?.focus();
+      return;
+    }
     if (!state.error) return;
     // Missing email → focus it; otherwise the (cleared) password field.
     if (state.error === "required" && !state.email) emailRef.current?.focus();
     else passwordRef.current?.focus();
-  }, [state]);
+  }, [state, codeStep]);
 
-  const message =
-    state.error === "invalid"
-      ? t.entry.invalidCredentials
-      : state.error === "required"
-        ? t.entry.credentialsRequired
-        : state.error === "locked"
-          ? t.entry.adminLocked
-          : state.error === "unavailable"
-            ? t.entry.authUnavailable
-            : expired
-              ? t.admin.common.unauthorized
-              : null;
+  const messages: Record<NonNullable<AdminLoginState["error"]>, string> = {
+    invalid: t.entry.invalidCredentials,
+    required: t.entry.credentialsRequired,
+    locked: t.entry.adminLocked,
+    unavailable: t.entry.authUnavailable,
+    code_required: t.entry.codeRequired,
+    code_invalid: t.entry.codeInvalid,
+    code_format: t.entry.codeFormat,
+    code_weak: t.entry.codeWeak,
+    code_mismatch: t.entry.codeMismatch,
+    restart: t.entry.codeRestart,
+  };
+  const message = state.error ? messages[state.error] : expired && !codeStep ? t.admin.common.unauthorized : null;
   const describedBy = message ? "admin-login-message" : undefined;
+  const codeError = state.error === "code_invalid" || state.error === "code_format" || state.error === "code_required";
 
   return (
     <form
       action={formAction}
       data-attempt={state.attempt}
+      data-step={state.step}
       className="mt-7 space-y-4 [@media(max-height:820px)]:mt-5 [@media(max-height:820px)]:space-y-3"
       noValidate
     >
       {next ? <input type="hidden" name="next" value={next} /> : null}
-      <div>
-        <label htmlFor="admin-email" className="block text-[0.9375rem] font-medium text-ink">
-          {t.entry.emailLabel}
-        </label>
-        <div className="relative mt-2">
-          <Mail aria-hidden className="pointer-events-none absolute start-5 top-1/2 size-5 -translate-y-1/2 text-ink-soft" strokeWidth={1.9} />
-          <input
-            key={`email-${state.attempt}`}
-            ref={emailRef}
-            id="admin-email"
-            name="email"
-            type="email"
-            inputMode="email"
-            autoComplete="username"
-            spellCheck={false}
-            required
-            maxLength={254}
-            defaultValue={state.email}
-            placeholder={t.entry.emailPlaceholder}
-            aria-invalid={state.error === "required" && !state.email ? true : undefined}
-            aria-describedby={describedBy}
-            className={adminInputClass(state.error === "invalid")}
+      {codeStep ? (
+        <>
+          <input type="hidden" name="intent" value="code" />
+          <div className="flex gap-3.5 rounded-2xl bg-lavender-soft px-4 py-3.5 ring-1 ring-inset ring-purple/10">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-purple shadow-[0_1px_2px_rgb(16_24_40/0.06)]">
+              <ShieldCheck aria-hidden className="size-5" strokeWidth={2} />
+            </span>
+            <div className="min-w-0">
+              <h2 id="admin-code-title" className="text-[0.9375rem] font-semibold text-purple-ink">
+                {state.step === "setup" ? t.entry.codeSetupTitle : t.entry.codeTitle}
+              </h2>
+              <p className="mt-0.5 text-[0.8125rem] leading-relaxed text-ink-soft">
+                {state.step === "setup" ? t.entry.codeSetupIntro : t.entry.codeVerifyIntro}
+              </p>
+              <p className="mt-1.5 text-[0.8125rem] text-muted [overflow-wrap:anywhere]" data-testid="admin-code-account">
+                {t.entry.codeAccount} <bdi dir="ltr" className="font-medium text-ink-soft">{state.email}</bdi>
+              </p>
+            </div>
+          </div>
+          <CodeField
+            key={`code-${state.attempt}`}
+            id="admin-code"
+            name="code"
+            inputRef={codeRef}
+            label={state.step === "setup" ? t.entry.codeNewLabel : t.entry.codeLabel}
+            placeholder={t.entry.codePlaceholder}
+            visible={showCode}
+            onToggle={() => setShowCode((v) => !v)}
+            toggleLabel={showCode ? t.entry.hideCode : t.entry.showCode}
+            invalid={codeError || state.error === "code_weak"}
+            shake={state.error === "code_invalid"}
+            describedBy={describedBy}
+            autoComplete={state.step === "setup" ? "new-password" : "off"}
           />
-        </div>
-      </div>
-      <div>
-        <label htmlFor="admin-password" className="block text-[0.9375rem] font-medium text-ink">
-          {t.entry.passwordLabel}
-        </label>
-        <div className="relative mt-2">
-          <LockKeyhole aria-hidden className="pointer-events-none absolute start-5 top-1/2 size-5 -translate-y-1/2 text-ink-soft" strokeWidth={1.9} />
-          <motion.input
-            key={`password-${state.attempt}`}
-            ref={passwordRef}
-            id="admin-password"
-            name="password"
-            type={showPassword ? "text" : "password"}
-            autoComplete="current-password"
-            spellCheck={false}
-            required
-            maxLength={200}
-            placeholder={t.entry.passwordPlaceholder}
-            aria-invalid={state.error ? true : undefined}
-            aria-describedby={describedBy}
-            animate={state.error === "invalid" ? { x: [0, -6, 6, -4, 4, 0] } : undefined}
-            transition={{ duration: 0.4 }}
-            className={cn(adminInputClass(Boolean(state.error)), "pe-14")}
-          />
+          {state.step === "setup" ? (
+            <CodeField
+              key={`confirm-${state.attempt}`}
+              id="admin-code-confirm"
+              name="confirm"
+              inputRef={confirmRef}
+              label={t.entry.codeConfirmLabel}
+              placeholder={t.entry.codePlaceholder}
+              visible={showCode}
+              invalid={state.error === "code_mismatch"}
+              describedBy={describedBy}
+              autoComplete="new-password"
+            />
+          ) : null}
+          <div className="pt-1">
+            <SubmitButton
+              label={state.step === "setup" ? t.entry.codeSetupSubmit : t.entry.codeSubmit}
+              pendingLabel={t.entry.verifying}
+            />
+          </div>
           <button
-            type="button"
-            onClick={() => setShowPassword((v) => !v)}
-            aria-label={showPassword ? t.entry.hidePassword : t.entry.showPassword}
-            aria-pressed={showPassword}
-            className="absolute end-3 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-lg text-muted transition hover:bg-canvas hover:text-ink"
+            type="submit"
+            name="intent"
+            value="back"
+            formNoValidate
+            className="mx-auto flex items-center gap-1.5 rounded-lg px-2 py-1 text-[0.875rem] font-medium text-muted transition hover:text-purple-ink"
           >
-            {showPassword ? <EyeOff className="size-[1.125rem]" aria-hidden /> : <Eye className="size-[1.125rem]" aria-hidden />}
+            <ArrowRight aria-hidden className="size-4 -scale-x-100 rtl:scale-x-100" />
+            {t.entry.codeBack}
           </button>
-        </div>
-      </div>
-      <div className="pt-1">
-        <SubmitButton label={t.entry.submit} pendingLabel={t.entry.verifying} />
-      </div>
+        </>
+      ) : (
+        <>
+          <input type="hidden" name="intent" value="credentials" />
+          <div>
+            <label htmlFor="admin-email" className="block text-[0.9375rem] font-medium text-ink">
+              {t.entry.emailLabel}
+            </label>
+            <div className="relative mt-2">
+              <Mail aria-hidden className="pointer-events-none absolute start-5 top-1/2 size-5 -translate-y-1/2 text-ink-soft" strokeWidth={1.9} />
+              <input
+                key={`email-${state.attempt}`}
+                ref={emailRef}
+                id="admin-email"
+                name="email"
+                type="email"
+                inputMode="email"
+                autoComplete="username"
+                spellCheck={false}
+                required
+                maxLength={254}
+                defaultValue={state.email}
+                placeholder={t.entry.emailPlaceholder}
+                aria-invalid={state.error === "required" && !state.email ? true : undefined}
+                aria-describedby={describedBy}
+                className={adminInputClass(state.error === "invalid")}
+              />
+            </div>
+          </div>
+          <div>
+            <label htmlFor="admin-password" className="block text-[0.9375rem] font-medium text-ink">
+              {t.entry.passwordLabel}
+            </label>
+            <div className="relative mt-2">
+              <LockKeyhole aria-hidden className="pointer-events-none absolute start-5 top-1/2 size-5 -translate-y-1/2 text-ink-soft" strokeWidth={1.9} />
+              <motion.input
+                key={`password-${state.attempt}`}
+                ref={passwordRef}
+                id="admin-password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                spellCheck={false}
+                required
+                maxLength={200}
+                placeholder={t.entry.passwordPlaceholder}
+                aria-invalid={state.error && state.error !== "restart" ? true : undefined}
+                aria-describedby={describedBy}
+                animate={state.error === "invalid" ? { x: [0, -6, 6, -4, 4, 0] } : undefined}
+                transition={{ duration: 0.4 }}
+                className={cn(adminInputClass(Boolean(state.error) && state.error !== "restart"), "pe-14")}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? t.entry.hidePassword : t.entry.showPassword}
+                aria-pressed={showPassword}
+                className="absolute end-3 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-lg text-muted transition hover:bg-canvas hover:text-ink"
+              >
+                {showPassword ? <EyeOff className="size-[1.125rem]" aria-hidden /> : <Eye className="size-[1.125rem]" aria-hidden />}
+              </button>
+            </div>
+          </div>
+          <div className="pt-1">
+            <SubmitButton label={t.entry.submit} pendingLabel={t.entry.verifying} />
+          </div>
+        </>
+      )}
       <p
         id="admin-login-message"
         aria-live="polite"
@@ -322,6 +412,74 @@ function AdminForm({ next, expired }: { next: string | null; expired: boolean })
         {message}
       </p>
     </form>
+  );
+}
+
+/** An 8-digit verification code field (masked, with an optional show/hide toggle). */
+function CodeField({
+  id,
+  name,
+  label,
+  placeholder,
+  inputRef,
+  visible,
+  onToggle,
+  toggleLabel,
+  invalid,
+  shake,
+  describedBy,
+  autoComplete,
+}: {
+  id: string;
+  name: string;
+  label: string;
+  placeholder: string;
+  inputRef: RefObject<HTMLInputElement | null>;
+  visible: boolean;
+  onToggle?: () => void;
+  toggleLabel?: string;
+  invalid: boolean;
+  shake?: boolean;
+  describedBy?: string;
+  autoComplete: string;
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className="block text-[0.9375rem] font-medium text-ink">
+        {label}
+      </label>
+      <div className="relative mt-2">
+        <KeyRound aria-hidden className="pointer-events-none absolute start-5 top-1/2 size-5 -translate-y-1/2 text-ink-soft" strokeWidth={1.9} />
+        <motion.input
+          ref={inputRef}
+          id={id}
+          name={name}
+          type={visible ? "text" : "password"}
+          inputMode="numeric"
+          autoComplete={autoComplete}
+          spellCheck={false}
+          required
+          maxLength={12}
+          placeholder={placeholder}
+          aria-invalid={invalid || undefined}
+          aria-describedby={describedBy}
+          animate={shake ? { x: [0, -6, 6, -4, 4, 0] } : undefined}
+          transition={{ duration: 0.4 }}
+          className={cn(adminInputClass(invalid), "pe-14 tracking-[0.18em] placeholder:tracking-normal")}
+        />
+        {onToggle ? (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label={toggleLabel}
+            aria-pressed={visible}
+            className="absolute end-3 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-lg text-muted transition hover:bg-canvas hover:text-ink"
+          >
+            {visible ? <EyeOff className="size-[1.125rem]" aria-hidden /> : <Eye className="size-[1.125rem]" aria-hidden />}
+          </button>
+        ) : null}
+      </div>
+    </div>
   );
 }
 

@@ -48,19 +48,25 @@ export async function createAdminSession(admin: { userId: string; email: string 
   (await cookies()).set(ADMIN_COOKIE, token, sessionCookie());
 }
 
+/**
+ * An administrator session. authUserId/email are null only for sessions opened
+ * before sign-in used Supabase Auth accounts.
+ */
+export type AdminSession = { id: string; authUserId: string | null; email: string | null };
+
 /** Returns the active admin session (validated against the database), or null. */
-export const getAdminSession = cache(async (): Promise<{ id: string } | null> => {
+export const getAdminSession = cache(async (): Promise<AdminSession | null> => {
   const token = (await cookies()).get(ADMIN_COOKIE)?.value;
   if (!validTokenShape(token)) return null;
   const tokenHash = sha256(token).toString("hex");
-  const rows = await sql<{ id: string }[]>`
+  const rows = await sql<AdminSession[]>`
     update admin_sessions
        set last_seen_at = now()
      where token_hash = ${tokenHash}
        and revoked_at is null
        and expires_at > now()
        and last_seen_at > now() - make_interval(mins => ${SESSION_IDLE_MINUTES})
-    returning id`;
+    returning id, auth_user_id as "authUserId", email`;
   return rows[0] ?? null;
 });
 
@@ -69,7 +75,7 @@ export async function isAdmin(): Promise<boolean> {
 }
 
 /** Guards admin pages and server actions. Redirects to the entry page if not authorised. */
-export async function requireAdmin(): Promise<{ id: string }> {
+export async function requireAdmin(): Promise<AdminSession> {
   const session = await getAdminSession();
   if (!session) redirect("/welcome?mode=admin&expired=1");
   return session;
