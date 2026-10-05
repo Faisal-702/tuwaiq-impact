@@ -3,14 +3,16 @@
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, Eye, EyeOff, Info, KeyRound, LoaderCircle, LockKeyhole, Mail, ShieldCheck, UserRound } from "lucide-react";
 import { Tabs } from "radix-ui";
-import { useActionState, useEffect, useRef, useState, type RefObject } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { adminLogin, studentLogin, type AdminLoginState, type StudentLoginState } from "@/app/welcome/actions";
 import { LanguageSwitcher } from "@/components/brand/language-switcher";
 import { PartnerLogos } from "@/components/brand/partner-logos";
 import { useI18n } from "@/i18n/client";
 import { cn } from "@/lib/utils";
+import { LoadingAnimation } from "@/components/ui/loading-animation";
 import { EntryScene } from "./entry-scene";
+import { SecurityCodeInput } from "./security-code-input";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -187,15 +189,42 @@ function EntryTab({
   );
 }
 
-function SubmitButton({ label, pendingLabel, icon = true }: { label: string; pendingLabel: string; icon?: boolean }) {
+function SubmitButton({
+  label,
+  pendingLabel,
+  icon = true,
+  elevated = false,
+  pendingAnimation = false,
+}: {
+  label: string;
+  pendingLabel: string;
+  icon?: boolean;
+  /** Lifts slightly on hover and presses in on click. */
+  elevated?: boolean;
+  /** While pending, show the site's loading animation instead of the spinner. */
+  pendingAnimation?: boolean;
+}) {
   const { pending } = useFormStatus();
   return (
     <button
       type="submit"
       disabled={pending}
-      className="group relative flex h-14 w-full items-center justify-center gap-2.5 overflow-hidden rounded-2xl bg-gradient-to-r from-[#5b36f0] via-purple to-[#7a58ff] text-[1.0625rem] font-semibold text-white shadow-[0_14px_30px_-14px_rgb(91_54_240/0.9)] transition-[transform,box-shadow,filter] duration-200 hover:shadow-[0_18px_36px_-14px_rgb(91_54_240/0.95)] hover:brightness-[1.04] active:translate-y-px disabled:cursor-wait disabled:opacity-80"
+      className={cn(
+        "group relative flex h-14 w-full items-center justify-center gap-2.5 overflow-hidden rounded-2xl bg-gradient-to-r from-[#5b36f0] via-purple to-[#7a58ff] text-[1.0625rem] font-semibold text-white shadow-[0_14px_30px_-14px_rgb(91_54_240/0.9)] transition-[transform,box-shadow,filter] duration-200 hover:shadow-[0_18px_36px_-14px_rgb(91_54_240/0.95)] hover:brightness-[1.04] active:translate-y-px disabled:cursor-wait disabled:opacity-80",
+        elevated &&
+          "hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-14px_rgb(91_54_240/0.95)] active:translate-y-0 active:scale-[0.985] motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 disabled:translate-y-0",
+      )}
     >
-      {pending ? <LoaderCircle aria-hidden className="size-5 animate-spin" /> : null}
+      {pending ? (
+        pendingAnimation ? (
+          <span className="grid h-10 w-[3.25rem] place-items-center overflow-hidden rounded-full bg-white shadow-[0_2px_6px_rgb(16_24_40/0.12)]">
+            {/* The animation is 4:3, so a 52 px box draws it 52×39: it fits the pill. */}
+            <LoadingAnimation size={52} />
+          </span>
+        ) : (
+          <LoaderCircle aria-hidden className="size-5 animate-spin" />
+        )
+      ) : null}
       <span>{pending ? pendingLabel : label}</span>
       {!pending && icon ? (
         <ArrowRight
@@ -218,7 +247,7 @@ const adminInputClass = (error: boolean) =>
 export type PendingAdminStep = { step: "verify" | "setup"; email: string };
 
 function AdminForm({ next, expired, pending }: { next: string | null; expired: boolean; pending: PendingAdminStep | null }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [state, formAction] = useActionState<AdminLoginState, FormData>(adminLogin, {
     step: pending?.step ?? "credentials",
     error: null,
@@ -273,70 +302,113 @@ function AdminForm({ next, expired, pending }: { next: string | null; expired: b
     >
       {next ? <input type="hidden" name="next" value={next} /> : null}
       {codeStep ? (
-        <>
+        <motion.div
+          key={`code-step-${state.step}`}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, ease: EASE }}
+          className="space-y-5 [@media(max-height:820px)]:space-y-4"
+        >
           <input type="hidden" name="intent" value="code" />
-          <div className="flex gap-3.5 rounded-2xl bg-lavender-soft px-4 py-3.5 ring-1 ring-inset ring-purple/10">
-            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-purple shadow-[0_1px_2px_rgb(16_24_40/0.06)]">
-              <ShieldCheck aria-hidden className="size-5" strokeWidth={2} />
+          <div className="text-center">
+            <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-lavender-soft text-purple ring-1 ring-inset ring-purple/10 shadow-[0_8px_20px_-12px_rgb(91_54_240/0.45)]">
+              <LockKeyhole aria-hidden className="size-[1.375rem]" strokeWidth={2} />
+            </span>
+            <h2 id="admin-code-title" className="mt-3.5 text-[1.375rem] font-bold leading-tight text-purple-ink">
+              {state.step === "setup" ? t.entry.codeSetupTitle : t.entry.codeTitle}
+            </h2>
+            <p lang={locale === "ar" ? "en" : "ar"} className="mt-1 text-[0.9375rem] font-medium text-ink-soft">
+              {state.step === "setup" ? t.entry.codeSetupTitleAlt : t.entry.codeTitleAlt}
+            </p>
+            <p className="mt-2 text-[0.875rem] leading-relaxed text-muted">{t.entry.codeVerifiedNote}</p>
+          </div>
+
+          <div
+            data-testid="admin-code-account"
+            className="flex items-center gap-3 rounded-2xl bg-white/70 px-4 py-3 ring-1 ring-inset ring-line-soft"
+          >
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-lavender-soft text-purple">
+              <UserRound aria-hidden className="size-[1.125rem]" strokeWidth={2} />
             </span>
             <div className="min-w-0">
-              <h2 id="admin-code-title" className="text-[0.9375rem] font-semibold text-purple-ink">
-                {state.step === "setup" ? t.entry.codeSetupTitle : t.entry.codeTitle}
-              </h2>
-              <p className="mt-0.5 text-[0.8125rem] leading-relaxed text-ink-soft">
-                {state.step === "setup" ? t.entry.codeSetupIntro : t.entry.codeVerifyIntro}
-              </p>
-              <p className="mt-1.5 text-[0.8125rem] text-muted [overflow-wrap:anywhere]" data-testid="admin-code-account">
-                {t.entry.codeAccount} <bdi dir="ltr" className="font-medium text-ink-soft">{state.email}</bdi>
-              </p>
+              <p className="text-[0.75rem] text-muted">{t.entry.codeAccount}</p>
+              <bdi dir="ltr" className="block truncate text-[0.9375rem] font-medium text-ink">
+                {state.email}
+              </bdi>
             </div>
           </div>
-          <CodeField
-            key={`code-${state.attempt}`}
-            id="admin-code"
-            name="code"
-            inputRef={codeRef}
-            label={state.step === "setup" ? t.entry.codeNewLabel : t.entry.codeLabel}
-            placeholder={t.entry.codePlaceholder}
-            visible={showCode}
-            onToggle={() => setShowCode((v) => !v)}
-            toggleLabel={showCode ? t.entry.hideCode : t.entry.showCode}
-            invalid={codeError || state.error === "code_weak"}
-            shake={state.error === "code_invalid"}
-            describedBy={describedBy}
-            autoComplete={state.step === "setup" ? "new-password" : "off"}
-          />
-          {state.step === "setup" ? (
-            <CodeField
-              key={`confirm-${state.attempt}`}
-              id="admin-code-confirm"
-              name="confirm"
-              inputRef={confirmRef}
-              label={t.entry.codeConfirmLabel}
-              placeholder={t.entry.codePlaceholder}
-              visible={showCode}
-              invalid={state.error === "code_mismatch"}
-              describedBy={describedBy}
-              autoComplete="new-password"
-            />
-          ) : null}
-          <div className="pt-1">
-            <SubmitButton
-              label={state.step === "setup" ? t.entry.codeSetupSubmit : t.entry.codeSubmit}
-              pendingLabel={t.entry.verifying}
-            />
+
+          <div>
+            <div className="text-center">
+              <label htmlFor="admin-code" className="block text-[0.9375rem] font-semibold text-ink">
+                {state.step === "setup" ? t.entry.codeNewLabel : t.entry.codeLabel}
+              </label>
+              <p id="admin-code-hint" className="mx-auto mt-1 max-w-[24rem] text-[0.8125rem] leading-relaxed text-muted">
+                {state.step === "setup" ? t.entry.codeSetupIntro : t.entry.codeHelper}
+              </p>
+            </div>
+            <div className="mt-3.5">
+              <SecurityCodeInput
+                key={`code-${state.attempt}`}
+                id="admin-code"
+                name="code"
+                inputRef={codeRef}
+                visible={showCode}
+                invalid={codeError || state.error === "code_weak"}
+                shake={state.error === "code_invalid"}
+                describedBy={cn("admin-code-hint", describedBy)}
+                autoComplete={state.step === "setup" ? "new-password" : "off"}
+              />
+            </div>
+            {state.step === "setup" ? (
+              <div className="mt-4">
+                <label htmlFor="admin-code-confirm" className="block text-center text-[0.9375rem] font-semibold text-ink">
+                  {t.entry.codeConfirmLabel}
+                </label>
+                <div className="mt-2.5">
+                  <SecurityCodeInput
+                    key={`confirm-${state.attempt}`}
+                    id="admin-code-confirm"
+                    name="confirm"
+                    inputRef={confirmRef}
+                    visible={showCode}
+                    invalid={state.error === "code_mismatch"}
+                    describedBy={describedBy}
+                    autoComplete="new-password"
+                  />
+                </div>
+              </div>
+            ) : null}
+            <div className="mt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowCode((v) => !v)}
+                aria-pressed={showCode}
+                className="flex items-center gap-1.5 rounded-lg px-1.5 py-1 text-[0.8125rem] text-muted transition hover:text-purple-ink"
+              >
+                {showCode ? <EyeOff aria-hidden className="size-4" /> : <Eye aria-hidden className="size-4" />}
+                {showCode ? t.entry.hideCode : t.entry.showCode}
+              </button>
+            </div>
           </div>
+
+          <SubmitButton
+            label={state.step === "setup" ? t.entry.codeSetupSubmit : t.entry.codeSubmit}
+            pendingLabel={t.entry.verifying}
+            elevated
+            pendingAnimation
+          />
           <button
             type="submit"
             name="intent"
             value="back"
             formNoValidate
-            className="mx-auto flex items-center gap-1.5 rounded-lg px-2 py-1 text-[0.875rem] font-medium text-muted transition hover:text-purple-ink"
+            className="mx-auto -mt-1 flex items-center gap-1.5 rounded-lg px-2 py-1 text-[0.8125rem] text-muted transition hover:text-purple-ink"
           >
-            <ArrowRight aria-hidden className="size-4 -scale-x-100 rtl:scale-x-100" />
+            <ArrowRight aria-hidden className="size-3.5 -scale-x-100 rtl:scale-x-100" />
             {t.entry.codeBack}
           </button>
-        </>
+        </motion.div>
       ) : (
         <>
           <input type="hidden" name="intent" value="credentials" />
@@ -412,74 +484,6 @@ function AdminForm({ next, expired, pending }: { next: string | null; expired: b
         {message}
       </p>
     </form>
-  );
-}
-
-/** An 8-digit verification code field (masked, with an optional show/hide toggle). */
-function CodeField({
-  id,
-  name,
-  label,
-  placeholder,
-  inputRef,
-  visible,
-  onToggle,
-  toggleLabel,
-  invalid,
-  shake,
-  describedBy,
-  autoComplete,
-}: {
-  id: string;
-  name: string;
-  label: string;
-  placeholder: string;
-  inputRef: RefObject<HTMLInputElement | null>;
-  visible: boolean;
-  onToggle?: () => void;
-  toggleLabel?: string;
-  invalid: boolean;
-  shake?: boolean;
-  describedBy?: string;
-  autoComplete: string;
-}) {
-  return (
-    <div>
-      <label htmlFor={id} className="block text-[0.9375rem] font-medium text-ink">
-        {label}
-      </label>
-      <div className="relative mt-2">
-        <KeyRound aria-hidden className="pointer-events-none absolute start-5 top-1/2 size-5 -translate-y-1/2 text-ink-soft" strokeWidth={1.9} />
-        <motion.input
-          ref={inputRef}
-          id={id}
-          name={name}
-          type={visible ? "text" : "password"}
-          inputMode="numeric"
-          autoComplete={autoComplete}
-          spellCheck={false}
-          required
-          maxLength={12}
-          placeholder={placeholder}
-          aria-invalid={invalid || undefined}
-          aria-describedby={describedBy}
-          animate={shake ? { x: [0, -6, 6, -4, 4, 0] } : undefined}
-          transition={{ duration: 0.4 }}
-          className={cn(adminInputClass(invalid), "pe-14 tracking-[0.18em] placeholder:tracking-normal")}
-        />
-        {onToggle ? (
-          <button
-            type="button"
-            onClick={onToggle}
-            aria-label={toggleLabel}
-            aria-pressed={visible}
-            className="absolute end-3 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-lg text-muted transition hover:bg-canvas hover:text-ink"
-          >
-            {visible ? <EyeOff className="size-[1.125rem]" aria-hidden /> : <Eye className="size-[1.125rem]" aria-hidden />}
-          </button>
-        ) : null}
-      </div>
-    </div>
   );
 }
 
