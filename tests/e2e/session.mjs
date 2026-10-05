@@ -1,18 +1,17 @@
 /**
  * Session & entry behaviour checks (Student Login and Admin Access).
  *
- *   BASE_URL=http://localhost:3000 ADMIN_CODE=… node tests/e2e/session.mjs
+ *   BASE_URL=http://localhost:3000 ADMIN_EMAIL=… ADMIN_PASSWORD=… node tests/e2e/session.mjs
  *
  * "Closing and reopening the browser" is simulated the way browsers do it:
  * the next context keeps only cookies that have an expiry (persistent
  * cookies) and drops browser-session cookies.
  */
 import { chromium } from "playwright";
-import { ensureStudentCode, studentLogin } from "./lib/student.mjs";
+import { adminCredentials, ensureStudentCode, fillAdminLogin, studentLogin } from "./lib/student.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
-const CODE = process.env.ADMIN_CODE;
-if (!CODE) throw new Error("ADMIN_CODE is required");
+const ADMIN = adminCredentials();
 
 const results = [];
 const errors = [];
@@ -40,7 +39,7 @@ async function newBrowserSession(cookies = []) {
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
   return { context, page };
 }
-const STUDENT_CODE = await ensureStudentCode(browser, { base: BASE, adminCode: CODE });
+const STUDENT_CODE = await ensureStudentCode(browser, { base: BASE, admin: ADMIN });
 
 /** Cookies a real browser would keep after being closed and reopened. */
 const survivingRestart = (cookies) => cookies.filter((c) => c.expires !== -1);
@@ -48,8 +47,7 @@ const survivingRestart = (cookies) => cookies.filter((c) => c.expires !== -1);
 async function adminLogin(page) {
   await page.goto(BASE + "/welcome");
   await page.getByRole("tab", { name: "Admin Access" }).click();
-  await page.getByLabel("Access Code").fill(CODE);
-  await page.getByRole("button", { name: "Access Dashboard" }).click();
+  await fillAdminLogin(page, ADMIN);
   await page.waitForURL(BASE + "/admin");
   await page.getByRole("heading", { name: "Overview" }).waitFor();
 }
@@ -82,12 +80,11 @@ await check("Direct /admin without login redirects to /welcome", async () => {
   assert(path(s.page) === "/welcome", s.page.url());
 });
 
-await check("Wrong code does not grant access", async () => {
+await check("Wrong password does not grant access", async () => {
   await s.page.goto(BASE + "/welcome");
   await s.page.getByRole("tab", { name: "Admin Access" }).click();
-  await s.page.getByLabel("Access Code").fill("0000-wrong");
-  await s.page.getByRole("button", { name: "Access Dashboard" }).click();
-  await s.page.getByText("Invalid access code. Please contact the administrator.").waitFor();
+  await fillAdminLogin(s.page, { email: ADMIN.email, password: "wrong-password" });
+  await s.page.getByText("Incorrect email or password.").waitFor();
   assert(!(await s.context.cookies()).some((c) => c.name === "ti_admin_sid"), "admin cookie set");
 });
 

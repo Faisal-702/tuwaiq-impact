@@ -36,7 +36,8 @@ To let students in, sign in as admin and open **Admin → Student Codes**. Gener
 | Variable | Purpose |
 | --- | --- |
 | `DATABASE_URL` | Supabase Postgres connection string. On serverless hosts, use the **transaction pooler** (port 6543). |
-| `ADMIN_ACCESS_CODE` | The administrator access code. It is validated on the server only and never sent to the browser. |
+| `SUPABASE_ANON_KEY` | Supabase anon/publishable key, used server-side to verify administrator email + password with Supabase Auth (falls back to `SUPABASE_SERVICE_ROLE_KEY`). Requires `SUPABASE_URL`. |
+| `ADMIN_EMAILS` | Optional comma-separated allowlist of administrator emails. When empty, any user in the project's Supabase Auth can sign in to the dashboard. |
 | `SESSION_SECRET` | Long random string (`openssl rand -hex 32`) used to sign upload URLs and anonymise view counts. |
 | `STORAGE_DRIVER` | `supabase` (production) or `local` (development only — stores files in `.data/uploads`). |
 | `SUPABASE_URL` | Your project URL, e.g. `https://xyz.supabase.co`. |
@@ -56,7 +57,10 @@ No variable is prefixed with `NEXT_PUBLIC_`, so none of them reach browser code.
 
 ### Security
 
-- **Admin access**: the submitted code is compared on the server against `ADMIN_ACCESS_CODE` with a constant-time comparison. A wrong code adds a short fixed delay; by design there is no lockout.
+- **Admin access**: administrators sign in with the **email and password of a user registered in Supabase** (Authentication → Users).
+  - The password is checked on the server against Supabase Auth (password grant). The temporary Supabase session is revoked right away, and the dashboard uses its own httpOnly session (below). No Supabase token or key reaches the browser.
+  - Errors are generic ("Incorrect email or password."). After 10 failures within 15 minutes from one client (salted hash of its address in `admin_login_attempts`), sign-in pauses for that client.
+  - To add, remove or reset an administrator, use Supabase → Authentication → Users. **Disable public sign-ups** there (Authentication → Sign In / Providers → "Allow new users to sign up"), or set `ADMIN_EMAILS`, so that nobody can create their own account.
 - **Sessions**: on success, a random 256-bit token is created. Only its SHA-256 hash is stored, in `admin_sessions`. The browser holds the token in an `httpOnly`, `SameSite=Lax` **browser-session cookie** (`Secure` in production), so closing the browser ends the admin session and the code must be entered again.
   - Server-side, a session also ends after 2 hours without activity, or 12 hours at most.
   - **Sign out** revokes the session, clears the session cookies, and returns to `/welcome`. One role per browser: a student login ends any admin session there, and vice versa.
@@ -136,7 +140,7 @@ Remove them before launch with either:
 ```bash
 npm run lint && npm run typecheck && npm run build
 # Functional end-to-end checks against a running server (dev or `next start`):
-BASE_URL=http://localhost:3000 ADMIN_CODE=… QA_IMAGE=/path/to/large.jpg npm run test:e2e
+BASE_URL=http://localhost:3000 ADMIN_EMAIL=… ADMIN_PASSWORD=… QA_IMAGE=/path/to/large.jpg npm run test:e2e
 ```
 
 `tests/e2e/verify.mjs` walks through the full functional checklist in a real browser. It covers:
@@ -152,7 +156,7 @@ BASE_URL=http://localhost:3000 ADMIN_CODE=… QA_IMAGE=/path/to/large.jpg npm ru
 
 It fails on any console or hydration error. Records it creates are prefixed with `QA`.
 
-`npm run test:session` (same `BASE_URL` / `ADMIN_CODE` variables) checks the entry and session rules:
+`npm run test:session` (same `BASE_URL` / `ADMIN_EMAIL` / `ADMIN_PASSWORD` variables) checks the entry and session rules:
 - `/` → `/welcome`, student login, admin login, and direct `/admin` without a session
 - logout, and closing and reopening the browser
 - returning after a previous admin login
@@ -166,7 +170,7 @@ It fails on any console or hydration error. Records it creates are prefixed with
 
 It removes only the rows it created.
 
-`npm run test:student-codes` (same `BASE_URL` / `ADMIN_CODE` variables; uses the demo students and changes their codes) checks:
+`npm run test:student-codes` (same `BASE_URL` / `ADMIN_EMAIL` / `ADMIN_PASSWORD` variables; uses the demo students and changes their codes) checks:
 - the Student Login page (English and Arabic)
 - valid and invalid codes, throttling of repeated failures, and Arabic-Indic digits
 - redirects of every student-facing route without a session, including old guest and forged cookies
@@ -184,7 +188,20 @@ It removes only the rows it created.
 
 It removes only the students it created.
 
-The other end-to-end suites sign in as a demo student through the same flow (`tests/e2e/lib/student.mjs`), so they also need `ADMIN_CODE`.
+`npm run test:admin-login` checks the administrator sign-in:
+- the email and password fields in English and Arabic
+- generic errors for wrong passwords and unknown emails
+- a successful sign-in with no Supabase token in the browser
+- throttling of repeated failures
+
+All suites sign in as administrator with `ADMIN_EMAIL` / `ADMIN_PASSWORD`. Without a Supabase project, run `npm run mock:supabase-auth` and start the app against it:
+
+```bash
+SUPABASE_URL=http://127.0.0.1:54399 SUPABASE_ANON_KEY=mock-anon-key npm run dev
+ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=Tuwaiq-Admin-2026 MOCK_AUTH_URL=http://127.0.0.1:54399 npm run test:admin-login
+```
+
+The other end-to-end suites sign in as a demo student through the same flow (`tests/e2e/lib/student.mjs`), so they also need `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
 
 ## Project structure
 

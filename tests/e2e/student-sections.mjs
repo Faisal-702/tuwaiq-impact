@@ -1,18 +1,17 @@
 /**
  * Student sections ("الشعبة") and bulk student creation.
  *
- *   BASE_URL=http://localhost:3000 ADMIN_CODE=… node --env-file-if-exists=.env.local tests/e2e/student-sections.mjs
+ *   BASE_URL=http://localhost:3000 ADMIN_EMAIL=… ADMIN_PASSWORD=… node --env-file-if-exists=.env.local tests/e2e/student-sections.mjs
  *
  * Creates students whose names carry this run's unique marker. With
  * DATABASE_URL set it also checks stored values and removes those students
  * afterwards (their codes go with them).
  */
 import { chromium } from "playwright";
-import { adminLogin, randomClientIp } from "./lib/student.mjs";
+import { adminCredentials, adminLogin, randomClientIp } from "./lib/student.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
-const CODE = process.env.ADMIN_CODE;
-if (!CODE) throw new Error("ADMIN_CODE is required");
+const ADMIN = adminCredentials();
 
 const RUN = `S${Date.now().toString(36).toUpperCase()}`;
 const results = [];
@@ -53,7 +52,7 @@ async function open(lang = "en") {
   const page = await context.newPage();
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
-  await adminLogin(page, BASE, CODE);
+  await adminLogin(page, BASE, ADMIN);
   return { context, page };
 }
 

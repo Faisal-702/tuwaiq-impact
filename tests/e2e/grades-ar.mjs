@@ -2,14 +2,13 @@
  * Arabic grade labels: 10 → أولى ثانوي, 11 → ثاني ثانوي, 12 → ثالث ثانوي.
  * English must stay "Grade 10/11/12".
  *
- *   BASE_URL=http://localhost:3000 ADMIN_CODE=… node tests/e2e/grades-ar.mjs
+ *   BASE_URL=http://localhost:3000 ADMIN_EMAIL=… ADMIN_PASSWORD=… node tests/e2e/grades-ar.mjs
  */
 import { chromium } from "playwright";
-import { ensureStudentCode, studentLogin } from "./lib/student.mjs";
+import { adminCredentials, ensureStudentCode, studentLogin } from "./lib/student.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
-const CODE = process.env.ADMIN_CODE;
-if (!CODE) throw new Error("ADMIN_CODE is required");
+const ADMIN = adminCredentials();
 
 const AR = ["أولى ثانوي", "ثاني ثانوي", "ثالث ثانوي"];
 const OLD_AR = /الصف\s*1[012]/;
@@ -40,7 +39,7 @@ async function session(lang) {
   await page.goto(BASE + "/welcome");
   return { context, page };
 }
-const studentCode = await ensureStudentCode(browser, { base: BASE, adminCode: CODE });
+const studentCode = await ensureStudentCode(browser, { base: BASE, admin: ADMIN });
 /** Enters the platform with a student code (Student Login on /welcome). */
 async function enterAsStudent(page) {
   await studentLogin(page, BASE, studentCode);
@@ -125,7 +124,8 @@ await ar.context.close();
 const adm = await session("ar");
 await check("AR · Admin login", async () => {
   await adm.page.getByRole("tab", { name: "دخول المسؤول" }).click();
-  await adm.page.getByLabel("رمز الدخول").fill(CODE);
+  await adm.page.getByLabel("البريد الإلكتروني").fill(ADMIN.email);
+  await adm.page.getByLabel("كلمة المرور", { exact: true }).fill(ADMIN.password);
   await adm.page.getByRole("button", { name: "الدخول إلى لوحة التحكم" }).click();
   await adm.page.waitForURL(BASE + "/admin");
 });

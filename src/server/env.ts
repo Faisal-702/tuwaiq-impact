@@ -12,8 +12,23 @@ export const env = {
   get databaseUrl() {
     return required("DATABASE_URL");
   },
-  get adminAccessCode() {
-    return required("ADMIN_ACCESS_CODE");
+  /**
+   * Key sent as `apikey` to Supabase Auth for administrator sign-in. The
+   * publishable/anon key is enough; the service-role key is used when no
+   * anon key is configured. Server-side only either way.
+   */
+  get supabaseAuthKey() {
+    return process.env.SUPABASE_ANON_KEY || required("SUPABASE_SERVICE_ROLE_KEY");
+  },
+  /**
+   * Optional allowlist (comma-separated). When set, only these Supabase Auth
+   * users may open the dashboard; when empty, any user in the project may.
+   */
+  get adminEmails(): string[] {
+    return (process.env.ADMIN_EMAILS ?? "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
   },
   get sessionSecret() {
     const secret = required("SESSION_SECRET");

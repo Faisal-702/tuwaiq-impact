@@ -1,11 +1,11 @@
 /**
  * Top navigation hover interaction (desktop only).
  *
- *   BASE_URL=http://localhost:3000 ADMIN_CODE=… node tests/e2e/nav-hover.mjs
+ *   BASE_URL=http://localhost:3000 ADMIN_EMAIL=… ADMIN_PASSWORD=… node tests/e2e/nav-hover.mjs
  *   MEASURE_ONLY=1 … prints nav item boxes (for before/after layout comparison)
  */
 import { chromium } from "playwright";
-import { studentSessionCookies } from "./lib/student.mjs";
+import { adminCredentials, studentSessionCookies } from "./lib/student.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const results = [];
@@ -26,9 +26,9 @@ const assert = (c, m) => {
 
 const TEAL_DEEP = "rgb(15, 118, 110)";
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH });
-if (!process.env.ADMIN_CODE) throw new Error("ADMIN_CODE is required (to issue a student code)");
+
 // The platform requires a student session: sign a demo student in once.
-const { cookies: studentCookies } = await studentSessionCookies(browser, { base: BASE, adminCode: process.env.ADMIN_CODE });
+const { cookies: studentCookies } = await studentSessionCookies(browser, { base: BASE, admin: adminCredentials() });
 
 async function open(lang, viewport = { width: 1440, height: 900 }, extra = {}) {
   const context = await browser.newContext({ viewport, ...extra });

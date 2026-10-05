@@ -1,5 +1,5 @@
 import "server-only";
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
@@ -16,19 +16,12 @@ const SESSION_IDLE_MINUTES = 120;
 /**
  * Session cookies are browser-session cookies (no Expires / Max-Age): they are
  * discarded when the browser is closed, so every new visit starts at /welcome
- * and the access code (admin) or student code must be entered again.
+ * and the administrator's password or the student code must be entered again.
  */
 const sessionCookie = () =>
   ({ httpOnly: true, secure: env.isProduction, sameSite: "lax", path: "/" }) as const;
 
 const sha256 = (value: string) => createHash("sha256").update(value).digest();
-
-/** Constant-time comparison of the submitted code with the server-side secret. */
-export function isValidAccessCode(code: string): boolean {
-  const submitted = sha256(code.trim());
-  const expected = sha256(env.adminAccessCode);
-  return timingSafeEqual(submitted, expected);
-}
 
 const newToken = () => {
   const token = randomBytes(32).toString("base64url");
@@ -37,7 +30,8 @@ const newToken = () => {
 const validTokenShape = (token: string | undefined): token is string =>
   Boolean(token && token.length >= 20 && token.length <= 100);
 
-export async function createAdminSession(): Promise<void> {
+/** Opens a dashboard session for an administrator verified against Supabase Auth. */
+export async function createAdminSession(admin: { userId: string; email: string }): Promise<void> {
   // One role per browser: signing in as admin ends any student session.
   await destroyStudentSession();
   const token = randomBytes(32).toString("base64url");
@@ -46,8 +40,8 @@ export async function createAdminSession(): Promise<void> {
   const userAgent = (await headers()).get("user-agent")?.slice(0, 300) ?? null;
 
   await sql`
-    insert into admin_sessions (token_hash, expires_at, user_agent)
-    values (${tokenHash}, ${expiresAt}, ${userAgent})`;
+    insert into admin_sessions (token_hash, expires_at, user_agent, auth_user_id, email)
+    values (${tokenHash}, ${expiresAt}, ${userAgent}, ${admin.userId}, ${admin.email})`;
   // Opportunistic cleanup of expired sessions.
   await sql`delete from admin_sessions where expires_at < now() - interval '7 days'`;
 

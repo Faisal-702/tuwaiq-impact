@@ -3,17 +3,16 @@
  * sessions, and Admin → Student Codes (generate, regenerate, remove, bulk,
  * search/filters, print).
  *
- *   BASE_URL=http://localhost:3000 ADMIN_CODE=… node tests/e2e/student-codes.mjs
+ *   BASE_URL=http://localhost:3000 ADMIN_EMAIL=… ADMIN_PASSWORD=… node tests/e2e/student-codes.mjs
  *
  * Uses the demo students (npm run demo:seed). Their codes are changed by this
  * test; nothing else is modified.
  */
 import { chromium } from "playwright";
-import { adminLogin, randomClientIp, studentLogin } from "./lib/student.mjs";
+import { adminCredentials, adminLogin, randomClientIp, studentLogin } from "./lib/student.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
-const CODE = process.env.ADMIN_CODE;
-if (!CODE) throw new Error("ADMIN_CODE is required");
+const ADMIN = adminCredentials();
 
 const results = [];
 const errors = [];
@@ -190,7 +189,8 @@ await A.context().grantPermissions(["clipboard-read", "clipboard-write"], { orig
 await check("Existing admin login still works (Admin Access tab)", async () => {
   await A.goto(BASE + "/welcome");
   await A.getByRole("tab", { name: EN.adminTab }).click();
-  await A.getByLabel("Access Code").fill(CODE);
+  await A.getByLabel("Email", { exact: true }).fill(ADMIN.email);
+  await A.getByLabel("Password", { exact: true }).fill(ADMIN.password);
   await A.getByRole("button", { name: "Access Dashboard" }).click();
   await A.waitForURL(BASE + "/admin");
   await A.getByRole("heading", { name: "Overview" }).waitFor();
@@ -489,7 +489,7 @@ await check("Sign out ends the student session (token revoked server-side)", asy
 
 await check("Student and admin sessions are separate (one role per browser)", async () => {
   await studentLogin(S, BASE, codeA);
-  await adminLogin(S, BASE, CODE);
+  await adminLogin(S, BASE, ADMIN);
   assert(!(await S.context().cookies()).some((c) => c.name === "ti_student_sid"), "student cookie kept after admin login");
   await studentLogin(S, BASE, codeA);
   assert(!(await S.context().cookies()).some((c) => c.name === "ti_admin_sid"), "admin cookie kept after student login");
@@ -525,7 +525,7 @@ await check("Repeated invalid codes are throttled (even a valid code is refused 
 // ---------------------------------------------------------------------------
 await check("AR · Student Codes page labels, sidebar and print grouping", async () => {
   const ar = await open("ar", { viewport: { width: 1600, height: 1000 } });
-  await adminLogin(ar.page, BASE, CODE);
+  await adminLogin(ar.page, BASE, ADMIN);
   await ar.page.goto(BASE + "/admin/student-codes");
   await ar.page.getByRole("heading", { name: "أكواد الطلاب", exact: true }).waitFor();
   await ar.page.getByText("إنشاء وإدارة أكواد دخول الطلاب بشكل عشوائي وآمن.").waitFor();
