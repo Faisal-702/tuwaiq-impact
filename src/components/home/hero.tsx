@@ -1,6 +1,6 @@
 import { ArrowRight, Trophy } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { buttonClasses } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
 import type { Dictionary } from "@/i18n/dictionaries";

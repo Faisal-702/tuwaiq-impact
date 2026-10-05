@@ -1,7 +1,6 @@
 "use client";
 
 import { AlertTriangle, CheckCircle2, Info, LoaderCircle, Users } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -23,7 +22,6 @@ const preview = (names: string[], max = 4) => names.slice(0, max).join("، ") + 
 export function StudentBulkDialog() {
   const { t, locale } = useI18n();
   const b = t.admin.students.bulk;
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [grade, setGrade] = useState<number | null>(null);
@@ -76,7 +74,6 @@ export function StudentBulkDialog() {
       });
     setOpen(false);
     reset();
-    router.refresh();
   }
 
   // Validation summary shown under the form.

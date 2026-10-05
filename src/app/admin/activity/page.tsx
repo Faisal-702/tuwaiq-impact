@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { ActivityList } from "@/components/admin/activity-list";
 import { AdminPageHeader, Panel } from "@/components/admin/page-header";
 import { buttonClasses } from "@/components/ui/button";

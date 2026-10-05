@@ -1,6 +1,6 @@
 import { SearchX, Users } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { StudentFilters } from "@/components/students/student-filters";
 import { StudentMonogram } from "@/components/students/student-monogram";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -16,13 +16,14 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function StudentsPage(props: PageProps<"/students">) {
-  await requireViewer();
   const sp = await props.searchParams;
   const { t, locale } = await getI18n();
   const q = typeof sp.q === "string" ? sp.q.slice(0, 80) : undefined;
   const g = Number(sp.grade);
   const grade = Number.isInteger(g) && g > 0 && g <= 12 ? g : undefined;
-  const [students, options] = await Promise.all([getPublicStudents({ q, grade }), getFilterOptions()]);
+  // The session check and the page's queries run concurrently; nothing is
+  // rendered unless the check passes (requireViewer redirects otherwise).
+  const [, students, options] = await Promise.all([requireViewer(), getPublicStudents({ q, grade }), getFilterOptions()]);
 
   return (
     <div className="container-page pb-8 pt-10 sm:pt-14">

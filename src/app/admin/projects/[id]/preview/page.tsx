@@ -1,5 +1,5 @@
 import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { notFound } from "next/navigation";
 import { ProjectView } from "@/components/projects/detail/project-view";
 import { getI18n } from "@/i18n/server";

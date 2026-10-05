@@ -20,10 +20,11 @@ export async function generateMetadata(props: PageProps<"/projects/[slug]">): Pr
 }
 
 export default async function ProjectPage(props: PageProps<"/projects/[slug]">) {
-  await requireViewer();
   const { slug } = await props.params;
   const { t, locale } = await getI18n();
-  const project = await getPublicProject(decodeURIComponent(slug));
+  // The session check and the page's queries run concurrently; nothing is
+  // rendered unless the check passes (requireViewer redirects otherwise).
+  const [, project] = await Promise.all([requireViewer(), getPublicProject(decodeURIComponent(slug))]);
   if (!project) notFound();
   const related = await getRelatedProjects(project.id, project.category_id, 3);
   return (

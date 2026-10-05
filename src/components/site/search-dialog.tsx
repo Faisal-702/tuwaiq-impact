@@ -2,7 +2,7 @@
 
 import { ArrowRight, FolderOpen, LoaderCircle, Search, UserRound, X } from "lucide-react";
 import { Dialog } from "radix-ui";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { CategoryChip } from "@/components/ui/chip";

@@ -1,7 +1,6 @@
 "use client";
 
 import { KeyRound, LogOut, RotateCcw, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -21,7 +20,6 @@ import {
 
 export function DefaultsForm({ defaultPoints, currentAcademicYear }: { defaultPoints: number; currentAcademicYear: string | null }) {
   const { t } = useI18n();
-  const router = useRouter();
   const [points, setPoints] = useState(String(defaultPoints));
   const [year, setYear] = useState(currentAcademicYear ?? "");
   const [busy, setBusy] = useState(false);
@@ -37,7 +35,6 @@ export function DefaultsForm({ defaultPoints, currentAcademicYear }: { defaultPo
         setBusy(false);
         if (res.ok) {
           toast.success(t.admin.settings.saved);
-          router.refresh();
         } else toast.error(t.common.somethingWrong);
       }}
     >
@@ -79,7 +76,6 @@ export function SignOutEverywhereButton() {
 
 export function PurgeDemoButton({ disabled }: { disabled: boolean }) {
   const { t } = useI18n();
-  const router = useRouter();
   return (
     <ConfirmDialog
       trigger={
@@ -96,7 +92,6 @@ export function PurgeDemoButton({ disabled }: { disabled: boolean }) {
         const res = await purgeDemoData();
         if (res.ok) {
           toast.success(t.admin.settings.demoPurged);
-          router.refresh();
         } else toast.error(t.common.somethingWrong);
       }}
     />
@@ -114,7 +109,6 @@ const codeInputProps = {
 /** Lets the signed-in administrator change their own verification code. */
 export function ChangeCodeButton() {
   const { t } = useI18n();
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -159,7 +153,6 @@ export function ChangeCodeButton() {
               toast.success(t.admin.settings.codeChanged);
               setOpen(false);
               reset();
-              router.refresh();
             } else setError(t.admin.settings.codeErrors[res.error] ?? t.common.somethingWrong);
           }}
         >
@@ -192,7 +185,6 @@ export function ChangeCodeButton() {
 /** Removes another administrator's verification code (they create a new one at next sign-in). */
 export function ResetCodeButton({ userId, email }: { userId: string; email: string }) {
   const { t } = useI18n();
-  const router = useRouter();
   return (
     <ConfirmDialog
       trigger={
@@ -209,7 +201,6 @@ export function ResetCodeButton({ userId, email }: { userId: string; email: stri
         const res = await resetAdminVerificationCode(userId);
         if (res.ok) {
           toast.success(t.admin.settings.codeReset);
-          router.refresh();
         } else toast.error(t.common.somethingWrong);
       }}
     />

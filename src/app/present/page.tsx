@@ -10,8 +10,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function PresentPage() {
-  await requireViewer();
-  const [stats, featured, latest, leaders] = await Promise.all([
+  // The session check and the page's queries run concurrently; nothing is
+  // rendered unless the check passes (requireViewer redirects otherwise).
+  const [, stats, featured, latest, leaders] = await Promise.all([
+    requireViewer(),
     getHomeStats(),
     getFeaturedProjects(4),
     searchProjects({ sort: "points", limit: 6 }),

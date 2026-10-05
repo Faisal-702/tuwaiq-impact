@@ -46,6 +46,8 @@ async function enterAsStudent(page) {
 }
 /** All visible text plus <option> labels (which innerText omits). */
 async function pageText(page) {
+  // Streamed pages may still show their loading placeholder right after "load".
+  await page.waitForFunction(() => !document.querySelector('[data-testid="page-loading"]'));
   return page.evaluate(
     () => document.body.innerText + "\n" + [...document.querySelectorAll("option")].map((o) => o.textContent).join("\n"),
   );

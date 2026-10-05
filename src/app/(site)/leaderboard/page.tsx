@@ -1,6 +1,6 @@
 import { Trophy } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { LeaderboardList, medalLabel } from "@/components/leaderboard/leaderboard-list";
 import { RankBadge } from "@/components/leaderboard/rank-badge";
 import { YearSwitch } from "@/components/leaderboard/year-switch";
@@ -20,12 +20,15 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function LeaderboardPage(props: PageProps<"/leaderboard">) {
-  await requireViewer();
   const sp = await props.searchParams;
   const { t, locale } = await getI18n();
-  const years = await getLeaderboardYears();
-  const year = typeof sp.year === "string" && years.includes(sp.year) ? sp.year : null;
-  const rows = await getLeaderboard(year, 10);
+  // The session check, the year list and the requested year's ranking run
+  // concurrently; nothing is rendered unless the check passes. An unknown
+  // year falls back to all years (rare: only for a hand-edited URL).
+  const requested = typeof sp.year === "string" && sp.year ? sp.year : null;
+  const [, years, requestedRows] = await Promise.all([requireViewer(), getLeaderboardYears(), getLeaderboard(requested, 10)]);
+  const year = requested && years.includes(requested) ? requested : null;
+  const rows = year === requested ? requestedRows : await getLeaderboard(null, 10);
   const podium = rows.filter((r) => r.rank <= 3).slice(0, 3);
   const rest = rows.slice(podium.length);
   // Visual order on wide screens: 2nd · 1st · 3rd.

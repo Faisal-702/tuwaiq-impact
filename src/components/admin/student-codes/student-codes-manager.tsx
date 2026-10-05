@@ -88,31 +88,41 @@ export function StudentCodesManager({ rows, today }: { rows: StudentCodeRow[]; t
   const visible = filtered.slice((current - 1) * pageSize, current * pageSize);
   const resetPage = () => setPage(1);
 
-  const refresh = () => startTransition(() => router.refresh());
+  // Successful actions revalidate this page, which already updates the list;
+  // after a failure, reload it so it shows the current state.
+  const refreshAfterFailure = () => startTransition(() => router.refresh());
 
   const runGenerate = async (row: StudentCodeRow) => {
     const res = await generateStudentCode(row.id);
     if (res.ok) toast.success(s.generated);
-    else toast.error(t.common.somethingWrong);
-    refresh();
+    else {
+      toast.error(t.common.somethingWrong);
+      refreshAfterFailure();
+    }
   };
   const runRegenerate = async (row: StudentCodeRow) => {
     const res = await regenerateStudentCode(row.id);
     if (res.ok) toast.success(s.regenerated);
-    else toast.error(t.common.somethingWrong);
-    refresh();
+    else {
+      toast.error(t.common.somethingWrong);
+      refreshAfterFailure();
+    }
   };
   const runRemove = async (row: StudentCodeRow) => {
     const res = await removeStudentCode(row.id);
     if (res.ok) toast.success(s.removed);
-    else toast.error(t.common.somethingWrong);
-    refresh();
+    else {
+      toast.error(t.common.somethingWrong);
+      refreshAfterFailure();
+    }
   };
   const runBulk = async () => {
     const res = await generateMissingStudentCodes();
     if (res.ok && res.data) setResult(res.data);
-    else toast.error(t.common.somethingWrong);
-    refresh();
+    else {
+      toast.error(t.common.somethingWrong);
+      refreshAfterFailure();
+    }
   };
 
   const copy = async (code: string) => {

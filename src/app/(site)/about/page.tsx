@@ -1,6 +1,6 @@
 import { ArrowRight, GraduationCap, Lightbulb, Presentation, Target } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { PartnerLogos } from "@/components/brand/partner-logos";
 import { DotMotif } from "@/components/brand/wordmark";
 import { buttonClasses } from "@/components/ui/button";

@@ -1,6 +1,6 @@
 import { FolderKanban, PlusCircle, Search, Star } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { ProjectRowActions } from "@/components/admin/project-actions";
 import { ProjectThumb } from "@/components/admin/project-thumb";

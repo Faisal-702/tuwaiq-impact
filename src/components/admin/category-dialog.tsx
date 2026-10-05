@@ -1,7 +1,6 @@
 "use client";
 
 import { Archive, ArchiveRestore, Pencil, PlusCircle } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -18,7 +17,6 @@ import { saveCategory, setCategoryArchived } from "@/server/actions/categories";
 
 export function CategoryDialog({ category }: { category?: Category }) {
   const { t, locale } = useI18n();
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const blank = { nameEn: "", nameAr: "", keywords: "", icon: "sparkles", accent: "teal", kind: "project" as "project" | "activity" };
   const fromCategory = category
@@ -42,7 +40,6 @@ export function CategoryDialog({ category }: { category?: Category }) {
     }
     toast.success(category ? t.admin.categories.updated : t.admin.categories.created);
     setOpen(false);
-    router.refresh();
   }
 
   return (
@@ -174,7 +171,6 @@ export function CategoryDialog({ category }: { category?: Category }) {
 
 export function ArchiveCategoryButton({ category }: { category: Category }) {
   const { t } = useI18n();
-  const router = useRouter();
   if (category.archived_at) {
     return (
       <button
@@ -183,7 +179,6 @@ export function ArchiveCategoryButton({ category }: { category: Category }) {
           const res = await setCategoryArchived(category.id, false);
           if (res.ok) {
             toast.success(t.admin.categories.restoredToast);
-            router.refresh();
           }
         }}
         aria-label={`${t.admin.categories.unarchive}: ${category.name_en}`}
@@ -215,7 +210,6 @@ export function ArchiveCategoryButton({ category }: { category: Category }) {
         const res = await setCategoryArchived(category.id, true);
         if (res.ok) {
           toast.success(t.admin.categories.archivedToast);
-          router.refresh();
         } else toast.error(t.common.somethingWrong);
       }}
     />

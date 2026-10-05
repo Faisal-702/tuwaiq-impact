@@ -12,6 +12,13 @@ import { ADMIN_COOKIE, STUDENT_COOKIE } from "@/lib/routes";
 const SESSION_MAX_HOURS = 12;
 /** A session that sees no requests for this long is no longer valid. */
 const SESSION_IDLE_MINUTES = 120;
+/**
+ * last_seen_at is refreshed at most this often. Validating a session is then a
+ * read on almost every request instead of a write, so concurrent requests of
+ * one browser no longer queue on the same row (the idle limit above is two
+ * hours, so a one-minute granularity does not change it).
+ */
+const SESSION_TOUCH_SECONDS = 60;
 
 /**
  * Session cookies are browser-session cookies (no Expires / Max-Age): they are
@@ -59,14 +66,22 @@ export const getAdminSession = cache(async (): Promise<AdminSession | null> => {
   const token = (await cookies()).get(ADMIN_COOKIE)?.value;
   if (!validTokenShape(token)) return null;
   const tokenHash = sha256(token).toString("hex");
+  // One round trip: validate, and refresh last_seen_at only when it is stale.
   const rows = await sql<AdminSession[]>`
-    update admin_sessions
-       set last_seen_at = now()
-     where token_hash = ${tokenHash}
-       and revoked_at is null
-       and expires_at > now()
-       and last_seen_at > now() - make_interval(mins => ${SESSION_IDLE_MINUTES})
-    returning id, auth_user_id as "authUserId", email`;
+    with s as (
+      select id, auth_user_id, email, last_seen_at
+        from admin_sessions
+       where token_hash = ${tokenHash}
+         and revoked_at is null
+         and expires_at > now()
+         and last_seen_at > now() - make_interval(mins => ${SESSION_IDLE_MINUTES})
+    ), touch as (
+      update admin_sessions a
+         set last_seen_at = now()
+        from s
+       where a.id = s.id and s.last_seen_at < now() - make_interval(secs => ${SESSION_TOUCH_SECONDS})
+    )
+    select id, auth_user_id as "authUserId", email from s`;
   return rows[0] ?? null;
 });
 
@@ -132,15 +147,20 @@ export const getStudentSession = cache(async (): Promise<StudentSession | null> 
   const token = (await cookies()).get(STUDENT_COOKIE)?.value;
   if (!validTokenShape(token)) return null;
   const tokenHash = sha256(token).toString("hex");
+  // One round trip: validate, and refresh last_seen_at only when it is stale.
   const rows = await sql<StudentSession[]>`
     with s as (
-      update student_sessions
-         set last_seen_at = now()
+      select id, student_id, last_seen_at
+        from student_sessions
        where token_hash = ${tokenHash}
          and revoked_at is null
          and expires_at > now()
          and last_seen_at > now() - make_interval(mins => ${SESSION_IDLE_MINUTES})
-      returning id, student_id
+    ), touch as (
+      update student_sessions t
+         set last_seen_at = now()
+        from s
+       where t.id = s.id and s.last_seen_at < now() - make_interval(secs => ${SESSION_TOUCH_SECONDS})
     )
     select s.id, s.student_id as "studentId", st.name_en, st.name_ar
       from s join students st on st.id = s.student_id`;

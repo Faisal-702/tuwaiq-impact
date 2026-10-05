@@ -163,11 +163,9 @@ export function ProjectEditor({
               : t.admin.editor.toast.published,
         );
       }
-      if (!form.id) {
-        router.replace(`/admin/projects/${id}/edit`);
-      } else {
-        router.refresh();
-      }
+      // saveProject revalidates the pages, so an existing project's editor
+      // updates without an extra refresh; a new one moves to its edit URL.
+      if (!form.id) router.replace(`/admin/projects/${id}/edit`);
     } catch {
       previewWindow?.close();
       toast.error(t.common.somethingWrong);

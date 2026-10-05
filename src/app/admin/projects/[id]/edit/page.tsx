@@ -1,6 +1,6 @@
 import { ExternalLink } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { notFound } from "next/navigation";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { toEditorInitial } from "@/components/admin/project-editor/load";

@@ -15,9 +15,14 @@ function createClient(): Sql {
   // matters at request time (this keeps `next build` working without secrets).
   return postgres(url ?? "postgres://localhost:5432/postgres", {
     // Supabase's transaction pooler does not support prepared statements.
+    // (Queries still take a single round trip: see patches/README.md.)
     prepare: false,
     max: env.isProduction ? 5 : 10,
-    idle_timeout: 20,
+    // Opening a connection to a remote database (TCP + TLS + authentication)
+    // costs several round trips, about a second from a distant region. With a
+    // 20-second idle timeout, the first click after a short pause paid that
+    // again; keeping idle connections for a few minutes avoids it.
+    idle_timeout: 240,
     connect_timeout: 15,
     transform: { undefined: null },
   });

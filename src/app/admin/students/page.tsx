@@ -1,6 +1,6 @@
 import { Search, Users } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { StudentBulkDialog } from "@/components/admin/student-bulk-dialog";
 import { DeleteStudentButton, StudentDialog } from "@/components/admin/student-dialog";

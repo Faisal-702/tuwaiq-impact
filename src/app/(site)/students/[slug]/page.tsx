@@ -1,6 +1,6 @@
 import { ArrowLeft, Award, FolderKanban, Star, Trophy } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { notFound } from "next/navigation";
 import { ProjectCard } from "@/components/projects/project-card";
 import { StudentMonogram } from "@/components/students/student-monogram";
@@ -19,10 +19,11 @@ export async function generateMetadata(props: PageProps<"/students/[slug]">): Pr
 }
 
 export default async function StudentPage(props: PageProps<"/students/[slug]">) {
-  await requireViewer();
   const { slug } = await props.params;
   const { t, locale } = await getI18n();
-  const profile = await getStudentProfile(decodeURIComponent(slug));
+  // The session check and the page's queries run concurrently; nothing is
+  // rendered unless the check passes (requireViewer redirects otherwise).
+  const [, profile] = await Promise.all([requireViewer(), getStudentProfile(decodeURIComponent(slug))]);
   if (!profile) notFound();
   const { student, rank, projects, achievements } = profile;
   const name = localName(student, locale);

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { Columns, HorizontalBars } from "@/components/admin/charts";
 import { AdminPageHeader, Panel } from "@/components/admin/page-header";
 import { getI18n } from "@/i18n/server";

@@ -1,0 +1,69 @@
+diff --git a/node_modules/postgres/cf/src/connection.js b/node_modules/postgres/cf/src/connection.js
+index 8e79170..07cb075 100644
+--- a/node_modules/postgres/cf/src/connection.js
++++ b/node_modules/postgres/cf/src/connection.js
+@@ -237,7 +237,17 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
+     q.onlyDescribe && (delete statements[q.signature])
+     q.parameters = q.parameters || parameters
+     q.prepared = q.prepare && q.signature in statements
+-    q.describeFirst = q.onlyDescribe || (parameters.length && !q.prepared)
++    // Patched (tuwaiq-impact, see patches/README.md): without prepared
++    // statements (prepare: false, required by transaction-mode poolers) every
++    // query with parameters was sent in two round trips: Parse + Describe to
++    // learn the parameter types, then Bind + Execute. When every parameter is
++    // sent the same whatever type the server infers (null, a string or number
++    // sent as text, or a value with an explicit type: boolean, Date, bytes,
++    // sql.json, ...), send everything in one round trip. Arrays and plain
++    // objects still need the server's types and keep the two-step path.
++    q.describeFirst = q.onlyDescribe || (parameters.length && !q.prepared && (q.prepare || !q.parameters.every((x, i) =>
++      x === null || (!Array.isArray(x) && (typeof x === 'string' || typeof x === 'number' || Boolean(types[i])))
++    )))
+     q.statement = q.prepared
+       ? statements[q.signature]
+       : { string, types, name: q.prepare ? statementId + statementCount++ : '' }
+diff --git a/node_modules/postgres/cjs/src/connection.js b/node_modules/postgres/cjs/src/connection.js
+index 07f6716..862d105 100644
+--- a/node_modules/postgres/cjs/src/connection.js
++++ b/node_modules/postgres/cjs/src/connection.js
+@@ -235,7 +235,17 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
+     q.onlyDescribe && (delete statements[q.signature])
+     q.parameters = q.parameters || parameters
+     q.prepared = q.prepare && q.signature in statements
+-    q.describeFirst = q.onlyDescribe || (parameters.length && !q.prepared)
++    // Patched (tuwaiq-impact, see patches/README.md): without prepared
++    // statements (prepare: false, required by transaction-mode poolers) every
++    // query with parameters was sent in two round trips: Parse + Describe to
++    // learn the parameter types, then Bind + Execute. When every parameter is
++    // sent the same whatever type the server infers (null, a string or number
++    // sent as text, or a value with an explicit type: boolean, Date, bytes,
++    // sql.json, ...), send everything in one round trip. Arrays and plain
++    // objects still need the server's types and keep the two-step path.
++    q.describeFirst = q.onlyDescribe || (parameters.length && !q.prepared && (q.prepare || !q.parameters.every((x, i) =>
++      x === null || (!Array.isArray(x) && (typeof x === 'string' || typeof x === 'number' || Boolean(types[i])))
++    )))
+     q.statement = q.prepared
+       ? statements[q.signature]
+       : { string, types, name: q.prepare ? statementId + statementCount++ : '' }
+diff --git a/node_modules/postgres/src/connection.js b/node_modules/postgres/src/connection.js
+index 1b1cccd..8eee49b 100644
+--- a/node_modules/postgres/src/connection.js
++++ b/node_modules/postgres/src/connection.js
+@@ -235,7 +235,17 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
+     q.onlyDescribe && (delete statements[q.signature])
+     q.parameters = q.parameters || parameters
+     q.prepared = q.prepare && q.signature in statements
+-    q.describeFirst = q.onlyDescribe || (parameters.length && !q.prepared)
++    // Patched (tuwaiq-impact, see patches/README.md): without prepared
++    // statements (prepare: false, required by transaction-mode poolers) every
++    // query with parameters was sent in two round trips: Parse + Describe to
++    // learn the parameter types, then Bind + Execute. When every parameter is
++    // sent the same whatever type the server infers (null, a string or number
++    // sent as text, or a value with an explicit type: boolean, Date, bytes,
++    // sql.json, ...), send everything in one round trip. Arrays and plain
++    // objects still need the server's types and keep the two-step path.
++    q.describeFirst = q.onlyDescribe || (parameters.length && !q.prepared && (q.prepare || !q.parameters.every((x, i) =>
++      x === null || (!Array.isArray(x) && (typeof x === 'string' || typeof x === 'number' || Boolean(types[i])))
++    )))
+     q.statement = q.prepared
+       ? statements[q.signature]
+       : { string, types, name: q.prepare ? statementId + statementCount++ : '' }

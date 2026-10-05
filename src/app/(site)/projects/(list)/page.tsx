@@ -1,6 +1,6 @@
 import { FolderSearch, SearchX } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { ProjectCard } from "@/components/projects/project-card";
 import { ExplorerShell } from "@/components/projects/explorer-shell";
 import { buttonClasses } from "@/components/ui/button";
@@ -24,7 +24,6 @@ export async function generateMetadata(): Promise<Metadata> {
 const str = (v: string | string[] | undefined) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
 
 export default async function ProjectsPage(props: PageProps<"/projects">) {
-  await requireViewer();
   const sp = await props.searchParams;
   const { t, locale } = await getI18n();
 
@@ -38,7 +37,10 @@ export default async function ProjectsPage(props: PageProps<"/projects">) {
   const sort = SORTS.has(str(sp.sort) ?? "") ? (str(sp.sort) as ProjectSort) : "newest";
   const page = Math.min(Math.max(Number(str(sp.page)) || 1, 1), 50);
 
-  const [results, categories, options] = await Promise.all([
+  // The session check and the page's queries run concurrently; nothing is
+  // rendered unless the check passes (requireViewer redirects otherwise).
+  const [, results, categories, options] = await Promise.all([
+    requireViewer(),
     searchProjects({ q, category, grade, year, type, student, sort, limit: page * PAGE_SIZE }),
     getPublicCategories(),
     getFilterOptions(),

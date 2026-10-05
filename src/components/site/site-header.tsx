@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { LayoutDashboard, LogOut, Menu, MessageSquareText, Search, UserRound, X } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { usePathname } from "next/navigation";
 import { Fragment, useEffect, useState } from "react";
 import { LanguageSwitcher } from "@/components/brand/language-switcher";
