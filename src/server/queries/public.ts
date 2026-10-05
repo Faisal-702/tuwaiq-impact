@@ -393,8 +393,14 @@ export async function getLeaderboardYears(): Promise<string[]> {
   return rows.map((r) => r.year);
 }
 
-export async function getStudentProfile(slug: string) {
-  const [student] = await sql<
+/**
+ * A student's public profile. Cached per request (the page and its metadata
+ * both need it), and its three queries all key on the slug, so they run
+ * concurrently: one round trip instead of three.
+ */
+export const getStudentProfile = cache(async (slug: string) => {
+  const [[student], [rankRow], projectRows] = await Promise.all([
+    sql<
     {
       id: string;
       slug: string;
@@ -413,26 +419,27 @@ export async function getStudentProfile(slug: string) {
       join project_students ps on ps.student_id = s.id
       join projects p on p.id = ps.project_id and ${PUBLIC}
      where s.slug = ${slug}
-     group by s.id`;
-  if (!student) return null;
-
-  const [rankRow] = await sql<{ rank: number }[]>`
+     group by s.id`,
+    sql<{ rank: number }[]>`
     select rank from (
-      select s.id, rank() over (order by sum(p.points) desc)::int as rank
+      select s.slug, rank() over (order by sum(p.points) desc)::int as rank
         from students s
         join project_students ps on ps.student_id = s.id
         join projects p on p.id = ps.project_id and ${PUBLIC}
        group by s.id) r
-     where r.id = ${student.id}`;
-
-  const projectRows = await sql<CardRow[]>`
+     where r.slug = ${slug}`,
+    sql<CardRow[]>`
     select ${CARD_COLUMNS}
       from projects p
       join categories c on c.id = p.category_id
       ${COVER_JOIN}
      where ${PUBLIC}
-       and exists (select 1 from project_students ps where ps.project_id = p.id and ps.student_id = ${student.id})
-     order by p.published_at desc nulls last`;
+       and exists (
+         select 1 from project_students ps join students s on s.id = ps.student_id
+          where ps.project_id = p.id and s.slug = ${slug})
+     order by p.published_at desc nulls last`,
+  ]);
+  if (!student) return null;
   const projects = projectRows.map(toCard);
 
   const achievements = projects
@@ -440,7 +447,7 @@ export async function getStudentProfile(slug: string) {
     .map((p) => ({ award: p.award!, projectTitle: p.title, projectSlug: p.slug, date: p.published_at }));
 
   return { student, rank: rankRow?.rank ?? null, projects, achievements };
-}
+});
 
 // ---------------------------------------------------------------------------
 // Quick search (header)

@@ -1,5 +1,5 @@
 import { Compass } from "lucide-react";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { buttonClasses } from "@/components/ui/button";
 import { getI18n } from "@/i18n/server";
 import { HOME_PATH } from "@/lib/routes";

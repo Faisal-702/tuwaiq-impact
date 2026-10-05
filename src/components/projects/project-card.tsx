@@ -1,5 +1,5 @@
 import { Award, Eye, Star } from "lucide-react";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { CategoryChip } from "@/components/ui/chip";
 import type { Dictionary } from "@/i18n/dictionaries";
 import type { Locale } from "@/i18n/config";

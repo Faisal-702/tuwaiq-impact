@@ -20,7 +20,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { LanguageSwitcher } from "@/components/brand/language-switcher";

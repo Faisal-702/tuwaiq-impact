@@ -1,5 +1,5 @@
 import { ArrowLeft, Award, CalendarDays, Eye, ExternalLink, Sparkles, Star } from "lucide-react";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { CategoryChip } from "@/components/ui/chip";
 import { Reveal } from "@/components/ui/reveal";
 import type { Locale } from "@/i18n/config";

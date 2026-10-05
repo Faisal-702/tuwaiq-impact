@@ -1,6 +1,6 @@
 import { MessageSquareText, PlusCircle } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { SuggestionGradeBadge, SuggestionGradeFilter, SuggestionRowActions } from "@/components/admin/suggestion-admin";
 import { buttonClasses } from "@/components/ui/button";

@@ -1,7 +1,6 @@
 "use client";
 
 import { Check, LoaderCircle } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useI18n } from "@/i18n/client";
@@ -32,7 +31,6 @@ function PointsRow({
   savedLabel: string;
 }) {
   const { t } = useI18n();
-  const router = useRouter();
   const [value, setValue] = useState(String(row.points));
   const [busy, setBusy] = useState(false);
   const parsed = Number(value);
@@ -46,7 +44,6 @@ function PointsRow({
     setBusy(false);
     if (res.ok) {
       toast.success(savedLabel);
-      router.refresh();
     } else toast.error(t.common.somethingWrong);
   }
 

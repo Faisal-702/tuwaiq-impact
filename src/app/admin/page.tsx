@@ -1,5 +1,5 @@
 import { CheckCircle2, FolderKanban, PlusCircle, Star, Users } from "lucide-react";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { ActivityList } from "@/components/admin/activity-list";
 import { Columns, HorizontalBars } from "@/components/admin/charts";
 import { AdminPageHeader, Panel } from "@/components/admin/page-header";

@@ -15,9 +15,17 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function AdminLeaderboardPage(props: PageProps<"/admin/leaderboard">) {
   const sp = await props.searchParams;
   const { t, locale } = await getI18n();
-  const years = await getLeaderboardYears();
-  const year = typeof sp.year === "string" && years.includes(sp.year) ? sp.year : null;
-  const [rows, points] = await Promise.all([getLeaderboard(year, 10), listProjectPoints(year)]);
+  // The year list and the requested year's data load concurrently. An unknown
+  // year falls back to all years (rare: only for a hand-edited URL).
+  const requested = typeof sp.year === "string" && sp.year ? sp.year : null;
+  const [years, requestedRows, requestedPoints] = await Promise.all([
+    getLeaderboardYears(),
+    getLeaderboard(requested, 10),
+    listProjectPoints(requested),
+  ]);
+  const year = requested && years.includes(requested) ? requested : null;
+  const [rows, points] =
+    year === requested ? [requestedRows, requestedPoints] : await Promise.all([getLeaderboard(null, 10), listProjectPoints(null)]);
   return (
     <>
       <AdminPageHeader title={t.admin.leaderboard.title} description={t.admin.leaderboard.intro} actions={<YearSwitch years={years} current={year} />} />

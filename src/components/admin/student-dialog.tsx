@@ -48,7 +48,6 @@ export function StudentDialog({ student, trigger }: { student?: Student; trigger
     }
     toast.success(student ? t.admin.students.updated : t.admin.students.created);
     setOpen(false);
-    router.refresh();
   }
 
   return (

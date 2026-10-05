@@ -1,7 +1,6 @@
 "use client";
 
 import { RotateCcw, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -12,7 +11,6 @@ import { purgeProject, restoreProject } from "@/server/actions/projects";
 
 export function TrashActions({ id, title }: { id: string; title: string }) {
   const { t } = useI18n();
-  const router = useRouter();
   const [pending, startTransition] = useTransition();
   return (
     <div className="flex justify-end gap-2">
@@ -25,7 +23,6 @@ export function TrashActions({ id, title }: { id: string; title: string }) {
             const res = await restoreProject(id);
             if (res.ok) {
               toast.success(t.admin.trash.restored);
-              router.refresh();
             } else toast.error(t.common.somethingWrong);
           })
         }
@@ -48,7 +45,6 @@ export function TrashActions({ id, title }: { id: string; title: string }) {
           const res = await purgeProject(id);
           if (res.ok) {
             toast.success(t.admin.trash.purged);
-            router.refresh();
           } else toast.error(t.common.somethingWrong);
         }}
       />

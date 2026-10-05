@@ -133,6 +133,20 @@ Search covers student names (English and Arabic), project titles, categories (in
 - Latin terms match at word starts. One- and two-letter terms must match whole words, so `AI` finds Artificial Intelligence but not *Air* or *Faisal*.
 - Arabic text is normalised: أ/إ/آ → ا, ة → ه, ى → ي, and diacritics are stripped.
 
+### Performance
+
+Every page is rendered per request: sessions are checked in the database and data is not cached. So navigation speed mostly depends on how many sequential round trips each request makes to the database, and on the database's distance from the server.
+
+- **One round trip per query.** With `prepare: false` (required by the transaction pooler), postgres.js sent each query with parameters in two round trips. `patches/postgres+3.4.9.patch`, applied on install by `patch-package`, sends it in one (see `patches/README.md`).
+- **Session checks are reads.** `last_seen_at` is refreshed at most once a minute, so concurrent requests don't queue on a write to the same row. Layout and page queries run concurrently with the session check; nothing is rendered unless the check passes.
+- **Independent queries run in parallel** (`Promise.all`), for example the overview, analytics, student profile and leaderboard pages.
+- **Instant navigation.** `app/admin/loading.tsx` and `app/(site)/loading.tsx` show a light placeholder while a page's data loads. Links (`@/components/ui/link`) prefetch on hover, focus or touch, not as soon as they scroll into view. Viewport prefetching rendered every visible link's page on the server in the background, a dozen or more renders per page view.
+- **No double renders after actions.** Server actions call `revalidatePath`, which already refreshes the current page, so components don't call `router.refresh()` afterwards.
+- **Warm connections.** Idle database connections are kept for 4 minutes (they were closed after 20 s), so the first click after a pause doesn't reconnect, which costs TCP, TLS and authentication round trips.
+- **Deployment:** run the server functions in the same region as the Supabase project (on Netlify: the functions region in the site configuration, where the plan allows it). Every round trip is paid at that distance.
+
+To measure locally with a simulated remote database, run `DELAY=75 npm run perf:latency-proxy` (150 ms round trip in front of the local Postgres on :6432). Start the app with `DATABASE_URL=postgresql://…@127.0.0.1:6432/…?sslmode=require`, then run `BASE_URL=… ADMIN_EMAIL=… ADMIN_PASSWORD=… ADMIN_VERIFICATION_CODE=… npm run perf:measure`. It reports page loads, sidebar and header navigation and a server action. With `PG_LOG` set to the Postgres log file and `log_min_duration_statement = 0`, it also reports the number of SQL statements for each.
+
 ## Development / demo data
 
 `npm run demo:seed` inserts clearly labelled **demo** records ("Demo Student A", "Demo: …", "Sample award (demo data)") with generated placeholder media. Every demo row is flagged `is_demo = true`.

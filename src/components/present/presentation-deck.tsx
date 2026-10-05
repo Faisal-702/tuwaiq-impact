@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { Award, ChevronLeft, ChevronRight, Expand, Pause, Play, Shrink, X } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { PartnerLogos } from "@/components/brand/partner-logos";
 import { DotMotif } from "@/components/brand/wordmark";

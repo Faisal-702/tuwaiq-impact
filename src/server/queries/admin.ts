@@ -12,28 +12,29 @@ const LIVE = sql`p.deleted_at is null`;
 const PUBLIC = sql`p.status = 'published' and p.deleted_at is null`;
 
 export async function getOverview() {
-  const [counts] = await sql<{ total: number; published: number; featured: number; drafts: number; students: number }[]>`
+  // Independent queries: run them concurrently (one round trip instead of three).
+  const [[counts], byCategory, byMonth] = await Promise.all([
+    sql<{ total: number; published: number; featured: number; drafts: number; students: number }[]>`
     select count(*)::int as total,
            count(*) filter (where p.status = 'published')::int as published,
            count(*) filter (where p.is_featured)::int as featured,
            count(*) filter (where p.status = 'draft')::int as drafts,
            (select count(*)::int from students) as students
-      from projects p where ${LIVE}`;
-
-  const byCategory = await sql<{ name_en: string; name_ar: string; count: number }[]>`
+      from projects p where ${LIVE}`,
+    sql<{ name_en: string; name_ar: string; count: number }[]>`
     select c.name_en, c.name_ar, count(p.id)::int as count
       from categories c join projects p on p.category_id = c.id and ${PUBLIC}
      group by c.id
-     order by count desc, c.sort_order`;
-
-  const byMonth = await sql<{ month: string; count: number }[]>`
+     order by count desc, c.sort_order`,
+    sql<{ month: string; count: number }[]>`
     with months as (
       select generate_series(date_trunc('month', now()) - interval '11 months', date_trunc('month', now()), interval '1 month') as month
     )
     select to_char(m.month, 'YYYY-MM-01') as month,
            (select count(*)::int from projects p
              where ${PUBLIC} and date_trunc('month', p.published_at) = m.month) as count
-      from months m order by m.month`;
+      from months m order by m.month`,
+  ]);
 
   return { counts, byCategory, byMonth };
 }
@@ -120,6 +121,12 @@ export async function listTrash() {
      where p.deleted_at is not null
      order by p.deleted_at desc`;
   return rows.map(mapAdminRow);
+}
+
+/** Number of projects in the trash (the badge in the admin sidebar). */
+export async function getTrashCount(): Promise<number> {
+  const [row] = await sql<{ trash: number }[]>`select count(*)::int as trash from projects where deleted_at is not null`;
+  return row.trash;
 }
 
 export async function getStatusCounts() {
@@ -215,14 +222,17 @@ export async function listStudentsAdmin(q?: string): Promise<AdminStudentRow[]> 
 
 export async function getStudentAdmin(id: string) {
   if (!/^[0-9a-f-]{36}$/.test(id)) return null;
-  const [student] = await listStudentsAdminById(id);
+  // Both queries only need the id: run them concurrently.
+  const [[student], projects] = await Promise.all([
+    listStudentsAdminById(id),
+    sql<(AdminProjectRow & { thumb_path: string | null })[]>`
+      select ${ADMIN_ROW}
+        from projects p join categories c on c.id = p.category_id
+       where p.deleted_at is null
+         and exists (select 1 from project_students ps where ps.project_id = p.id and ps.student_id = ${id})
+       order by p.updated_at desc`,
+  ]);
   if (!student) return null;
-  const projects = await sql<(AdminProjectRow & { thumb_path: string | null })[]>`
-    select ${ADMIN_ROW}
-      from projects p join categories c on c.id = p.category_id
-     where p.deleted_at is null
-       and exists (select 1 from project_students ps where ps.project_id = p.id and ps.student_id = ${id})
-     order by p.updated_at desc`;
   return { student, projects: projects.map(mapAdminRow) };
 }
 
@@ -240,31 +250,30 @@ async function listStudentsAdminById(id: string) {
 }
 
 export async function getAnalytics() {
-  const [totals] = await sql<{ total_views: number; views_30: number; avg_points: number; media_items: number }[]>`
+  // Independent queries: run them concurrently (one round trip instead of five).
+  const [[totals], viewsByDay, topViewed, byGrade, contentMix] = await Promise.all([
+    sql<{ total_views: number; views_30: number; avg_points: number; media_items: number }[]>`
     select (select coalesce(sum(view_count), 0)::int from projects p where ${LIVE}) as total_views,
            (select count(*)::int from project_views v where v.viewed_on > current_date - 30) as views_30,
            (select coalesce(round(avg(points)), 0)::int from projects p where ${PUBLIC}) as avg_points,
-           (select count(*)::int from project_media m join projects p on p.id = m.project_id where ${LIVE}) as media_items`;
-
-  const viewsByDay = await sql<{ day: string; count: number }[]>`
+           (select count(*)::int from project_media m join projects p on p.id = m.project_id where ${LIVE}) as media_items`,
+    sql<{ day: string; count: number }[]>`
     with days as (select generate_series(current_date - 29, current_date, interval '1 day')::date as day)
     select to_char(d.day, 'YYYY-MM-DD') as day,
            (select count(*)::int from project_views v where v.viewed_on = d.day) as count
-      from days d order by d.day`;
-
-  const topViewed = await sql<{ id: string; slug: string; title: string; view_count: number }[]>`
+      from days d order by d.day`,
+    sql<{ id: string; slug: string; title: string; view_count: number }[]>`
     select p.id, p.slug, p.title, p.view_count from projects p where ${PUBLIC}
-     order by p.view_count desc, p.published_at desc limit 5`;
-
-  const byGrade = await sql<{ grade: number | null; count: number }[]>`
+     order by p.view_count desc, p.published_at desc limit 5`,
+    sql<{ grade: number | null; count: number }[]>`
     select p.grade, count(*)::int as count from projects p where ${PUBLIC}
-     group by p.grade order by p.grade nulls last`;
-
-  const contentMix = await sql<{ kind: string; count: number }[]>`
+     group by p.grade order by p.grade nulls last`,
+    sql<{ kind: string; count: number }[]>`
     select m.kind::text as kind, count(distinct m.project_id)::int as count
       from project_media m join projects p on p.id = m.project_id
      where ${PUBLIC}
-     group by m.kind order by count desc`;
+     group by m.kind order by count desc`,
+  ]);
 
   return { totals, viewsByDay, topViewed, byGrade, contentMix };
 }

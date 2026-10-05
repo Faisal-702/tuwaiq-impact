@@ -2,8 +2,7 @@
 
 import { Eye, MoreHorizontal, Pencil, Send, Star, StarOff, Trash2, Undo2, ExternalLink } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Link from "@/components/ui/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -28,7 +27,6 @@ export function ProjectRowActions({
   featured: boolean;
 }) {
   const { t, dir } = useI18n();
-  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -44,7 +42,6 @@ export function ProjectRowActions({
             unfeature: t.admin.projects.toast.unfeatured,
           }[change],
         );
-        router.refresh();
       } else toast.error(t.common.somethingWrong);
     });
 
@@ -128,7 +125,6 @@ export function ProjectRowActions({
           const res = await trashProject(id);
           if (res.ok) {
             toast.success(t.admin.projects.toast.deleted);
-            router.refresh();
           } else toast.error(t.common.somethingWrong);
         }}
       />

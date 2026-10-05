@@ -19,7 +19,10 @@
     "test:student-codes": "node tests/e2e/student-codes.mjs",
     "test:student-sections": "node --env-file-if-exists=.env.local tests/e2e/student-sections.mjs",
     "test:admin-login": "node --env-file-if-exists=.env.local tests/e2e/admin-login.mjs",
-    "mock:supabase-auth": "node tests/e2e/mock-supabase-auth.mjs"
+    "mock:supabase-auth": "node tests/e2e/mock-supabase-auth.mjs",
+    "postinstall": "patch-package",
+    "perf:measure": "node --env-file-if-exists=.env.local tests/perf/measure.mjs",
+    "perf:latency-proxy": "node tests/perf/latency-proxy.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
@@ -45,6 +48,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
+    "patch-package": "^8.0.1",
     "playwright": "1.56",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",

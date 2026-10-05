@@ -1,5 +1,5 @@
 import { ArrowRight, FolderSearch, Search, Star, Trophy } from "lucide-react";
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { Hero } from "@/components/home/hero";
 import { Partners } from "@/components/home/partners";
 import { StatsBar } from "@/components/home/stats-bar";
@@ -21,9 +21,11 @@ import {
 import { requireViewer } from "@/server/auth";
 
 export default async function HomePage() {
-  await requireViewer();
   const { t, locale } = await getI18n();
-  const [stats, featured, latest, categories, leaders] = await Promise.all([
+  // The session check and the page's queries run concurrently; nothing is
+  // rendered unless the check passes (requireViewer redirects otherwise).
+  const [, stats, featured, latest, categories, leaders] = await Promise.all([
+    requireViewer(),
     getHomeStats(),
     getFeaturedProjects(3),
     searchProjects({ sort: "newest", limit: 6 }),

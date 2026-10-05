@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/ui/link";
 import { LanguageSwitcher } from "@/components/brand/language-switcher";
 import { PartnerLogos } from "@/components/brand/partner-logos";
 import { DotMotif } from "@/components/brand/wordmark";

@@ -41,12 +41,15 @@ async function until(fn, message, timeout = 15000) {
 }
 
 /** Submits the Student Login form and waits for the server's answer. */
+/** Submits a code that is refused, and waits until the answer has been rendered. */
 async function submitCode(page, code) {
   await page.locator("#student-code").fill(code);
   await Promise.all([
     page.waitForResponse((r) => r.request().method() === "POST" && Boolean(r.request().headers()["next-action"])),
     page.locator("#student-code").press("Enter"),
   ]);
+  // The input is re-created (empty) when the response is rendered.
+  await page.waitForFunction(() => document.querySelector("#student-code")?.value === "");
 }
 
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH });
@@ -210,10 +213,12 @@ await check("Sidebar: Student Codes sits between Suggestions and Leaderboard", a
 });
 
 const rowOf = (name) => A.locator(`[data-testid="code-row"][data-student="${name}"]`);
-const codeOf = async (name) => {
-  const cell = rowOf(name).getByTestId("student-code");
-  return (await cell.count()) ? (await cell.innerText()).trim() : null;
-};
+/** The student's code as currently shown, or null (read in one step: the row can re-render). */
+const codeOf = (name) =>
+  A.evaluate(
+    (n) => document.querySelector(`[data-testid="code-row"][data-student="${n}"] [data-testid="student-code"]`)?.textContent.trim() ?? null,
+    name,
+  );
 async function showAll() {
   await A.locator("#code-search").fill("");
   await A.selectOption("#code-grade", "");
@@ -279,6 +284,9 @@ await check("Bulk generation fills only missing codes and never overwrites exist
     await first.getByRole("button", { name: "Generate" }).click();
     await A.getByTestId("bulk-result").waitFor();
     await A.getByTestId("bulk-result").getByRole("button").click();
+    // The table moves up once the banner has gone: wait, so that the next
+    // clicks land on the intended rows.
+    await A.getByTestId("bulk-result").waitFor({ state: "detached" });
   }
   await removeCodeOf("Demo Student C");
   await removeCodeOf("Demo Student D");
