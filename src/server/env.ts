@@ -49,6 +49,10 @@ export const env = {
   get storageBucket() {
     return process.env.SUPABASE_STORAGE_BUCKET || "project-media";
   },
+  /** Private bucket for student supporting files (see the submissions migration). */
+  get privateStorageBucket() {
+    return process.env.SUPABASE_PRIVATE_BUCKET || "project-submissions";
+  },
   get isProduction() {
     return process.env.NODE_ENV === "production";
   },

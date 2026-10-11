@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/chip";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { useI18n } from "@/i18n/client";
-import { gradeLabel } from "@/i18n/format";
+import { fmt, formatNumber, gradeLabel } from "@/i18n/format";
+import { parseAmount, SUMMARY_MAX } from "@/lib/submission";
 import { safeHttpUrl } from "@/lib/utils";
 import { saveProject, type ProjectInput } from "@/server/actions/projects";
 import { MediaManager, type MediaItem } from "./media-manager";
@@ -25,6 +26,9 @@ export type EditorInitial = {
   featured: boolean;
   title: string;
   description: string;
+  summary: string;
+  /** Requested amount in SAR, as typed. */
+  requestedAmount: string;
   categoryId: string;
   grade: number | null;
   className: string;
@@ -85,6 +89,7 @@ export function ProjectEditor({
     if (form.students.length === 0) e.students = t.admin.editor.errors.students;
     if (!form.categoryId) e.category = t.admin.editor.errors.category;
     if (!Number.isInteger(form.points) || form.points < 0 || form.points > 100000) e.points = t.admin.editor.errors.points;
+    if (form.requestedAmount.trim() && parseAmount(form.requestedAmount) === null) e.requestedAmount = t.submit.errors.amount;
     form.links.forEach((l, i) => {
       if (l.url.trim() && !safeHttpUrl(l.url)) e[`link-${i}`] = t.admin.editor.invalidLink;
     });
@@ -96,6 +101,8 @@ export function ProjectEditor({
     id: form.id,
     title: form.title,
     description: form.description,
+    summary: form.summary,
+    requestedAmount: form.requestedAmount.trim() ? parseAmount(form.requestedAmount) : null,
     categoryId: form.categoryId,
     grade: form.grade,
     className: form.className,
@@ -226,6 +233,45 @@ export function ProjectEditor({
                 rows={7}
                 maxLength={20000}
                 dir="auto"
+              />
+            </Field>
+            <Field
+              label={t.admin.editor.summaryLabel}
+              htmlFor="project-summary"
+              optionalLabel={t.common.optional}
+              hint={
+                <span className="flex justify-between gap-3">
+                  <span>{t.admin.editor.summaryHint}</span>
+                  <span className="shrink-0 tabular-nums" dir="ltr" data-testid="editor-summary-counter">
+                    {fmt(t.submit.counter, { n: formatNumber(form.summary.length, locale), max: formatNumber(SUMMARY_MAX, locale) })}
+                  </span>
+                </span>
+              }
+            >
+              <Textarea
+                id="project-summary"
+                value={form.summary}
+                onChange={(e) => set("summary", e.target.value.slice(0, SUMMARY_MAX))}
+                rows={3}
+                maxLength={SUMMARY_MAX}
+                dir="auto"
+              />
+            </Field>
+            <Field
+              label={t.admin.editor.requestedAmountLabel}
+              htmlFor="project-requested-amount"
+              optionalLabel={t.common.optional}
+              hint={t.admin.editor.requestedAmountHint}
+              error={errors.requestedAmount}
+            >
+              <Input
+                id="project-requested-amount"
+                value={form.requestedAmount}
+                onChange={(e) => set("requestedAmount", e.target.value)}
+                inputMode="decimal"
+                maxLength={20}
+                placeholder="0"
+                aria-invalid={errors.requestedAmount ? true : undefined}
               />
             </Field>
             <Field

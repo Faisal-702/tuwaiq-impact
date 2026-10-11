@@ -145,6 +145,8 @@ export type EditableProject = {
   slug: string;
   title: string;
   description: string | null;
+  summary: string | null;
+  requested_amount: number | null;
   category_id: string;
   grade: number | null;
   class_name: string | null;
@@ -163,7 +165,7 @@ export type EditableProject = {
 export async function getProjectForEdit(id: string): Promise<EditableProject | null> {
   if (!/^[0-9a-f-]{36}$/.test(id)) return null;
   const [project] = await sql<Omit<EditableProject, "students" | "media">[]>`
-    select id, slug, title, description, category_id, grade, class_name, academic_year, supervisor, award, points,
+    select id, slug, title, description, summary, requested_amount::float8 as requested_amount, category_id, grade, class_name, academic_year, supervisor, award, points,
            status, is_featured, cover_media_id, updated_at::text as updated_at
       from projects where id = ${id} and deleted_at is null`;
   if (!project) return null;

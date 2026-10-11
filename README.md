@@ -43,6 +43,7 @@ To let students in, sign in as admin and open **Admin → Student Codes**. Gener
 | `SUPABASE_URL` | Your project URL, e.g. `https://xyz.supabase.co`. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service-role key. Used only on the server for issuing signed upload URLs and deleting media. |
 | `SUPABASE_STORAGE_BUCKET` | Defaults to `project-media` (created by the storage migration). |
+| `SUPABASE_PRIVATE_BUCKET` | Private bucket for students' supporting files. Defaults to `project-submissions` (created by the submissions migration). |
 
 No variable is prefixed with `NEXT_PUBLIC_`, so none of them reach browser code.
 
@@ -107,11 +108,21 @@ No variable is prefixed with `NEXT_PUBLIC_`, so none of them reach browser code.
 
 ### Data model (`supabase/migrations`)
 
-`categories`, `students`, `projects`, `project_students` (group projects), `project_media` (images, video, documents, links), `project_views` (anonymous, deduplicated per visitor per day), `admin_sessions`, `activity_logs`, `settings`, `suggestions` (student suggestions: name, grade 10/11/12, text up to 500 characters), `student_access_codes` (one 8-digit code per student), `student_sessions`, `student_login_attempts`.
+`categories`, `students`, `projects` (with the public `summary`, `requested_amount`, `field` and `field_other` from submissions), `project_students` (group projects), `project_media` (images, video, documents, links), `project_views` (anonymous, deduplicated per visitor per day), `admin_sessions`, `activity_logs`, `settings`, `suggestions` (student suggestions: name, grade 10/11/12, text up to 500 characters), `student_access_codes` (one 8-digit code per student), `student_sessions`, `student_login_attempts`, `project_submissions` (student questionnaires and drafts, private).
 - Students have an optional `section` (الشعبة: 1, 2 or 3; empty = not set). **Students → Add students in bulk** creates many students at once (one name per line, same grade and section for all) in a single transaction: blank lines are ignored, repeated lines count once, and names already in that grade and section are skipped.
 
 - Projects use **soft delete** (`deleted_at`) → **Trash** → restore, or delete permanently (which also removes the stored media).
 - Default project points are `10`, configurable in **Settings** and per project.
+
+### Project submissions (إضافة مشروع)
+
+Signed-in students add their own projects at `/add-project` (the homepage's primary button). The form has four sections — student details, project details, classification & budget, attachments & acknowledgment — split into short screens (at most five questions each).
+
+- **Drafts.** Answers autosave a few seconds after typing, on every step change, and on **Save as draft**. One open draft per student, tied to the student session (never to a submitted ID). **Cancel** deletes the draft and its files. Opening the page never writes anything.
+- **Validation** runs in the browser for each screen and again on the server at submit: Saudi national ID (check digit), Saudi mobile number, email, grade 10/11/12, section 1–3, amounts in SAR (no negatives, up to 2 decimals), and the 300-character **project summary** (also a database constraint).
+- **Submitting** publishes the project immediately: title, summary, project field, grade, requested amount, cover image and the student link. The project field maps to one of the existing categories, so category chips keep working. Administrators hide a project with the existing **Move to drafts** / Trash actions. Points start at 0.
+- **Privacy.** Every answer, including national ID, mobile number, email, supervisor and supporting files, is kept in `project_submissions` (RLS on, grants revoked). Public queries never read that table. Administrators see the full form under **Edit project → Submission form**. Supporting files live in a private bucket (`project-submissions`; locally `.data/private`). They are downloaded through `/api/admin/submission-files`, which checks the admin session on every request.
+- **Explore Projects** cards show only the cover, title, project field, students, grade, the exact summary and the requested amount. They are not links and have no support or donation actions. Search also matches the summary and field; the filters dialog has a **Project field** filter.
 
 ### Homepage statistics
 
@@ -214,6 +225,15 @@ It removes only the rows it created.
 - print grouping by grade and section, which follows the active filters
 
 It removes only the students it created.
+
+`npm run test:project-submission` (same variables; reads `DATABASE_URL` from `.env.local` when present; uses *Demo Student C* and *Demo Student D*) checks the student submission form and Explore Projects:
+- the hero button, every question on every screen, validation messages, Previous/Next keeping answers
+- the 300-character summary and counter, conditional questions, draft save and resume, cancel
+- cover and supporting-file uploads (including a rejected file type), the acknowledgment and the review screen
+- the stored project and submission rows, the Explore Projects card (no links or donation actions), search, field filter, category chip and count
+- that no private answer appears in any public page or RSC payload, admin-only file downloads, the admin's view of the form, and hiding the project
+
+It removes the project and submissions it created. Set `QA_SHOTS=<dir>` to save screenshots.
 
 `npm run test:admin-login` checks the administrator sign-in:
 - the email and password fields in English and Arabic

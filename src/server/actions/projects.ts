@@ -39,6 +39,9 @@ const projectSchema = z.object({
   id: uuid.optional(),
   title: z.string().trim().min(1).max(200),
   description: optionalText(20000),
+  // Card summary (exactly as shown on Explore Projects) and requested amount (SAR).
+  summary: optionalText(300).optional(),
+  requestedAmount: z.number().min(0).max(10_000_000).nullable().optional(),
   categoryId: uuid,
   grade: z.number().int().min(1).max(12).nullable(),
   className: optionalText(40),
@@ -78,6 +81,7 @@ export async function saveProject(
   const parsed = projectSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "invalid" };
   const data = parsed.data;
+  const amount = data.requestedAmount == null ? null : Math.round(data.requestedAmount * 100) / 100;
 
   for (const m of data.media) {
     const problem = validateMedia(m);
@@ -133,6 +137,7 @@ export async function saveProject(
       await tx`
         update projects set
           title = ${data.title}, description = ${data.description ?? null}, category_id = ${data.categoryId},
+          summary = ${data.summary ?? null}, requested_amount = ${amount},
           grade = ${data.grade}, class_name = ${data.className ?? null}, academic_year = ${data.academicYear ?? null},
           supervisor = ${data.supervisor ?? null}, award = ${data.award ?? null}, points = ${data.points},
           status = ${publish ? "published" : "draft"}, is_featured = ${featured},
@@ -141,9 +146,9 @@ export async function saveProject(
     } else {
       slug = await uniqueSlug("projects", data.title, "project");
       const [row] = await tx<{ id: string }[]>`
-        insert into projects (slug, title, description, category_id, grade, class_name, academic_year, supervisor,
-                              award, points, status, is_featured, published_at)
-        values (${slug}, ${data.title}, ${data.description ?? null}, ${data.categoryId}, ${data.grade},
+        insert into projects (slug, title, description, summary, requested_amount, category_id, grade, class_name,
+                              academic_year, supervisor, award, points, status, is_featured, published_at)
+        values (${slug}, ${data.title}, ${data.description ?? null}, ${data.summary ?? null}, ${amount}, ${data.categoryId}, ${data.grade},
                 ${data.className ?? null}, ${data.academicYear ?? null}, ${data.supervisor ?? null},
                 ${data.award ?? null}, ${data.points}, ${publish ? "published" : "draft"}, ${featured},
                 ${publish ? new Date() : null})

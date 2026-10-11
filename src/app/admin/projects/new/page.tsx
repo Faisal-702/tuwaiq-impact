@@ -29,6 +29,8 @@ export default async function NewProjectPage() {
           featured: false,
           title: "",
           description: "",
+          summary: "",
+          requestedAmount: "",
           categoryId: "",
           grade: null,
           className: "",

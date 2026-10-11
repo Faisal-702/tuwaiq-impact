@@ -190,7 +190,8 @@ for (const lang of ["ar", "en"]) {
 
   await check(`${lang.toUpperCase()} · slow page without a route loading state (project page): navigation loader`, async () => {
     await slowDown(P, (url) => new URL(url).pathname.startsWith("/projects/"));
-    await P.goto(BASE + "/projects");
+    // Explore Projects cards are not links; the homepage's featured cards are.
+    await P.goto(BASE + "/home");
     const href = await P.locator('main a[href^="/projects/"]').first().getAttribute("href");
     const stop = await watchLoader(P);
     // A click without hovering first (as on a touch screen): nothing was prefetched.

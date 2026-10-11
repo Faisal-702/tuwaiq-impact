@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { sql } from "../db";
 import { mediaUrl } from "../storage";
+import { PROJECT_FIELDS } from "@/lib/submission";
 import type {
   Category,
   ContentTypeFilter,
@@ -31,7 +32,7 @@ type CardRow = Omit<ProjectCardData, "cover"> & {
 
 const CARD_COLUMNS = sql`
   p.id, p.slug, p.title, p.description, p.grade, p.points, p.view_count, p.is_featured, p.award,
-  p.published_at,
+  p.published_at, p.summary, p.requested_amount::float8 as requested_amount, p.field, p.field_other,
   json_build_object('id', c.id, 'slug', c.slug, 'name_en', c.name_en, 'name_ar', c.name_ar,
                     'icon', c.icon, 'accent', c.accent) as category,
   coalesce((
@@ -68,6 +69,10 @@ function toCard(row: CardRow): ProjectCardData {
     published_at: row.published_at ? new Date(row.published_at).toISOString() : null,
     category: row.category,
     students: row.students,
+    summary: row.summary,
+    requested_amount: row.requested_amount,
+    field: row.field,
+    field_other: row.field_other,
     cover: coverPath
       ? { url: mediaUrl(coverPath)!, width: row.cover_width, height: row.cover_height }
       : null,
@@ -95,15 +100,21 @@ function normalizeQuery(input: string): string[] {
 
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+/** Arabic and English labels of the submission form's project fields, by key. */
+const FIELD_LABELS = sql`(values ${sql.unsafe(
+  PROJECT_FIELDS.map((f) => `('${f.key}', '${f.ar.replace(/'/g, "''")}', '${f.en.replace(/'/g, "''")}')`).join(", "),
+)}) as fl(key, ar, en)`;
+
 /**
- * Every token must match the project's title, students, category (names,
- * slug and aliases) or grade. Latin tokens match at word starts so that
+ * Every token must match the project's title, summary, field, students,
+ * category (names, slug and aliases) or grade. Latin tokens match at word starts so that
  * "AI" finds Artificial Intelligence without matching "Faisal".
  */
 function searchFragment(q: string | undefined) {
   const tokens = q ? normalizeQuery(q) : [];
   if (tokens.length === 0) return sql``;
-  const doc = sql`ti_normalize(concat_ws(' ', p.title, c.name_en, c.name_ar, c.keywords, replace(c.slug, '-', ' '),
+  const doc = sql`ti_normalize(concat_ws(' ', p.title, p.summary, p.field_other, c.name_en, c.name_ar, c.keywords, replace(c.slug, '-', ' '),
+    (select concat_ws(' ', fl.ar, fl.en) from ${FIELD_LABELS} where fl.key = p.field),
     (select string_agg(concat_ws(' ', s.name_en, s.name_ar), ' ')
        from project_students ps join students s on s.id = ps.student_id where ps.project_id = p.id)))`;
   return tokens.reduce((acc, token) => {
@@ -126,6 +137,7 @@ function searchFragment(q: string | undefined) {
 export type ProjectQuery = {
   q?: string;
   category?: string;
+  field?: string;
   grade?: number;
   year?: string;
   type?: ContentTypeFilter;
@@ -168,6 +180,7 @@ export async function searchProjects(query: ProjectQuery): Promise<{ items: Proj
       ${COVER_JOIN}
      where ${PUBLIC}
        ${query.category ? sql`and c.slug = ${query.category}` : sql``}
+       ${query.field ? sql`and p.field = ${query.field}` : sql``}
        ${query.grade ? sql`and p.grade = ${query.grade}` : sql``}
        ${query.year ? sql`and p.academic_year = ${query.year}` : sql``}
        ${query.student
@@ -235,7 +248,7 @@ export const getPublicCategories = cache(async (): Promise<Category[]> => {
 });
 
 export async function getFilterOptions() {
-  const [grades, years, students] = await Promise.all([
+  const [grades, years, students, fields] = await Promise.all([
     sql<{ grade: number }[]>`
       select distinct p.grade from projects p where ${PUBLIC} and p.grade is not null order by p.grade`,
     sql<{ year: string }[]>`
@@ -248,11 +261,16 @@ export async function getFilterOptions() {
         join projects p on p.id = ps.project_id
        where ${PUBLIC}
        order by s.name_en nulls last, s.name_ar`,
+    sql<{ field: string }[]>`
+      select distinct p.field from projects p where ${PUBLIC} and p.field is not null`,
   ]);
+  const present = new Set(fields.map((f) => f.field));
   return {
     grades: grades.map((g) => g.grade),
     years: years.map((y) => y.year),
     students,
+    // Form order, limited to fields that have public projects.
+    fields: PROJECT_FIELDS.filter((f) => present.has(f.key)).map((f) => f.key as string),
   };
 }
 
