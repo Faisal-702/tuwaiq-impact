@@ -215,9 +215,8 @@ await check("Sorting by Most Viewed orders by views", async () => {
   await vp.getByLabel("Sort by").selectOption("views");
   await vp.waitForURL(/sort=views/);
   await vp.waitForLoadState("networkidle");
-  const views = await vp.locator("article").evaluateAll((els) =>
-    els.map((e) => Number((e.querySelector("svg.lucide-eye")?.parentElement?.textContent ?? "0").replace(/\D/g, ""))),
-  );
+  const views = await vp.locator("article").evaluateAll((els) => els.map((e) => Number(e.getAttribute("data-views"))));
+  assert(views.length > 0 && views.every((v) => Number.isFinite(v)), `no view counts: ${views}`);
   assert(views.every((v, i) => i === 0 || views[i - 1] >= v), `not sorted: ${views}`);
 });
 
@@ -228,10 +227,12 @@ await check("Sorting by Highest Points and Most Active load", async () => {
   }
 });
 
-await check("Project card opens its detail page", async () => {
+await check("Explore cards carry no detail link; the detail page still opens", async () => {
   await vp.goto(BASE + "/projects?q=" + encodeURIComponent("Smart Irrigation"));
-  await vp.locator("article a").first().click();
-  await vp.waitForURL(/\/projects\/demo-smart-irrigation-prototype/);
+  await vp.locator("article h3").first().waitFor();
+  // Explore Projects cards are display-only (no detail, support or donation action).
+  assert((await vp.locator("main article a").count()) === 0, "explore card has a link");
+  await vp.goto(BASE + "/projects/demo-smart-irrigation-prototype");
   await vp.getByRole("heading", { level: 1, name: /Smart Irrigation/ }).waitFor();
 });
 

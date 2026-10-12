@@ -1,15 +1,16 @@
-import { FolderSearch, SearchX } from "lucide-react";
+import { FolderKanban, FolderSearch, SearchX, UsersRound } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "@/components/ui/link";
-import { ProjectCard } from "@/components/projects/project-card";
+import { ExploreProjectCard } from "@/components/projects/explore-card";
 import { ExplorerShell } from "@/components/projects/explorer-shell";
 import { buttonClasses } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { getI18n } from "@/i18n/server";
-import { fmt, formatNumber } from "@/i18n/format";
+import { fmt, formatNumber, projectCount } from "@/i18n/format";
+import { FIELD_KEYS } from "@/lib/submission";
 import type { ContentTypeFilter, ProjectSort } from "@/lib/types";
-import { getFilterOptions, getPublicCategories, searchProjects } from "@/server/queries/public";
+import { getFilterOptions, getHomeStats, getPublicCategories, searchProjects } from "@/server/queries/public";
 import { requireViewer } from "@/server/auth";
 
 const PAGE_SIZE = 12;
@@ -29,6 +30,7 @@ export default async function ProjectsPage(props: PageProps<"/projects">) {
 
   const q = str(sp.q)?.slice(0, 100);
   const category = str(sp.category);
+  const field = (FIELD_KEYS as string[]).includes(str(sp.field) ?? "") ? str(sp.field) : undefined;
   const gradeNum = Number(str(sp.grade));
   const grade = Number.isInteger(gradeNum) && gradeNum > 0 && gradeNum <= 12 ? gradeNum : undefined;
   const year = str(sp.year);
@@ -39,13 +41,15 @@ export default async function ProjectsPage(props: PageProps<"/projects">) {
 
   // The session check and the page's queries run concurrently; nothing is
   // rendered unless the check passes (requireViewer redirects otherwise).
-  const [, results, categories, options] = await Promise.all([
+  const [, results, categories, options, stats] = await Promise.all([
     requireViewer(),
-    searchProjects({ q, category, grade, year, type, student, sort, limit: page * PAGE_SIZE }),
+    searchProjects({ q, category, field, grade, year, type, student, sort, limit: page * PAGE_SIZE }),
     getPublicCategories(),
     getFilterOptions(),
+    getHomeStats(),
   ]);
-  const filtered = Boolean(q || category || grade || year || type || student);
+  const filtered = Boolean(q || category || field || grade || year || type || student);
+  const totalPublic = stats.projects + stats.activities;
 
   const nextParams = new URLSearchParams();
   for (const [k, v] of Object.entries(sp)) if (typeof v === "string" && k !== "page") nextParams.set(k, v);
@@ -53,7 +57,41 @@ export default async function ProjectsPage(props: PageProps<"/projects">) {
 
   return (
     <div className="container-page pb-8 pt-10 sm:pt-14">
-      <SectionHeading as="h1" eyebrow={t.projects.eyebrow} title={t.projects.title} body={t.projects.intro} />
+      <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_26rem]">
+        <div>
+          <SectionHeading as="h1" eyebrow={t.projects.eyebrow} title={t.projects.title} body={t.projects.intro} />
+          <p className="mt-6 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm shadow-soft ring-1 ring-line-soft lg:hidden">
+            <FolderKanban className="size-4 text-purple" aria-hidden />
+            <span className="text-muted">{t.projects.countLabel}:</span>
+            <span className="font-bold text-ink" data-testid="projects-count">{formatNumber(totalPublic, locale)}</span>
+          </p>
+        </div>
+        <div className="relative hidden h-56 lg:block">
+          <div className="absolute inset-0 overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-lavender-soft via-white to-mint-soft ring-1 ring-line-soft">
+            {/* eslint-disable-next-line @next/next/no-img-element -- static decorative art */}
+            <img src="/images/entry-scene-left.webp" alt="" className="absolute inset-0 size-full object-cover object-[50%_72%]" />
+            <div className="absolute inset-0 bg-gradient-to-l from-transparent via-white/10 to-white/70 rtl:bg-gradient-to-r" />
+          </div>
+          <div className="absolute -start-5 top-6 flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-lift ring-1 ring-line-soft">
+            <span className="grid size-10 place-items-center rounded-xl bg-lavender-soft text-purple">
+              <FolderKanban className="size-5" aria-hidden />
+            </span>
+            <span>
+              <span className="block text-xs text-muted">{t.projects.countLabel}</span>
+              <span className="block text-lg font-bold text-ink" data-testid="projects-count-desktop">{formatNumber(totalPublic, locale)}</span>
+            </span>
+          </div>
+          <div className="absolute start-10 bottom-6 flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-lift ring-1 ring-line-soft">
+            <span className="grid size-10 place-items-center rounded-xl bg-mint-soft text-teal-deep">
+              <UsersRound className="size-5" aria-hidden />
+            </span>
+            <span>
+              <span className="block text-xs text-muted">{t.home.stats.students}</span>
+              <span className="block text-lg font-bold text-ink">{formatNumber(stats.students, locale)}</span>
+            </span>
+          </div>
+        </div>
+      </div>
       <div className="mt-10">
         <ExplorerShell
           options={{
@@ -61,10 +99,8 @@ export default async function ProjectsPage(props: PageProps<"/projects">) {
             ...options,
           }}
         >
-          <p className="mb-5 text-sm text-muted" aria-live="polite">
-            {results.total === 1
-              ? t.projects.resultsOne
-              : fmt(t.projects.results, { count: formatNumber(results.total, locale) })}
+          <p className="mb-5 text-sm text-muted" aria-live="polite" data-testid="results-count">
+            {projectCount(results.total, locale)}
           </p>
           {results.items.length === 0 ? (
             filtered ? (
@@ -77,7 +113,7 @@ export default async function ProjectsPage(props: PageProps<"/projects">) {
               <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {results.items.map((p) => (
                   <li key={p.id}>
-                    <ProjectCard project={p} t={t} locale={locale} showViews />
+                    <ExploreProjectCard project={p} t={t} locale={locale} />
                   </li>
                 ))}
               </ul>

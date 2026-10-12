@@ -48,6 +48,13 @@ export type ProjectCardData = {
   category: CategoryRef;
   students: StudentRef[];
   cover: { url: string; width: number | null; height: number | null } | null;
+  /** Student-written card summary (≤ 300 characters); null for older projects. */
+  summary: string | null;
+  /** Amount requested in SAR; null when not given. */
+  requested_amount: number | null;
+  /** Project field key from the submission form (see PROJECT_FIELDS). */
+  field: string | null;
+  field_other: string | null;
 };
 
 export type ProjectMedia = {

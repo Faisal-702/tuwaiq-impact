@@ -12,6 +12,7 @@ export type ActivityAction =
   | "project.restored"
   | "project.purged"
   | "project.points_changed"
+  | "project.submitted"
   | "student.created"
   | "student.bulk_created"
   | "student.edited"

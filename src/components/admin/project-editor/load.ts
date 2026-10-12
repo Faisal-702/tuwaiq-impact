@@ -10,6 +10,8 @@ export function toEditorInitial(p: EditableProject): EditorInitial {
     featured: p.is_featured,
     title: p.title,
     description: p.description ?? "",
+    summary: p.summary ?? "",
+    requestedAmount: p.requested_amount === null ? "" : String(p.requested_amount),
     categoryId: p.category_id,
     grade: p.grade,
     className: p.class_name ?? "",

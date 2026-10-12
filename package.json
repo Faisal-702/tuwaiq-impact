@@ -19,6 +19,7 @@
     "test:student-codes": "node tests/e2e/student-codes.mjs",
     "test:student-sections": "node --env-file-if-exists=.env.local tests/e2e/student-sections.mjs",
     "test:admin-login": "node --env-file-if-exists=.env.local tests/e2e/admin-login.mjs",
+    "test:project-submission": "node --env-file-if-exists=.env.local tests/e2e/project-submission.mjs",
     "mock:supabase-auth": "node tests/e2e/mock-supabase-auth.mjs",
     "postinstall": "patch-package",
     "perf:measure": "node --env-file-if-exists=.env.local tests/perf/measure.mjs",

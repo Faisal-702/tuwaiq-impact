@@ -10,6 +10,7 @@ import { Field, Select } from "@/components/ui/field";
 import { useI18n } from "@/i18n/client";
 import { gradeLabel, localName } from "@/i18n/format";
 import { CategoryIcon } from "@/lib/categories";
+import { fieldLabel } from "@/lib/submission";
 import type { ContentTypeFilter, ProjectSort } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -18,11 +19,13 @@ export type ExplorerOptions = {
   grades: number[];
   years: string[];
   students: { slug: string; name_en: string | null; name_ar: string | null }[];
+  /** Project fields (submission form) that have public projects. */
+  fields: string[];
 };
 
 const SORTS: ProjectSort[] = ["newest", "views", "points", "active"];
 const TYPES: ContentTypeFilter[] = ["image", "video", "document", "link", "text"];
-const FILTER_KEYS = ["grade", "year", "type", "student"] as const;
+const FILTER_KEYS = ["field", "grade", "year", "type", "student"] as const;
 
 /**
  * Search, sort and filter controls for the project explorer. State lives in
@@ -77,6 +80,7 @@ export function ExplorerShell({ options, children }: { options: ExplorerOptions;
   const activeFilters = FILTER_KEYS.filter((k) => params.get(k));
 
   const filterLabel = (key: (typeof FILTER_KEYS)[number], value: string) => {
+    if (key === "field") return fieldLabel(value, null, locale) ?? value;
     if (key === "grade") return gradeLabel(Number(value), t.grades);
     if (key === "type") return t.projects.contentTypes[value as ContentTypeFilter] ?? value;
     if (key === "student") {
@@ -304,7 +308,7 @@ function FiltersDialog({
       closeLabel={t.common.close}
       footer={
         <>
-          <Button variant="ghost" onClick={() => onApply({ grade: null, year: null, type: null, student: null })}>
+          <Button variant="ghost" onClick={() => onApply({ field: null, grade: null, year: null, type: null, student: null })}>
             {t.projects.resetFilters}
           </Button>
           <Button
@@ -318,6 +322,16 @@ function FiltersDialog({
       }
     >
       <div className="grid gap-5 sm:grid-cols-2">
+        <Field label={t.projects.filterField} htmlFor="f-field" className="sm:col-span-2">
+          <Select id="f-field" value={values.field} onChange={set("field")}>
+            <option value="">{t.projects.anyField}</option>
+            {options.fields.map((key) => (
+              <option key={key} value={key}>
+                {fieldLabel(key, null, locale)}
+              </option>
+            ))}
+          </Select>
+        </Field>
         <Field label={t.projects.filterGrade} htmlFor="f-grade">
           <Select id="f-grade" value={values.grade} onChange={set("grade")}>
             <option value="">{t.projects.anyGrade}</option>

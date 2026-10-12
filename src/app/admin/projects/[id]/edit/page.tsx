@@ -5,9 +5,12 @@ import { notFound } from "next/navigation";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { toEditorInitial } from "@/components/admin/project-editor/load";
 import { ProjectEditor } from "@/components/admin/project-editor/project-editor";
+import { SubmissionDetails } from "@/components/admin/submission-details";
 import { buttonClasses } from "@/components/ui/button";
 import { getI18n } from "@/i18n/server";
+import { requireAdmin } from "@/server/auth";
 import { getProjectForEdit, listAcademicYears, listAllStudents, listCategoriesAdmin } from "@/server/queries/admin";
+import { getSubmissionForProject } from "@/server/submissions";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n();
@@ -16,12 +19,15 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function EditProjectPage(props: PageProps<"/admin/projects/[id]/edit">) {
   const { id } = await props.params;
-  const { t } = await getI18n();
-  const [project, categories, students, years] = await Promise.all([
+  const { t, locale } = await getI18n();
+  // The private questionnaire is only ever loaded behind an admin check.
+  await requireAdmin();
+  const [project, categories, students, years, submission] = await Promise.all([
     getProjectForEdit(id),
     listCategoriesAdmin(),
     listAllStudents(),
     listAcademicYears(),
+    /^[0-9a-f-]{36}$/.test(id) ? getSubmissionForProject(id) : null,
   ]);
   if (!project) notFound();
   return (
@@ -45,6 +51,7 @@ export default async function EditProjectPage(props: PageProps<"/admin/projects/
         students={students}
         years={years}
       />
+      {submission ? <SubmissionDetails submission={submission} t={t} locale={locale} /> : null}
     </>
   );
 }

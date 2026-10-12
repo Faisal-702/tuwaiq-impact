@@ -49,7 +49,7 @@ export function Hero({ t }: { t: Dictionary }) {
             </Reveal>
             <Reveal delay={0.15}>
               <div className="mt-9 flex flex-wrap items-center gap-3">
-                <Link href="/projects" className={buttonClasses("primary", "lg")}>
+                <Link href="/add-project" className={buttonClasses("primary", "lg")} data-testid="hero-add-project">
                   {t.home.ctaPrimary}
                   <ArrowRight className="size-[1.125rem] rtl:-scale-x-100" aria-hidden />
                 </Link>
