@@ -36,11 +36,11 @@ export default async function AboutPage() {
             <p className="eyebrow">{t.about.eyebrow}</p>
             <h1 className="mt-4 max-w-3xl text-4xl font-bold tracking-[-0.03em] text-ink sm:text-6xl rtl:tracking-normal">
               <span dir="ltr" className="inline-block">
-                <span className="text-gradient-brand">Tuwaiq</span> <span className="text-gradient-purple">Impact</span>
+                <span className="text-gradient-brand">Athar</span> <span className="text-gradient-purple">Platform</span>
               </span>
               <span className="mx-3 text-line">|</span>
               <span lang="ar" className="font-[family-name:var(--font-arabic)] text-[#0c4a5a]">
-                أثر طويق
+                منصة أثر
               </span>
             </h1>
             <p className="mt-6 max-w-2xl text-xl leading-relaxed text-ink-soft">{t.about.lead}</p>

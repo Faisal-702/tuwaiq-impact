@@ -69,8 +69,8 @@ export function EntryExperience({
                 className="block text-[2.4rem] font-bold leading-[1.08] tracking-[-0.025em] sm:text-[3.25rem] [@media(max-height:820px)]:sm:text-[2.75rem]"
                 style={{ fontFamily: '"Inter Variable", ui-sans-serif, system-ui' }}
               >
-                <span className="text-gradient-brand">Tuwaiq</span>{" "}
-                <span className="text-gradient-purple">Impact</span>
+                <span className="text-gradient-brand">Athar</span>{" "}
+                <span className="text-gradient-purple">Platform</span>
               </span>
               <span
                 lang="ar"
@@ -78,7 +78,7 @@ export function EntryExperience({
                 className="mt-1 block text-[2rem] font-bold leading-tight text-[#0c4a5a] sm:text-[2.5rem] [@media(max-height:820px)]:sm:text-[2.125rem]"
                 style={{ fontFamily: "var(--font-arabic)" }}
               >
-                أثر طويق
+                منصة أثر
               </span>
             </h1>
             <div className="mt-5 space-y-1 [@media(max-height:820px)]:mt-3">

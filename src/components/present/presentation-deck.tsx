@@ -205,9 +205,9 @@ export function PresentationDeck({
       <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-[4vw] pt-[2.2vw]">
         <PartnerLogos size="md" moeAlt={t.brand.moeAlt} tuwaiqAlt={t.brand.tuwaiqAlt} priority className="origin-top-left scale-110 rtl:origin-top-right 2xl:scale-125" />
         <p className="text-[clamp(0.9rem,1.1vw,1.25rem)] font-semibold text-ink" dir="ltr">
-          <span className="text-gradient-brand">Tuwaiq</span> <span className="text-gradient-purple">Impact</span>
+          <span className="text-gradient-brand">Athar</span> <span className="text-gradient-purple">Platform</span>
           <span className="mx-2 text-line">|</span>
-          <span className="font-[family-name:var(--font-arabic)] text-teal-deep">أثر طويق</span>
+          <span className="font-[family-name:var(--font-arabic)] text-teal-deep">منصة أثر</span>
         </p>
       </div>
 
@@ -301,10 +301,10 @@ function IdentitySlide() {
         <p className="eyebrow !text-[clamp(0.85rem,1.1vw,1.25rem)]">{t.home.eyebrow}</p>
         <h1 className="mt-[1.5vw] font-bold leading-[1.02] tracking-[-0.035em]">
           <span dir="ltr" className="block whitespace-nowrap text-[clamp(2.75rem,5.2vw,7rem)]">
-            <span className="text-gradient-brand">Tuwaiq</span> <span className="text-gradient-purple">Impact</span>
+            <span className="text-gradient-brand">Athar</span> <span className="text-gradient-purple">Platform</span>
           </span>
           <span lang="ar" className="mt-[0.6vw] block font-[family-name:var(--font-arabic)] text-[clamp(2.5rem,5vw,6rem)] text-[#0c4a5a]">
-            أثر طويق
+            منصة أثر
           </span>
         </h1>
         <p className="mt-[2vw] text-[clamp(1.2rem,1.8vw,2.1rem)] font-medium text-ink-soft">

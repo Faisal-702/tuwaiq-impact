@@ -1,5 +1,5 @@
 /**
- * End-to-end functional verification for Tuwaiq Impact.
+ * End-to-end functional verification for Athar Platform.
  *
  *   BASE_URL=http://localhost:3000 ADMIN_EMAIL=… ADMIN_PASSWORD=… QA_IMAGE=/path/4k.jpg node tests/e2e/verify.mjs
  *
@@ -52,7 +52,7 @@ watch(vp, "visitor");
 await check("First visit is routed to the entry page", async () => {
   await vp.goto(BASE + "/");
   assert(new URL(vp.url()).pathname === "/welcome", `landed on ${vp.url()}`);
-  await vp.getByRole("heading", { name: /Tuwaiq Impact/ }).waitFor();
+  await vp.getByRole("heading", { name: /Athar Platform/ }).waitFor();
 });
 
 await check("Entry page renders both official logos", async () => {

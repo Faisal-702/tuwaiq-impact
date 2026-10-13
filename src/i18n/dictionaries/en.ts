@@ -1,12 +1,12 @@
 const en = {
   meta: {
-    title: "Tuwaiq Impact | أثر طويق",
+    title: "Athar Platform | منصة أثر",
     description:
       "A platform showcasing the projects, achievements, innovations and excellence of students at Technical Talented High School.",
   },
   brand: {
-    name: "Tuwaiq Impact",
-    nameAr: "أثر طويق",
+    name: "Athar Platform",
+    nameAr: "منصة أثر",
     school: "Technical Talented High School",
     schoolAr: "ثانوية الموهوبين التقنية",
     moeAlt: "Ministry of Education",
@@ -127,7 +127,7 @@ const en = {
     headline2: "Real Impact.",
     tagline: "Empowering Talent. Showcasing Impact.",
     description:
-      "Tuwaiq Impact showcases the projects, achievements, innovations, and contributions of students at Technical Talented High School.",
+      "Athar Platform showcases the projects, achievements, innovations, and contributions of students at Technical Talented High School.",
     ctaPrimary: "Add a Project",
     ctaSecondary: "View Leaderboard",
     heroAlt: "Two Saudi students looking ahead, with the Riyadh skyline behind them",
@@ -255,7 +255,7 @@ const en = {
   students: {
     title: "Students",
     eyebrow: "Directory",
-    intro: "Students whose projects and achievements are showcased on Tuwaiq Impact.",
+    intro: "Students whose projects and achievements are showcased on Athar Platform.",
     searchLabel: "Search students",
     searchPlaceholder: "Search by name",
     allGrades: "All grades",
@@ -293,9 +293,9 @@ const en = {
   },
   about: {
     eyebrow: "About",
-    title: "About Tuwaiq Impact",
+    title: "About Athar Platform",
     lead:
-      "Tuwaiq Impact | أثر طويق is the official platform of Technical Talented High School for showcasing student projects, achievements, and innovations.",
+      "Athar Platform | منصة أثر is the official platform of Technical Talented High School for showcasing student projects, achievements, and innovations.",
     purposeTitle: "Purpose of the platform",
     purposeBody:
       "The platform brings the work of our students together in one place — so that their ideas, effort and achievements are visible, documented and celebrated.",
@@ -304,13 +304,13 @@ const en = {
       "Technical Talented High School (ثانوية الموهوبين التقنية) is home to the students whose projects are presented here.",
     innovationTitle: "Supporting student innovation",
     innovationBody:
-      "Every project published on Tuwaiq Impact represents a student idea turned into real work — in research, programming, artificial intelligence, robotics, media, volunteering, and more.",
+      "Every project published on Athar Platform represents a student idea turned into real work — in research, programming, artificial intelligence, robotics, media, volunteering, and more.",
     showcaseTitle: "Showcasing projects and achievements",
     showcaseBody:
       "Projects, competitions and school activities are documented with images, video and documents, and students are recognised through points and the leaderboard.",
     identityTitle: "Visual identity",
     identityBody:
-      "Tuwaiq Impact carries the visual identities of the Ministry of Education and Tuwaiq Academy, as presented in the platform header and footer.",
+      "Athar Platform carries the visual identities of the Ministry of Education and Tuwaiq Academy, as presented in the platform header and footer.",
     explore: "Explore projects",
   },
   footer: {
@@ -320,7 +320,7 @@ const en = {
     presentation: "Presentation Mode",
   },
   search: {
-    title: "Search Tuwaiq Impact",
+    title: "Search Athar Platform",
     placeholder: "Search projects, students, categories…",
     projects: "Projects",
     students: "Students",
@@ -513,7 +513,7 @@ const en = {
   },
   suggestions: {
     title: "Send a Suggestion",
-    subtitle: "Share your suggestion to help improve Tuwaiq Impact.",
+    subtitle: "Share your suggestion to help improve Athar Platform.",
     name: "Name",
     namePlaceholder: "Enter your full name",
     grade: "Grade",
@@ -525,7 +525,7 @@ const en = {
     cancel: "Cancel",
     close: "Close",
     success: "Your suggestion was sent successfully",
-    successBody: "Thank you for helping improve Tuwaiq Impact.",
+    successBody: "Thank you for helping improve Athar Platform.",
     sendAnother: "Send another suggestion",
     errors: {
       name: "Please enter your name.",
@@ -558,7 +558,7 @@ const en = {
     adminBadge: "Administrator",
     overview: {
       title: "Overview",
-      intro: "A summary of activity on Tuwaiq Impact.",
+      intro: "A summary of activity on Athar Platform.",
       totalProjects: "Total Projects",
       totalStudents: "Total Students",
       published: "Published Projects",
@@ -994,7 +994,7 @@ const en = {
     },
     suggestions: {
       title: "Suggestions",
-      intro: "View suggestions submitted through the Tuwaiq Impact platform.",
+      intro: "View suggestions submitted through Athar Platform.",
       allGrades: "All grades",
       filterLabel: "Filter by grade",
       number: "#",

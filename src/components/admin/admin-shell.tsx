@@ -67,7 +67,7 @@ export function AdminShell({ children, trashCount }: { children: ReactNode; tras
         </Link>
         <div className="mt-5 flex items-center justify-between rounded-xl bg-canvas px-3 py-2.5 ring-1 ring-inset ring-line-soft">
           <span className="text-sm font-semibold text-ink" dir="ltr">
-            <span className="text-gradient-brand">Tuwaiq</span> <span className="text-gradient-purple">Impact</span>
+            <span className="text-gradient-brand">Athar</span> <span className="text-gradient-purple">Platform</span>
           </span>
           <span className="rounded-full bg-lavender-soft px-2 py-0.5 text-[0.6875rem] font-medium text-purple-ink">
             {t.admin.adminBadge}
