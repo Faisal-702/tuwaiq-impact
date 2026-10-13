@@ -35,16 +35,24 @@ export function EntryExperience({
     <div className="relative isolate flex min-h-dvh flex-col overflow-hidden">
       <EntryScene />
 
-      <div className="absolute end-4 top-4 z-20 sm:end-8 sm:top-7">
+      {/* On wide desktop screens the switch sits above the branding side, clear of the sign-in card. */}
+      <div className="absolute end-4 top-4 z-20 sm:end-8 sm:top-7 desk:end-auto desk:start-8">
         <LanguageSwitcher />
       </div>
 
-      {/* Page-level spacing scales with the viewport height so the card (unchanged) fits wherever the screen allows. */}
-      <main className="relative z-10 flex flex-1 flex-col items-center px-4 pb-10 pt-[4.5rem] sm:pt-14 lg:pb-[clamp(0.5rem,1dvh,2.5rem)] lg:pt-[clamp(0.5rem,1.2dvh,3rem)]">
+      {/*
+        Narrower screens: logos, then the card (branding, tabs, form), stacked.
+        Wide desktop screens: logos and branding on one side, the card with the
+        tabs and form on the other, in one screen-high grid. The grid reserves
+        the height of the verification step (--entry-h), so switching steps
+        never moves anything, and the page is exactly one screen tall.
+      */}
+      <main className="relative z-10 flex flex-1 flex-col items-center px-4 pb-10 pt-[4.5rem] sm:pt-14 lg:pt-[clamp(1.25rem,4.5vh,3.25rem)] desk:mx-auto desk:my-auto desk:grid desk:min-h-[var(--entry-h)] desk:flex-none desk:grid-cols-[minmax(0,30rem)_34.5rem] desk:grid-rows-[1fr_auto_auto_1fr] desk:gap-x-[clamp(3rem,6vw,7rem)] desk:p-0 [--entry-h:40.5rem] [@media(max-height:820px)]:[--entry-h:37rem]">
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: EASE }}
+          className="desk:col-start-1 desk:row-start-2 desk:justify-self-center"
         >
           <PartnerLogos
             size="lg"
@@ -59,9 +67,9 @@ export function EntryExperience({
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.1, ease: EASE }}
-          className="relative mt-7 w-full max-w-[34.5rem] rounded-[1.75rem] border border-white/80 bg-white/[0.86] px-5 pb-6 pt-7 shadow-panel backdrop-blur-xl sm:px-12 sm:pb-8 sm:pt-10 lg:mt-[clamp(0.75rem,1.4dvh,2.75rem)] [@media(max-height:820px)]:sm:pt-7 [@media(max-height:820px)]:sm:pb-5"
+          className="relative mt-7 w-full max-w-[34.5rem] rounded-[1.75rem] border border-white/80 bg-white/[0.86] px-5 pb-6 pt-7 shadow-panel backdrop-blur-xl sm:px-12 sm:pb-8 sm:pt-10 lg:mt-[clamp(1.25rem,4vh,2.75rem)] [@media(max-height:820px)]:sm:pt-7 [@media(max-height:820px)]:sm:pb-5 desk:contents"
         >
-          <header className="text-center">
+          <header className="text-center desk:col-start-1 desk:row-start-3 desk:mt-[clamp(1.25rem,4vh,2.75rem)] desk:px-12 desk:py-10 desk:motion-safe:animate-[fade-in_700ms_ease-out_both] [@media(max-height:820px)]:desk:py-7 desk:rounded-[1.75rem] desk:border desk:border-white/80 desk:bg-white/[0.86] desk:shadow-panel desk:backdrop-blur-xl">
             <p className="text-[1.0625rem] text-muted sm:text-xl">{t.entry.welcomeTo}</p>
             <h1 id="entry-title" className="mt-1.5">
               <span
@@ -104,7 +112,7 @@ export function EntryExperience({
             value={mode}
             onValueChange={(v) => setMode(v as "admin" | "student")}
             dir={dir}
-            className="mt-7 [@media(max-height:820px)]:mt-5"
+            className="mt-7 [@media(max-height:820px)]:mt-5 desk:col-start-2 desk:row-span-4 desk:row-start-1 desk:mt-0 [@media(max-height:820px)]:desk:mt-0 desk:self-start desk:px-12 desk:pb-8 desk:pt-10 desk:motion-safe:animate-[fade-in_700ms_ease-out_both] [@media(max-height:820px)]:desk:pb-5 [@media(max-height:820px)]:desk:pt-7 desk:rounded-[1.75rem] desk:border desk:border-white/80 desk:bg-white/[0.86] desk:shadow-panel desk:backdrop-blur-xl"
           >
             <Tabs.List
               aria-label={t.entry.accessModes}
@@ -331,15 +339,20 @@ function AdminForm({ next, expired, pending }: { next: string | null; expired: b
         >
           <input type="hidden" name="intent" value="code" />
           <div className="text-center">
-            <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-lavender-soft text-purple ring-1 ring-inset ring-purple/10 shadow-[0_8px_20px_-12px_rgb(91_54_240/0.45)]">
-              <LockKeyhole aria-hidden className="size-[1.375rem]" strokeWidth={2} />
-            </span>
-            <h2 id="admin-code-title" className="mt-3.5 text-[1.375rem] font-bold leading-tight text-purple-ink">
-              {state.step === "setup" ? t.entry.codeSetupTitle : t.entry.codeTitle}
-            </h2>
-            <p lang={locale === "ar" ? "en" : "ar"} className="mt-1 text-[0.9375rem] font-medium text-ink-soft">
-              {state.step === "setup" ? t.entry.codeSetupTitleAlt : t.entry.codeTitleAlt}
-            </p>
+            {/* Icon beside the title rather than above it (same sizes). */}
+            <div className="flex items-center justify-center gap-3.5">
+              <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-lavender-soft text-purple ring-1 ring-inset ring-purple/10 shadow-[0_8px_20px_-12px_rgb(91_54_240/0.45)]">
+                <LockKeyhole aria-hidden className="size-[1.375rem]" strokeWidth={2} />
+              </span>
+              <div className="text-start">
+                <h2 id="admin-code-title" className="text-[1.375rem] font-bold leading-tight text-purple-ink">
+                  {state.step === "setup" ? t.entry.codeSetupTitle : t.entry.codeTitle}
+                </h2>
+                <p lang={locale === "ar" ? "en" : "ar"} className="mt-0.5 text-[0.9375rem] font-medium text-ink-soft">
+                  {state.step === "setup" ? t.entry.codeSetupTitleAlt : t.entry.codeTitleAlt}
+                </p>
+              </div>
+            </div>
             <p className="mt-2 text-[0.875rem] leading-relaxed text-muted">{t.entry.codeVerifiedNote}</p>
           </div>
 
@@ -359,14 +372,23 @@ function AdminForm({ next, expired, pending }: { next: string | null; expired: b
           </div>
 
           <div>
-            <div className="text-center">
+            <div className="flex items-center justify-between gap-3">
               <label htmlFor="admin-code" className="block text-[0.9375rem] font-semibold text-ink">
                 {state.step === "setup" ? t.entry.codeNewLabel : t.entry.codeLabel}
               </label>
-              <p id="admin-code-hint" className="mx-auto mt-1 max-w-[24rem] text-[0.8125rem] leading-relaxed text-muted">
-                {state.step === "setup" ? t.entry.codeSetupIntro : t.entry.codeHelper}
-              </p>
+              <button
+                type="button"
+                onClick={() => setShowCode((v) => !v)}
+                aria-pressed={showCode}
+                className="-me-1.5 flex shrink-0 items-center gap-1.5 rounded-lg px-1.5 py-1 text-[0.8125rem] text-muted transition hover:text-purple-ink"
+              >
+                {showCode ? <EyeOff aria-hidden className="size-4" /> : <Eye aria-hidden className="size-4" />}
+                {showCode ? t.entry.hideCode : t.entry.showCode}
+              </button>
             </div>
+            <p id="admin-code-hint" className="mt-0.5 text-[0.8125rem] leading-relaxed text-muted">
+              {state.step === "setup" ? t.entry.codeSetupIntro : t.entry.codeHelper}
+            </p>
             <div className="mt-3.5">
               <SecurityCodeInput
                 key={`code-${state.attempt}`}
@@ -399,17 +421,6 @@ function AdminForm({ next, expired, pending }: { next: string | null; expired: b
                 </div>
               </div>
             ) : null}
-            <div className="mt-2 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setShowCode((v) => !v)}
-                aria-pressed={showCode}
-                className="flex items-center gap-1.5 rounded-lg px-1.5 py-1 text-[0.8125rem] text-muted transition hover:text-purple-ink"
-              >
-                {showCode ? <EyeOff aria-hidden className="size-4" /> : <Eye aria-hidden className="size-4" />}
-                {showCode ? t.entry.hideCode : t.entry.showCode}
-              </button>
-            </div>
           </div>
 
           <SubmitButton

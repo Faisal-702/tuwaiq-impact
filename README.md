@@ -241,7 +241,7 @@ It removes the project and submissions it created. Set `QA_SHOTS=<dir>` to save 
 - a successful sign-in with no Supabase token in the browser
 - throttling of repeated failures
 - the verification code step: no session before the code; wrong, malformed and empty codes; Arabic-Indic digits; reload; "Back to sign in"; 5 wrong codes; per-account throttling; changing the code in Settings
-- page positioning at 1366×768, 1440×900 and 1920×1080: the original card size, step 1 on screen, and on step 2 the code boxes and both buttons brought into view without the card moving
+- wide desktop screens (e.g. 1536×730, 1366×657, 1440×900, 1920×1080 windows): both steps fully visible in one still screen, the mouse wheel moves nothing, and nothing moves between the steps
 - with the mock (below) and `DATABASE_URL`: creating the code on a first sign-in (weak and mismatching codes refused, stored hashed) and resetting another administrator's code
 
 All suites sign in as administrator with `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_VERIFICATION_CODE` (8 digits). If that administrator has no code yet, the first sign-in of a run creates it with this value. Without a Supabase project, run `npm run mock:supabase-auth` and start the app against it:
