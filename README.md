@@ -1,4 +1,4 @@
-# Tuwaiq Impact | أثر طويق
+# Athar Platform | منصة أثر
 
 Official platform of **Technical Talented High School** (ثانوية الموهوبين التقنية) for showcasing student projects, achievements and innovation.
 

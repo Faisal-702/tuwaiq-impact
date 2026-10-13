@@ -22,11 +22,11 @@ export function SiteFooter({ t }: { t: Dictionary }) {
             <p className="text-xl font-semibold tracking-tight text-ink">
               <span dir="ltr" className="inline-block">
               <span lang="en">
-                <span className="text-gradient-brand">Tuwaiq</span> <span className="text-gradient-purple">Impact</span>
+                <span className="text-gradient-brand">Athar</span> <span className="text-gradient-purple">Platform</span>
               </span>
               <span className="mx-2.5 text-line">|</span>
               <span lang="ar" className="font-[family-name:var(--font-arabic)] text-teal-deep">
-                أثر طويق
+                منصة أثر
               </span>
               </span>
             </p>

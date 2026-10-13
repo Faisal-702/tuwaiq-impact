@@ -1,17 +1,17 @@
 import { cn } from "@/lib/utils";
 
-/** "Tuwaiq Impact | أثر طويق" text lockup. */
+/** "Athar Platform | منصة أثر" text lockup. */
 export function Wordmark({ className, compact }: { className?: string; compact?: boolean }) {
   return (
     <span className={cn("inline-flex items-center gap-2.5 font-semibold tracking-tight text-ink", className)} dir="ltr">
       <span lang="en" className="whitespace-nowrap">
-        <span className="text-gradient-brand">Tuwaiq</span> <span className="text-gradient-purple">Impact</span>
+        <span className="text-gradient-brand">Athar</span> <span className="text-gradient-purple">Platform</span>
       </span>
       {!compact ? (
         <>
           <span aria-hidden className="h-4 w-px bg-line" />
           <span lang="ar" dir="rtl" className="whitespace-nowrap font-[family-name:var(--font-arabic)] text-teal-deep">
-            أثر طويق
+            منصة أثر
           </span>
         </>
       ) : null}

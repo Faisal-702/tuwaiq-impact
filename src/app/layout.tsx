@@ -15,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(`${proto}://${host}`),
     title: { default: t.meta.title, template: `%s · ${t.brand.name}` },
     description: t.meta.description,
-    applicationName: "Tuwaiq Impact",
+    applicationName: "Athar Platform",
     robots: { index: true, follow: true },
   };
 }
