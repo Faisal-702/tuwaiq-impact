@@ -5,11 +5,6 @@
 @import "@fontsource/ibm-plex-sans-arabic/600.css";
 @import "@fontsource/ibm-plex-sans-arabic/700.css";
 
-/* Viewport-height tiers for screens that must fit in one view (the entry page). */
-@custom-variant short (@media (max-height: 1000px));
-@custom-variant shorter (@media (max-height: 800px));
-@custom-variant shortest (@media (max-height: 730px));
-
 /* ---------------------------------------------------------------------------
    Tuwaiq Impact design tokens (light mode only)
    Palette from the Tuwaiq Impact visual identity reference.

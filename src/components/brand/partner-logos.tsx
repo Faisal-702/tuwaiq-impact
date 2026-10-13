@@ -21,14 +21,6 @@ const SIZES = {
     divider: "h-12 sm:h-16 lg:h-20",
     px: [254, 612],
   },
-  /** Entry page: like lg, scaled to the viewport height on desktop so the sign-in card fits one screen. */
-  entry: {
-    moe: "h-[58px] sm:h-[74px] lg:h-[clamp(44px,7.2dvh,92px)]",
-    tuwaiq: "h-[37px] sm:h-[47px] lg:h-[clamp(28px,4.6dvh,59px)]",
-    gap: "gap-5 sm:gap-8 lg:gap-10",
-    divider: "h-12 sm:h-16 lg:h-[clamp(34px,5.6dvh,76px)]",
-    px: [254, 612],
-  },
 } as const;
 
 export function PartnerLogos({

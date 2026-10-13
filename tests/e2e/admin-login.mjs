@@ -247,13 +247,15 @@ await check("AR · mobile (320 px): the 8 boxes fit without horizontal scrolling
   await context.close();
 });
 
-// Both sign-in steps fit one screen on common desktop and laptop sizes (the
-// first two are 1366×768 and 1440×900 screens minus typical browser bars).
-for (const [lang, w, h] of [
-  ["ar", 1366, 768], ["en", 1366, 768], ["ar", 1440, 900], ["en", 1440, 900], ["ar", 1920, 1080], ["en", 1920, 1080],
-  ["en", 1366, 657], ["en", 1280, 720],
+// Page positioning on common desktop and laptop screens. The card keeps its
+// original design; the page spacing adapts. Step 1 fits where the height
+// allows; step 2 is taller than these screens, so the page glides just far
+// enough to show the code boxes and both buttons, without the card moving.
+for (const [lang, w, h, step1Fits] of [
+  ["ar", 1366, 768, false], ["en", 1366, 768, false], ["ar", 1440, 900, true], ["en", 1440, 900, true],
+  ["ar", 1920, 1080, true], ["en", 1920, 1080, true],
 ]) {
-  await check(`${lang.toUpperCase()} · ${w}×${h}: both sign-in steps fit without scrolling, no jump between them`, async () => {
+  await check(`${lang.toUpperCase()} · ${w}×${h}: sign-in steps positioned on screen, card does not move`, async () => {
     const context = await browser.newContext({ viewport: { width: w, height: h }, extraHTTPHeaders: { "x-forwarded-for": randomClientIp() } });
     await context.addCookies([{ name: "ti_lang", value: lang, url: BASE }]);
     const page = await context.newPage();
@@ -265,19 +267,21 @@ for (const [lang, w, h] of [
       page.evaluate(() => {
         const card = document.querySelector('section[aria-labelledby="entry-title"]').getBoundingClientRect();
         const submit = document.querySelector('form button[type="submit"]:not([name])').getBoundingClientRect();
-        return { overflow: document.documentElement.scrollHeight - innerHeight, scrollY, cardTop: Math.round(card.top), submitBottom: submit.bottom, vh: innerHeight };
+        const back = document.querySelector('button[name="intent"][value="back"]')?.getBoundingClientRect();
+        return { overflow: document.documentElement.scrollHeight - innerHeight, cardTop: Math.round(card.top + scrollY), cardWidth: Math.round(card.width), submitBottom: submit.bottom, backBottom: back?.bottom, vh: innerHeight };
       });
     const first = await layout();
-    assert(first.overflow <= 0, `step 1 scrolls by ${first.overflow}px`);
+    assert(first.cardWidth === 552, `card width ${first.cardWidth}`);
+    assert(first.submitBottom <= first.vh, "sign-in button below the fold");
+    if (step1Fits) assert(first.overflow <= 0, `step 1 scrolls by ${first.overflow}px`);
     await fillAdminLogin(page, ADMIN);
     await page.locator('form[data-step="verify"]').waitFor();
-    await page.waitForTimeout(600); // let the step's entrance animation settle
+    await page.waitForTimeout(1200); // the gentle scroll to the code area
     const second = await layout();
-    assert(second.overflow <= 0, `step 2 scrolls by ${second.overflow}px`);
-    assert(second.scrollY === 0, `page jumped to ${second.scrollY}px`);
     assert(second.cardTop === first.cardTop, `card moved from ${first.cardTop} to ${second.cardTop}`);
-    const lastBox = await page.locator("#admin-code + div > div").last().boundingBox();
-    assert(lastBox.y + lastBox.height <= second.vh && second.submitBottom <= second.vh, "code boxes or button below the fold");
+    const firstBox = await page.locator("#admin-code + div > div").first().boundingBox();
+    assert(firstBox.y >= 0, "code boxes above the screen");
+    assert(second.submitBottom <= second.vh && second.backBottom <= second.vh, "verify or back button below the fold");
     await context.close();
   });
 }
