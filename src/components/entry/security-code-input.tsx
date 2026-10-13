@@ -88,7 +88,7 @@ export function SecurityCodeInput({
               data-active={current || undefined}
               data-filled={filled || undefined}
               className={cn(
-                "grid h-11 place-items-center rounded-xl border bg-white text-[1.25rem] font-semibold tabular-nums text-ink transition-[border-color,box-shadow,background-color] duration-150 sm:h-[3.25rem] sm:rounded-2xl",
+                "grid h-11 place-items-center rounded-xl border bg-white text-[1.25rem] font-semibold tabular-nums text-ink transition-[border-color,box-shadow,background-color] duration-150 sm:h-[3.25rem] sm:rounded-2xl short:sm:h-12 shortest:sm:h-11",
                 invalid
                   ? "border-danger-ink/45"
                   : current

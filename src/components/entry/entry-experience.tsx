@@ -39,14 +39,15 @@ export function EntryExperience({
         <LanguageSwitcher />
       </div>
 
-      <main className="relative z-10 flex flex-1 flex-col items-center px-4 pb-10 pt-[4.5rem] sm:pt-14 lg:pt-[clamp(1.25rem,4.5vh,3.25rem)]">
+      {/* Spacing scales with the viewport height so both sign-in steps fit one screen on desktop and laptop displays; shorter screens scroll normally. */}
+      <main className="relative z-10 flex flex-1 flex-col items-center px-4 pb-[clamp(0.5rem,1.5dvh,2rem)] pt-[4.5rem] sm:pt-14 lg:pt-[clamp(0.5rem,2.5dvh,2.5rem)]">
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: EASE }}
         >
           <PartnerLogos
-            size="lg"
+            size="entry"
             priority
             moeAlt={t.brand.moeAlt}
             tuwaiqAlt={t.brand.tuwaiqAlt}
@@ -58,15 +59,15 @@ export function EntryExperience({
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.1, ease: EASE }}
-          className="relative mt-7 w-full max-w-[34.5rem] rounded-[1.75rem] border border-white/80 bg-white/[0.86] px-5 pb-6 pt-7 shadow-panel backdrop-blur-xl sm:px-12 sm:pb-8 sm:pt-10 lg:mt-[clamp(1.25rem,4vh,2.75rem)] [@media(max-height:820px)]:sm:pt-7 [@media(max-height:820px)]:sm:pb-5"
+          className="relative mt-7 w-full max-w-[34.5rem] rounded-[1.75rem] border border-white/80 bg-white/[0.86] px-5 pb-6 pt-7 shadow-panel backdrop-blur-xl sm:px-12 sm:pb-8 sm:pt-10 lg:mt-[clamp(0.5rem,1.8dvh,2rem)] short:sm:pb-5 short:sm:pt-7 shorter:sm:px-9 shorter:sm:pb-4 shorter:sm:pt-5 shortest:sm:pb-3 shortest:sm:pt-4"
         >
           <header className="text-center">
-            <p className="text-[1.0625rem] text-muted sm:text-xl">{t.entry.welcomeTo}</p>
+            <p className="text-[1.0625rem] text-muted sm:text-xl short:sm:text-lg shorter:sm:text-[1rem] shortest:sm:text-[0.9375rem]">{t.entry.welcomeTo}</p>
             <h1 id="entry-title" className="mt-1.5">
               <span
                 lang="en"
                 dir="ltr"
-                className="block text-[2.4rem] font-bold leading-[1.08] tracking-[-0.025em] sm:text-[3.25rem] [@media(max-height:820px)]:sm:text-[2.75rem]"
+                className="block text-[2.4rem] font-bold leading-[1.08] tracking-[-0.025em] sm:text-[3.25rem] short:sm:text-[2.625rem] shorter:sm:text-[2.125rem] shortest:sm:text-[2rem]"
                 style={{ fontFamily: '"Inter Variable", ui-sans-serif, system-ui' }}
               >
                 <span className="text-gradient-brand">Tuwaiq</span>{" "}
@@ -75,26 +76,30 @@ export function EntryExperience({
               <span
                 lang="ar"
                 dir="rtl"
-                className="mt-1 block text-[2rem] font-bold leading-tight text-[#0c4a5a] sm:text-[2.5rem] [@media(max-height:820px)]:sm:text-[2.125rem]"
+                className="mt-1 block text-[2rem] font-bold leading-tight text-[#0c4a5a] sm:text-[2.5rem] short:sm:text-[2rem] shorter:sm:text-[1.625rem] shortest:mt-0.5 shortest:sm:text-[1.5rem]"
                 style={{ fontFamily: "var(--font-arabic)" }}
               >
                 أثر طويق
               </span>
             </h1>
-            <div className="mt-5 space-y-1 [@media(max-height:820px)]:mt-3">
-              <p lang="en" className="text-[1.0625rem] font-medium text-ink-soft">
+            {/* On the shortest screens both school names share one line. */}
+            <div className="mt-5 space-y-1 short:mt-3 shorter:mt-2 shorter:space-y-0 shortest:mt-1.5 shortest:flex shortest:flex-wrap shortest:items-baseline shortest:justify-center shortest:gap-x-2">
+              <p lang="en" className="text-[1.0625rem] font-medium text-ink-soft shorter:text-[0.9375rem] shortest:text-[0.875rem]">
                 Technical Talented High School
               </p>
+              <span aria-hidden className="hidden text-[#c3c8d2] shortest:inline">
+                ·
+              </span>
               <p
                 lang="ar"
                 dir="rtl"
-                className="text-[1.0625rem] font-semibold text-ink"
+                className="text-[1.0625rem] font-semibold text-ink shorter:text-[0.9375rem] shortest:text-[0.875rem]"
                 style={{ fontFamily: "var(--font-arabic)" }}
               >
                 ثانوية الموهوبين التقنية 
               </p>
             </div>
-            <p className="mx-auto mt-4 max-w-[26rem] text-[0.9375rem] leading-relaxed text-muted [@media(max-height:820px)]:mt-2.5">
+            <p className="mx-auto mt-4 max-w-[26rem] short:max-w-[28rem] text-[0.9375rem] leading-relaxed text-muted short:mt-2.5 shorter:mt-1.5 shorter:text-[0.875rem] shortest:mt-1 shortest:max-w-none shortest:text-[0.75rem]">
               {t.entry.subtitle}
             </p>
           </header>
@@ -103,7 +108,7 @@ export function EntryExperience({
             value={mode}
             onValueChange={(v) => setMode(v as "admin" | "student")}
             dir={dir}
-            className="mt-7 [@media(max-height:820px)]:mt-5"
+            className="mt-7 short:mt-5 shorter:mt-3.5 shortest:mt-2.5"
           >
             <Tabs.List
               aria-label={t.entry.accessModes}
@@ -160,7 +165,7 @@ function EntryTab({
     <Tabs.Trigger
       value={value}
       className={cn(
-        "relative flex h-12 items-center justify-center gap-1.5 rounded-[0.8rem] px-1.5 text-[0.8125rem] font-medium leading-tight transition-colors duration-200 sm:gap-2 sm:px-2 sm:text-[0.9375rem]",
+        "relative flex h-12 items-center justify-center gap-1.5 short:h-11 shorter:h-10 rounded-[0.8rem] px-1.5 text-[0.8125rem] font-medium leading-tight transition-colors duration-200 sm:gap-2 sm:px-2 sm:text-[0.9375rem]",
         active ? "text-purple-ink" : "text-muted hover:text-ink",
       )}
     >
@@ -210,7 +215,7 @@ function SubmitButton({
       type="submit"
       disabled={pending}
       className={cn(
-        "group relative flex h-14 w-full items-center justify-center gap-2.5 overflow-hidden rounded-2xl bg-gradient-to-r from-[#5b36f0] via-purple to-[#7a58ff] text-[1.0625rem] font-semibold text-white shadow-[0_14px_30px_-14px_rgb(91_54_240/0.9)] transition-[transform,box-shadow,filter] duration-200 hover:shadow-[0_18px_36px_-14px_rgb(91_54_240/0.95)] hover:brightness-[1.04] active:translate-y-px disabled:cursor-wait disabled:opacity-80",
+        "group relative flex h-14 w-full items-center justify-center short:h-[3.25rem] shorter:h-12 shortest:h-11 gap-2.5 overflow-hidden rounded-2xl bg-gradient-to-r from-[#5b36f0] via-purple to-[#7a58ff] text-[1.0625rem] font-semibold text-white shadow-[0_14px_30px_-14px_rgb(91_54_240/0.9)] transition-[transform,box-shadow,filter] duration-200 hover:shadow-[0_18px_36px_-14px_rgb(91_54_240/0.95)] hover:brightness-[1.04] active:translate-y-px disabled:cursor-wait disabled:opacity-80",
         elevated &&
           "hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-14px_rgb(91_54_240/0.95)] active:translate-y-0 active:scale-[0.985] motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 disabled:translate-y-0",
       )}
@@ -238,7 +243,7 @@ function SubmitButton({
 
 const adminInputClass = (error: boolean) =>
   cn(
-    "h-[3.25rem] w-full rounded-2xl border bg-white ps-14 pe-5 text-[1rem] text-ink placeholder:text-[#9aa1ad] transition-[border-color,box-shadow] duration-200 focus:outline-none focus:ring-4",
+    "h-[3.25rem] w-full rounded-2xl border bg-white ps-14 pe-5 text-[1rem] short:h-12 shortest:h-11 text-ink placeholder:text-[#9aa1ad] transition-[border-color,box-shadow] duration-200 focus:outline-none focus:ring-4",
     error
       ? "border-danger-ink/45 focus:border-danger-ink/60 focus:ring-danger-ink/10"
       : "border-[#d9d4f5] shadow-[0_0_0_3px_rgb(109_74_255/0.06)] hover:border-violet focus:border-purple/70 focus:ring-purple/12",
@@ -266,14 +271,14 @@ function AdminForm({ next, expired, pending }: { next: string | null; expired: b
     if (state.attempt === 0) return;
     if (codeStep) {
       // Only a mismatching confirmation keeps the first code and asks again.
-      if (state.error === "code_mismatch") confirmRef.current?.focus();
-      else codeRef.current?.focus();
+      if (state.error === "code_mismatch") confirmRef.current?.focus({ preventScroll: true });
+      else codeRef.current?.focus({ preventScroll: true });
       return;
     }
     if (!state.error) return;
     // Missing email → focus it; otherwise the (cleared) password field.
-    if (state.error === "required" && !state.email) emailRef.current?.focus();
-    else passwordRef.current?.focus();
+    if (state.error === "required" && !state.email) emailRef.current?.focus({ preventScroll: true });
+    else passwordRef.current?.focus({ preventScroll: true });
   }, [state, codeStep]);
 
   const messages: Record<NonNullable<AdminLoginState["error"]>, string> = {
@@ -291,13 +296,22 @@ function AdminForm({ next, expired, pending }: { next: string | null; expired: b
   const message = state.error ? messages[state.error] : expired && !codeStep ? t.admin.common.unauthorized : null;
   const describedBy = message ? "admin-login-message" : undefined;
   const codeError = state.error === "code_invalid" || state.error === "code_format" || state.error === "code_required";
+  const messageLine = (className: string) => (
+    <p
+      id="admin-login-message"
+      aria-live="polite"
+      className={cn("min-h-5 text-center text-[0.875rem]", state.error ? "text-danger-ink" : "text-muted", className)}
+    >
+      {message}
+    </p>
+  );
 
   return (
     <form
       action={formAction}
       data-attempt={state.attempt}
       data-step={state.step}
-      className="mt-7 space-y-4 [@media(max-height:820px)]:mt-5 [@media(max-height:820px)]:space-y-3"
+      className="mt-7 space-y-4 short:mt-5 short:space-y-3 shorter:mt-3.5 shortest:mt-2.5 shortest:space-y-2.5"
       noValidate
     >
       {next ? <input type="hidden" name="next" value={next} /> : null}
@@ -307,47 +321,67 @@ function AdminForm({ next, expired, pending }: { next: string | null; expired: b
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, ease: EASE }}
-          className="space-y-5 [@media(max-height:820px)]:space-y-4"
+          className="space-y-4 short:space-y-3 shorter:space-y-2.5 shortest:space-y-2"
         >
           <input type="hidden" name="intent" value="code" />
           <div className="text-center">
-            <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-lavender-soft text-purple ring-1 ring-inset ring-purple/10 shadow-[0_8px_20px_-12px_rgb(91_54_240/0.45)]">
-              <LockKeyhole aria-hidden className="size-[1.375rem]" strokeWidth={2} />
-            </span>
-            <h2 id="admin-code-title" className="mt-3.5 text-[1.375rem] font-bold leading-tight text-purple-ink">
-              {state.step === "setup" ? t.entry.codeSetupTitle : t.entry.codeTitle}
-            </h2>
-            <p lang={locale === "ar" ? "en" : "ar"} className="mt-1 text-[0.9375rem] font-medium text-ink-soft">
-              {state.step === "setup" ? t.entry.codeSetupTitleAlt : t.entry.codeTitleAlt}
-            </p>
-            <p className="mt-2 text-[0.875rem] leading-relaxed text-muted">{t.entry.codeVerifiedNote}</p>
+            {/* Icon beside the title (instead of above it) keeps the step short. */}
+            <div className="flex items-center justify-center gap-3">
+              <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-lavender-soft text-purple ring-1 ring-inset ring-purple/10 shadow-[0_8px_20px_-12px_rgb(91_54_240/0.45)] shorter:size-10 shortest:size-9">
+                <LockKeyhole aria-hidden className="size-5" strokeWidth={2} />
+              </span>
+              <div className="min-w-0 text-start">
+                <h2 id="admin-code-title" className="text-[1.375rem] font-bold leading-tight text-purple-ink shorter:text-[1.25rem] shortest:text-[1.125rem]">
+                  {state.step === "setup" ? t.entry.codeSetupTitle : t.entry.codeTitle}
+                </h2>
+                <p lang={locale === "ar" ? "en" : "ar"} className="text-[0.9375rem] font-medium leading-snug text-ink-soft shortest:text-[0.875rem]">
+                  {state.step === "setup" ? t.entry.codeSetupTitleAlt : t.entry.codeTitleAlt}
+                </p>
+              </div>
+            </div>
           </div>
 
+          {/* The account the password was verified for, with the confirmation note. */}
           <div
             data-testid="admin-code-account"
-            className="flex items-center gap-3 rounded-2xl bg-white/70 px-4 py-3 ring-1 ring-inset ring-line-soft"
+            className="flex items-center gap-3 rounded-2xl bg-white/70 px-3.5 py-2.5 ring-1 ring-inset ring-line-soft short:py-2"
           >
-            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-lavender-soft text-purple">
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-lavender-soft text-purple shortest:size-8">
               <UserRound aria-hidden className="size-[1.125rem]" strokeWidth={2} />
             </span>
-            <div className="min-w-0">
-              <p className="text-[0.75rem] text-muted">{t.entry.codeAccount}</p>
-              <bdi dir="ltr" className="block truncate text-[0.9375rem] font-medium text-ink">
-                {state.email}
-              </bdi>
+            <div className="min-w-0 flex-1">
+              <p className="flex min-w-0 items-baseline gap-2">
+                <span className="shrink-0 text-[0.8125rem] text-muted">{t.entry.codeAccount}</span>
+                <bdi dir="ltr" className="min-w-0 truncate text-[0.9375rem] font-medium leading-snug text-ink">
+                  {state.email}
+                </bdi>
+              </p>
+              <p className="mt-0.5 flex items-center gap-1.5 text-[0.8125rem] leading-snug text-teal-deep">
+                <ShieldCheck aria-hidden className="size-3.5 shrink-0" strokeWidth={2.2} />
+                {t.entry.codeVerifiedNote}
+              </p>
             </div>
           </div>
 
           <div>
-            <div className="text-center">
-              <label htmlFor="admin-code" className="block text-[0.9375rem] font-semibold text-ink">
+            <div className="flex items-center justify-between gap-3">
+              <label htmlFor="admin-code" className="text-[0.9375rem] font-semibold text-ink">
                 {state.step === "setup" ? t.entry.codeNewLabel : t.entry.codeLabel}
               </label>
-              <p id="admin-code-hint" className="mx-auto mt-1 max-w-[24rem] text-[0.8125rem] leading-relaxed text-muted">
-                {state.step === "setup" ? t.entry.codeSetupIntro : t.entry.codeHelper}
-              </p>
+              <button
+                type="button"
+                onClick={() => setShowCode((v) => !v)}
+                aria-pressed={showCode}
+                className="-me-1.5 flex shrink-0 items-center gap-1.5 rounded-lg px-1.5 py-1 text-[0.8125rem] short:py-0.5 text-muted transition hover:text-purple-ink"
+              >
+                {showCode ? <EyeOff aria-hidden className="size-4" /> : <Eye aria-hidden className="size-4" />}
+                {showCode ? t.entry.hideCode : t.entry.showCode}
+              </button>
             </div>
-            <div className="mt-3.5">
+            <p id="admin-code-hint" className="mt-0.5 text-[0.8125rem] leading-relaxed text-muted short:text-[0.78125rem]">
+              {state.step === "setup" ? t.entry.codeSetupIntro : t.entry.codeHelper}
+            </p>
+            <div className="mt-2.5 short:mt-2">
               <SecurityCodeInput
                 key={`code-${state.attempt}`}
                 id="admin-code"
@@ -361,11 +395,11 @@ function AdminForm({ next, expired, pending }: { next: string | null; expired: b
               />
             </div>
             {state.step === "setup" ? (
-              <div className="mt-4">
-                <label htmlFor="admin-code-confirm" className="block text-center text-[0.9375rem] font-semibold text-ink">
+              <div className="mt-3">
+                <label htmlFor="admin-code-confirm" className="block text-[0.9375rem] font-semibold text-ink">
                   {t.entry.codeConfirmLabel}
                 </label>
-                <div className="mt-2.5">
+                <div className="mt-2">
                   <SecurityCodeInput
                     key={`confirm-${state.attempt}`}
                     id="admin-code-confirm"
@@ -379,17 +413,7 @@ function AdminForm({ next, expired, pending }: { next: string | null; expired: b
                 </div>
               </div>
             ) : null}
-            <div className="mt-2 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setShowCode((v) => !v)}
-                aria-pressed={showCode}
-                className="flex items-center gap-1.5 rounded-lg px-1.5 py-1 text-[0.8125rem] text-muted transition hover:text-purple-ink"
-              >
-                {showCode ? <EyeOff aria-hidden className="size-4" /> : <Eye aria-hidden className="size-4" />}
-                {showCode ? t.entry.hideCode : t.entry.showCode}
-              </button>
-            </div>
+            {messageLine("mt-1 leading-5")}
           </div>
 
           <SubmitButton
@@ -403,7 +427,7 @@ function AdminForm({ next, expired, pending }: { next: string | null; expired: b
             name="intent"
             value="back"
             formNoValidate
-            className="mx-auto -mt-1 flex items-center gap-1.5 rounded-lg px-2 py-1 text-[0.8125rem] text-muted transition hover:text-purple-ink"
+            className="mx-auto -mt-1 flex items-center gap-1.5 rounded-lg px-2 py-0.5 text-[0.8125rem] text-muted transition hover:text-purple-ink"
           >
             <ArrowRight aria-hidden className="size-3.5 -scale-x-100 rtl:scale-x-100" />
             {t.entry.codeBack}
@@ -476,13 +500,7 @@ function AdminForm({ next, expired, pending }: { next: string | null; expired: b
           </div>
         </>
       )}
-      <p
-        id="admin-login-message"
-        aria-live="polite"
-        className={cn("min-h-5 text-center text-[0.875rem]", state.error ? "text-danger-ink" : "text-muted")}
-      >
-        {message}
-      </p>
+      {codeStep ? null : messageLine("")}
     </form>
   );
 }
@@ -512,7 +530,7 @@ function StudentForm({ next }: { next: string | null }) {
           : null;
 
   return (
-    <form action={formAction} className="mt-7 [@media(max-height:820px)]:mt-5" noValidate>
+    <form action={formAction} className="mt-7 short:mt-5 shorter:mt-4 shortest:mt-3" noValidate>
       {next ? <input type="hidden" name="next" value={next} /> : null}
       <label htmlFor="student-code" className="block text-[0.9375rem] font-medium text-ink">
         {t.entry.studentCodeLabel}
@@ -540,7 +558,7 @@ function StudentForm({ next }: { next: string | null }) {
           animate={state.error === "invalid" ? { x: [0, -6, 6, -4, 4, 0] } : undefined}
           transition={{ duration: 0.4 }}
           className={cn(
-            "h-14 w-full rounded-2xl border bg-white ps-14 pe-5 text-[1.0625rem] text-ink placeholder:text-[#9aa1ad] transition-[border-color,box-shadow] duration-200 focus:outline-none focus:ring-4",
+            "h-14 w-full rounded-2xl border bg-white ps-14 pe-5 text-[1.0625rem] short:h-[3.25rem] shorter:h-12 shortest:h-11 text-ink placeholder:text-[#9aa1ad] transition-[border-color,box-shadow] duration-200 focus:outline-none focus:ring-4",
             state.error
               ? "border-danger-ink/45 focus:border-danger-ink/60 focus:ring-danger-ink/10"
               : "border-[#d9d4f5] shadow-[0_0_0_3px_rgb(109_74_255/0.06)] hover:border-violet focus:border-purple/70 focus:ring-purple/12",
@@ -549,19 +567,19 @@ function StudentForm({ next }: { next: string | null }) {
       </div>
       <p
         id="student-code-hint"
-        className="mt-3 flex items-center gap-2.5 rounded-xl bg-lavender-soft px-4 py-3 text-[0.875rem] text-purple-ink ring-1 ring-inset ring-purple/10"
+        className="mt-3 flex items-center gap-2.5 rounded-xl bg-lavender-soft px-4 py-3 text-[0.875rem] text-purple-ink shorter:py-2.5 ring-1 ring-inset ring-purple/10"
       >
         <Info aria-hidden className="size-[1.125rem] shrink-0 text-purple" strokeWidth={2} />
         {t.entry.studentHint}
       </p>
-      <div className="mt-5">
+      <div className="mt-5 shorter:mt-4">
         <SubmitButton label={t.entry.studentSubmit} pendingLabel={t.entry.entering} />
       </div>
       <p
         id="student-code-message"
         aria-live="polite"
         className={cn(
-          "mt-4 min-h-5 text-center text-[0.875rem]",
+          "mt-4 min-h-5 text-center text-[0.875rem] shorter:mt-3",
           message ? "text-danger-ink" : "text-muted",
         )}
       >

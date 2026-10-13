@@ -247,6 +247,41 @@ await check("AR · mobile (320 px): the 8 boxes fit without horizontal scrolling
   await context.close();
 });
 
+// Both sign-in steps fit one screen on common desktop and laptop sizes (the
+// first two are 1366×768 and 1440×900 screens minus typical browser bars).
+for (const [lang, w, h] of [
+  ["ar", 1366, 768], ["en", 1366, 768], ["ar", 1440, 900], ["en", 1440, 900], ["ar", 1920, 1080], ["en", 1920, 1080],
+  ["en", 1366, 657], ["en", 1280, 720],
+]) {
+  await check(`${lang.toUpperCase()} · ${w}×${h}: both sign-in steps fit without scrolling, no jump between them`, async () => {
+    const context = await browser.newContext({ viewport: { width: w, height: h }, extraHTTPHeaders: { "x-forwarded-for": randomClientIp() } });
+    await context.addCookies([{ name: "ti_lang", value: lang, url: BASE }]);
+    const page = await context.newPage();
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto(BASE + "/welcome?mode=admin");
+    await page.locator("#admin-email").waitFor();
+    await page.waitForTimeout(1000); // the card's entrance animation (rises 18 px)
+    const layout = () =>
+      page.evaluate(() => {
+        const card = document.querySelector('section[aria-labelledby="entry-title"]').getBoundingClientRect();
+        const submit = document.querySelector('form button[type="submit"]:not([name])').getBoundingClientRect();
+        return { overflow: document.documentElement.scrollHeight - innerHeight, scrollY, cardTop: Math.round(card.top), submitBottom: submit.bottom, vh: innerHeight };
+      });
+    const first = await layout();
+    assert(first.overflow <= 0, `step 1 scrolls by ${first.overflow}px`);
+    await fillAdminLogin(page, ADMIN);
+    await page.locator('form[data-step="verify"]').waitFor();
+    await page.waitForTimeout(600); // let the step's entrance animation settle
+    const second = await layout();
+    assert(second.overflow <= 0, `step 2 scrolls by ${second.overflow}px`);
+    assert(second.scrollY === 0, `page jumped to ${second.scrollY}px`);
+    assert(second.cardTop === first.cardTop, `card moved from ${first.cardTop} to ${second.cardTop}`);
+    const lastBox = await page.locator("#admin-code + div > div").last().boundingBox();
+    assert(lastBox.y + lastBox.height <= second.vh && second.submitBottom <= second.vh, "code boxes or button below the fold");
+    await context.close();
+  });
+}
+
 await check("Wrong, malformed or empty code: refused, no session", async () => {
   const { context, page } = await open("en");
   await page.goto(BASE + "/welcome?mode=admin");
