@@ -1,23 +1,14 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useTransition } from "react";
-import { LOCALE_COOKIE, LOCALE_STORAGE_KEY, dirOf, type Locale } from "@/i18n/config";
+import { type Locale } from "@/i18n/config";
 import { useI18n } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
-export function setLocalePreference(next: Locale) {
-  document.cookie = `${LOCALE_COOKIE}=${next}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
-  try {
-    localStorage.setItem(LOCALE_STORAGE_KEY, next);
-  } catch {
-    /* storage unavailable */
-  }
-  document.documentElement.lang = next;
-  document.documentElement.dir = dirOf(next);
-}
-
-/** EN | العربية segmented switch. Remembers the choice in this browser. */
+/**
+ * EN | العربية segmented switch. Remembers the choice in this browser. The
+ * pressed state follows the choice at once; the page switches as a whole
+ * when the server has rendered it in the new language (see I18nProvider).
+ */
 export function LanguageSwitcher({
   className,
   variant = "pill",
@@ -25,15 +16,7 @@ export function LanguageSwitcher({
   className?: string;
   variant?: "pill" | "compact";
 }) {
-  const { locale, t } = useI18n();
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-
-  const choose = (next: Locale) => {
-    if (next === locale) return;
-    setLocalePreference(next);
-    startTransition(() => router.refresh());
-  };
+  const { t, targetLocale, switching, switchLocale } = useI18n();
 
   const options: { value: Locale; label: string; aria: string }[] = [
     { value: "en", label: "EN", aria: t.common.switchToEnglish },
@@ -44,16 +27,17 @@ export function LanguageSwitcher({
     <div
       role="group"
       aria-label={t.common.language}
+      aria-busy={switching || undefined}
       dir="ltr"
       className={cn(
         "inline-flex items-center rounded-full bg-white/90 p-1 ring-1 ring-line backdrop-blur",
         variant === "pill" ? "shadow-soft" : "",
-        pending && "opacity-70",
+        switching && "opacity-70",
         className,
       )}
     >
       {options.map((o) => {
-        const active = o.value === locale;
+        const active = o.value === targetLocale;
         return (
           <button
             key={o.value}
@@ -61,7 +45,7 @@ export function LanguageSwitcher({
             lang={o.value}
             aria-pressed={active}
             aria-label={o.aria}
-            onClick={() => choose(o.value)}
+            onClick={() => switchLocale(o.value)}
             className={cn(
               "rounded-full font-medium transition-colors duration-200",
               variant === "pill" ? "px-4 py-1.5 text-sm" : "px-3 py-1 text-[0.8125rem]",
