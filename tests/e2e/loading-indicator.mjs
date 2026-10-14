@@ -227,6 +227,9 @@ await check("The player is not part of the first page load (loaded on demand, or
   const s = await open("en");
   const scripts = [];
   s.page.on("response", (r) => r.request().resourceType() === "script" && scripts.push(r));
+  // Listen before loading: the idle-time fetch can finish while the early scripts are being checked.
+  const animation = s.page.waitForResponse((r) => new URL(r.url()).pathname === "/lottie/loading.json", { timeout: 15000 });
+  animation.catch(() => {});
   await s.page.goto(BASE + "/welcome", { waitUntil: "domcontentloaded" });
   const dev = await s.page.evaluate(() => [...document.scripts].some((x) => x.src.includes("next-devtools")));
   if (dev) {
@@ -239,7 +242,7 @@ await check("The player is not part of the first page load (loaded on demand, or
     }
     // ...but it is fetched once the page is idle, so the first loader is ready
     // (also before signing in: the file must not be redirected to /welcome).
-    const res = await s.page.waitForResponse((r) => new URL(r.url()).pathname === "/lottie/loading.json", { timeout: 15000 });
+    const res = await animation;
     assert(res.status() === 200 && Array.isArray((await res.json()).layers), `animation not served (HTTP ${res.status()})`);
   }
   await s.context.close();

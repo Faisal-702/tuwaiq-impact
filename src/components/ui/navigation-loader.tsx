@@ -35,10 +35,14 @@ export function LinkPendingReporter() {
   return null;
 }
 
-/** Mounted once (AppProviders): a small centered loading card while a navigation is pending. */
+/**
+ * Mounted once (AppProviders): a small centered loading card while a
+ * navigation, or a language switch waiting for the server, is pending.
+ */
 export function NavigationLoader() {
-  const { t } = useI18n();
-  const active = useSyncExternalStore(subscribe, () => pending > 0, () => false);
+  const { t, switching } = useI18n();
+  const navigating = useSyncExternalStore(subscribe, () => pending > 0, () => false);
+  const active = navigating || switching;
 
   // Warm up the player and the animation when the browser is idle, so the
   // first loader shows without delay. Skipped when the user saves data.

@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { I18nProvider } from "@/i18n/client";
-import { getDictionary } from "@/i18n/dictionaries";
 import { getI18n } from "@/i18n/server";
 import { AppProviders } from "@/components/app-providers";
 import "./globals.css";
@@ -30,7 +29,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={locale} dir={dir} suppressHydrationWarning>
       <body className="min-h-dvh bg-white antialiased">
-        <I18nProvider locale={locale} dictionary={getDictionary(locale)}>
+        <I18nProvider locale={locale}>
           <AppProviders dir={dir}>{children}</AppProviders>
         </I18nProvider>
       </body>

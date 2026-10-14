@@ -235,6 +235,11 @@ It removes only the students it created.
 
 It removes the project and submissions it created. Set `QA_SHOTS=<dir>` to save screenshots.
 
+`npm run test:language-switch` (same variables) checks switching between English and Arabic on the entry page, student pages and admin pages:
+- text, direction, `lang` and the tab title switch in place, without reloading and without a half-switched state (also on a slow server, where the loading indicator shows)
+- typed input is kept; switching five times in a row stays consistent
+- navigating afterwards (including to pages prefetched in the old language), reloading and opening a new tab keep the choice
+
 `npm run test:admin-login` checks the administrator sign-in:
 - the email and password fields in English and Arabic
 - generic errors for wrong passwords and unknown emails
