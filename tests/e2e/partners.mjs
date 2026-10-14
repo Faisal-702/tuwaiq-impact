@@ -66,30 +66,45 @@ const noHorizontalScroll = (page) => page.evaluate(() => document.documentElemen
 const ORG = {
   fullName: `QA Partner ${RUN} Org`,
   organizationName: `QA Org ${RUN} Advanced Tech`,
-  category: "private",
+  category: "other",
+  categoryOther: "Professional association",
   jobTitle: "Partnerships Manager",
   phone: "+966 55 123 4567",
   storedPhone: "0551234567",
   email: `qa.partner.${RUN}@Example.com`,
   city: "Riyadh",
-  support: ["technical", "mentorship"],
-  interests: ["ai", "robotics"],
+  support: ["technical", "mentorship", "other"],
+  supportOther: "Laboratory access",
+  interests: ["ai", "iot", "other"],
+  interestOther: "Space technology",
   proposal: `We can offer equipment and mentoring for student robotics teams (${RUN}).\nSecond line of the proposal.`,
 };
+
+/** Opens a multi-select, toggles the options, closes it with "Done". */
+async function choose(page, field, values) {
+  await page.getByTestId(`${field}-trigger`).click();
+  const list = page.getByTestId(`${field}-list`);
+  for (const v of values) await list.locator(`[data-option="${v}"]`).click();
+  await page.getByTestId(`${field}-done`).click();
+  await list.waitFor({ state: "detached" });
+}
 
 async function fillForm(page, d) {
   await page.locator(`[data-partner-type="${d.type ?? "organization"}"]`).click();
   await page.locator("#fullName").fill(d.fullName);
   if ((d.type ?? "organization") === "organization") {
     await page.locator("#organizationName").fill(d.organizationName);
-    await page.locator("#organizationCategory").selectOption(d.category);
     await page.locator("#jobTitle").fill(d.jobTitle);
+    await page.locator("#organizationCategory").selectOption(d.category);
+    if (d.categoryOther) await page.locator("#organizationCategoryOther").fill(d.categoryOther);
   }
-  await page.locator("#phone").fill(d.phone);
   await page.locator("#email").fill(d.email);
+  await page.locator("#phone").fill(d.phone);
   await page.locator("#city").fill(d.city);
-  for (const s of d.support) await page.locator(`[data-field="supportTypes"] [data-option="${s}"]`).click();
-  for (const s of d.interests) await page.locator(`[data-field="interestFields"] [data-option="${s}"]`).click();
+  await choose(page, "supportTypes", d.support);
+  if (d.supportOther) await page.locator("#supportOther").fill(d.supportOther);
+  await choose(page, "interestFields", d.interests);
+  if (d.interestOther) await page.locator("#interestOther").fill(d.interestOther);
   await page.locator("#proposal").fill(d.proposal);
   await page.locator('label[for="consent"]').click();
 }
@@ -129,7 +144,11 @@ await check("landing sections: Why (4 cards), How (01–03), For partners (4 ite
   const band = page.getByTestId("landing-partners-section");
   await band.getByRole("heading", { name: "للشركاء" }).waitFor();
   for (const s of ["فرص واعدة", "اكتشاف المواهب", "مواكبة الابتكار", "أثر تعليمي واقتصادي"]) await band.getByRole("heading", { name: s }).waitFor();
-  await band.getByRole("link", { name: "كن شريكًا في أثر" }).waitFor();
+  const cta = band.getByRole("link", { name: "كن شريكًا في أثر" });
+  await cta.waitFor();
+  // The lower section uses the upper palette: the CTA is the brand indigo, not dark green.
+  const ctaColor = await cta.evaluate((el) => getComputedStyle(el).backgroundColor);
+  assert(ctaColor === "rgb(66, 31, 190)", `CTA colour ${ctaColor}`);
   // Accurate wording: documentation and attribution, no legal registration claims.
   const body = await page.locator("main").innerText();
   assert(!/براءة|تسجيل الملكية|patent|legally registered/i.test(body), "no legal IP registration claims");
@@ -155,6 +174,12 @@ await check("Partners buttons (header, hero, partners section) open the applicat
     await page.waitForURL((u) => u.pathname === "/partners");
     await page.getByTestId("partner-form").waitFor();
   }
+  // A clear way back to the landing page.
+  await page.getByTestId("partners-back-home").click();
+  await page.waitForURL((u) => u.pathname === "/");
+  await page.goto(BASE + "/partners");
+  await page.locator('[data-testid="landing-header"] a[href="/"]').click();
+  await page.waitForURL((u) => u.pathname === "/");
   await context.close();
 });
 
@@ -209,11 +234,32 @@ await check("form: organization fields appear only for organizations; invalid ph
   await page.getByText("Enter a valid email address.").waitFor();
   assert((await page.locator('[data-field="organizationName"] [role="alert"]').count()) === 1, "organization name required");
   assert((await page.locator('[data-field="jobTitle"] [role="alert"]').count()) === 1, "job title required");
-  // "All fields" is exclusive.
-  const interests = page.locator('[data-field="interestFields"]');
-  await interests.locator('[data-option="ai"]').click();
-  await interests.locator('[data-option="all"]').click();
-  assert((await interests.locator("input:checked").count()) === 1, "all fields is exclusive");
+  assert((await page.locator('[data-field="organizationCategory"] [role="alert"]').count()) === 1, "organization type required");
+  // "Other" asks for words, and only while it is chosen.
+  assert((await page.locator("#organizationCategoryOther").count()) === 0, "specify field shown too early");
+  await page.locator("#organizationCategory").selectOption("other");
+  await page.locator("#organizationCategoryOther").waitFor();
+  assert((await page.locator('[data-field="organizationCategoryOther"] [role="alert"]').count()) === 1, "organization type in words required");
+  await page.locator("#organizationCategory").selectOption("government");
+  await page.locator("#organizationCategoryOther").waitFor({ state: "detached" });
+  // Multi-selects: a dropdown list, the choices shown inside the field; "Other" asks for words.
+  assert((await page.locator('[data-field="supportTypes"] [data-option]').count()) === 0, "support options spread on the page");
+  await choose(page, "supportTypes", ["financial", "other"]);
+  const chosen = await page.locator('[data-testid="supportTypes-trigger"] [data-chosen]').evaluateAll((els) => els.map((e) => e.dataset.chosen));
+  assert(JSON.stringify(chosen) === '["financial","other"]', `chosen ${chosen}`);
+  await page.locator("#supportOther").waitFor();
+  await choose(page, "supportTypes", ["other"]);
+  await page.locator("#supportOther").waitFor({ state: "detached" });
+  await page.getByTestId("interestFields-trigger").click();
+  const options = await page.locator('[data-testid="interestFields-list"] [data-option]').count();
+  assert(options === 21, `interest options ${options}`);
+  await page.getByTestId("interestFields-list").getByRole("searchbox").fill("Cyber");
+  assert((await page.locator('[data-testid="interestFields-list"] [data-option]').count()) === 1, "search in the list");
+  await page.keyboard.press("Escape");
+  await page.getByTestId("interestFields-list").waitFor({ state: "detached" });
+  // Individuals: the organization fields are gone and not required.
+  await page.locator('[data-partner-type="individual"]').click();
+  assert((await page.getByTestId("organization-fields").count()) === 0, "organization fields kept for individuals");
   await context.close();
 });
 
@@ -225,17 +271,19 @@ await check("form: an organization submits → success → stored once with norm
   // A double click must not store the application twice.
   await page.getByTestId("partner-submit").dblclick();
   await page.getByTestId("partner-success").waitFor({ timeout: 15000 });
-  await page.getByRole("heading", { name: "تم استلام طلبك بنجاح" }).waitFor();
+  await page.getByRole("heading", { name: "تم استلام طلب الشراكة بنجاح" }).waitFor();
+  await page.getByText("وسيتم مراجعته من قبل فريق المنصة والتواصل معكم لاحقًا.").waitFor();
   const rows = await sql`select * from partner_applications where full_name = ${ORG.fullName}`;
   assert(rows.length === 1, `stored ${rows.length} times`);
   const r = rows[0];
   orgId = r.id;
-  assert(r.partner_type === "organization" && r.organization_name === ORG.organizationName && r.organization_category === "private", "organization");
+  assert(r.partner_type === "organization" && r.organization_name === ORG.organizationName && r.organization_category === "other", "organization");
+  assert(r.organization_category_other === ORG.categoryOther && r.support_other === ORG.supportOther && r.interest_other === ORG.interestOther, "other answers");
   assert(r.job_title === ORG.jobTitle && r.city === ORG.city, "job title / city");
   assert(r.phone === ORG.storedPhone, `phone ${r.phone}`);
   assert(r.email === ORG.email.toLowerCase(), `email ${r.email}`);
-  assert(JSON.stringify(r.support_types) === '["technical","mentorship"]', `support ${r.support_types}`);
-  assert(JSON.stringify(r.interest_fields) === '["ai","robotics"]', `interests ${r.interest_fields}`);
+  assert(JSON.stringify(r.support_types) === '["technical","mentorship","other"]', `support ${r.support_types}`);
+  assert(JSON.stringify(r.interest_fields) === '["ai","iot","other"]', `interests ${r.interest_fields}`);
   assert(r.proposal === ORG.proposal && r.consent_at && r.locale === "ar" && r.ip_hash.length === 64, "proposal / consent / locale / ip hash");
   await context.close();
 });
@@ -253,14 +301,15 @@ await check("form: an individual is stored without organization details", async 
     email: `qa.individual.${RUN}@example.com`,
     city: "Jeddah",
     support: ["financial"],
-    interests: ["all"],
+    interests: ["cybersecurity"],
     proposal: "I would like to sponsor a student innovation award.",
   });
   await page.getByTestId("partner-submit").click();
   await page.getByTestId("partner-success").waitFor({ timeout: 15000 });
   const [r] = await sql`select * from partner_applications where full_name = ${`QA Partner ${RUN} Individual`}`;
   assert(r && r.partner_type === "individual" && r.organization_name === null && r.organization_category === null && r.job_title === null, JSON.stringify(r));
-  assert(r.locale === "en" && JSON.stringify(r.interest_fields) === '["all"]', "locale / interests");
+  assert(r.locale === "en" && JSON.stringify(r.interest_fields) === '["cybersecurity"]', "locale / interests");
+  assert(r.organization_category_other === null && r.support_other === null && r.interest_other === null, "no other answers");
   await context.close();
 });
 
@@ -268,7 +317,7 @@ await check("anti-spam: honeypot submissions are dropped silently; one address i
   const ip = randomClientIp();
   const { context, page } = await newPage("en", { ip });
   await page.goto(BASE + "/partners");
-  const bot = { fullName: `QA Partner ${RUN} Bot`, phone: "0500000001", email: `qa.bot.${RUN}@example.com`, city: "Dammam", support: ["other"], interests: ["other"], proposal: "Automated spam text here." };
+  const bot = { fullName: `QA Partner ${RUN} Bot`, phone: "0500000001", email: `qa.bot.${RUN}@example.com`, city: "Dammam", support: ["training"], interests: ["cloud"], proposal: "Automated spam text here." };
   await fillForm(page, { ...bot, type: "individual" });
   await page.locator("#partner-website").evaluate((el) => (el.value = "https://spam.example"));
   await page.getByTestId("partner-submit").click();
@@ -298,6 +347,12 @@ await check("privacy: the public cannot list or open applications; nothing is sh
     const html = await page.content();
     assert(!html.includes(ORG.email.toLowerCase()) && !html.includes(ORG.organizationName), `${p} shows submitted data`);
   }
+  // The database repeats the rules: "other" without words is refused even if validation were bypassed.
+  const refused = await sql`
+    insert into partner_applications (partner_type, full_name, phone, email, city, support_types, interest_fields, proposal, consent_at, client_token, ip_hash)
+    values ('individual', ${`QA Partner ${RUN} Constraint`}, '0500000002', 'qa.constraint@example.com', 'Riyadh', array['other'], array['cloud'],
+            'Constraint check proposal.', now(), gen_random_uuid(), 'qa')`.then(() => false, (e) => /other_specified/.test(e.message));
+  assert(refused, "support type 'other' without words was stored");
   const [{ rls }] = await sql`select relrowsecurity as rls from pg_class where relname = 'partner_applications'`;
   assert(rls === true, "row level security is off");
   for (const role of ["anon", "authenticated"]) {
@@ -348,7 +403,7 @@ await check("admin: the new request appears with its details", async () => {
   const row = admin.locator(`[data-testid="partner-row"][data-id="${orgId}"]`);
   await row.waitFor({ timeout: 10000 });
   const text = (await row.innerText()).replace(/\s+/g, " ");
-  for (const s of [ORG.fullName, ORG.organizationName, "شركة خاصة", "دعم تقني وتجهيزات", "+1", ORG.storedPhone, ORG.email.toLowerCase()]) assert(text.includes(s), `row is missing ${s}: ${text}`);
+  for (const s of [ORG.fullName, ORG.organizationName, ORG.categoryOther, "دعم تقني وتجهيزات", "+2", ORG.storedPhone, ORG.email.toLowerCase()]) assert(text.includes(s), `row is missing ${s}: ${text}`);
   assert(/\d{4}\/\d{2}\/\d{2}/.test(text), "date");
 });
 
@@ -357,7 +412,7 @@ await check("admin: View shows every answer, the timestamp and copy buttons", as
   await admin.waitForURL((u) => u.pathname === `/admin/partners/${orgId}`);
   const d = admin.getByTestId("partner-details");
   const text = (await d.innerText()).replace(/\s+/g, " ");
-  for (const s of [ORG.fullName, ORG.organizationName, "شركة خاصة", ORG.jobTitle, ORG.storedPhone, ORG.email.toLowerCase(), ORG.city, "دعم تقني وتجهيزات", "إرشاد وخبرات", "الذكاء الاصطناعي", "الروبوتات والطائرات المسيّرة", "تاريخ الإرسال", "تمت الموافقة في", "العربية"]) {
+  for (const s of [ORG.fullName, ORG.organizationName, "أخرى", ORG.categoryOther, ORG.jobTitle, ORG.storedPhone, ORG.email.toLowerCase(), ORG.city, "دعم تقني وتجهيزات", "إرشاد وخبرات", ORG.supportOther, "الذكاء الاصطناعي", "إنترنت الأشياء (IoT)", ORG.interestOther, "تاريخ الإرسال", "تمت الموافقة في", "العربية"]) {
     assert(text.includes(s), `details are missing ${s}`);
   }
   assert((await admin.getByTestId("detail-proposal").innerText()) === ORG.proposal, "proposal kept as written");
@@ -391,7 +446,7 @@ await check("admin: filters by individual vs organization, category, support typ
   await waitRows(1);
   await admin.locator("#partner-party").selectOption("category:government");
   await admin.getByTestId("partners-empty").waitFor();
-  await admin.locator("#partner-party").selectOption("category:private");
+  await admin.locator("#partner-party").selectOption("category:other");
   await waitRows(1);
   await admin.locator("#partner-party").selectOption("");
   await admin.locator("#partner-support").selectOption("financial");
@@ -418,7 +473,7 @@ await check("admin: pagination and page size", async () => {
     await sql`
       insert into partner_applications (partner_type, full_name, phone, email, city, support_types, interest_fields, proposal, consent_at, locale, client_token, ip_hash, created_at)
       values ('individual', ${`QA Partner ${RUN} Bulk ${String(i).padStart(2, "0")}`}, '0501112233', ${`bulk${i}.${RUN}@example.com`}, 'Riyadh',
-              array['training'], array['programming'], 'Bulk application for pagination.', now(), 'ar', gen_random_uuid(), 'qa', now() - (${i} || ' minutes')::interval)`;
+              array['training'], array['software_engineering'], 'Bulk application for pagination.', now(), 'ar', gen_random_uuid(), 'qa', now() - (${i} || ' minutes')::interval)`;
   }
   await admin.goto(BASE + `/admin/partners?q=${encodeURIComponent(`QA Partner ${RUN} Bulk`)}`);
   await waitRows(10);

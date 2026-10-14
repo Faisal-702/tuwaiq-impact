@@ -1,10 +1,8 @@
 import {
   ArrowRight,
-  Bot,
   ChartColumnIncreasing,
   ChartNoAxesColumn,
   ChevronRight,
-  CircleCheck,
   CloudUpload,
   FileText,
   GraduationCap,
@@ -21,10 +19,18 @@ import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { fmt, formatNumber } from "@/i18n/format";
 import { cn } from "@/lib/utils";
-import heroImage from "../../../public/images/hero-students.webp";
-import skylineImage from "../../../public/images/entry-scene-right.webp";
+import heroArt from "../../../public/images/landing/landing-hero.webp";
+import howArt from "../../../public/images/landing/landing-how.webp";
+import skylineArt from "../../../public/images/landing/landing-skyline.webp";
 import { Mosaic } from "./decor";
 import { LandingHeader } from "./landing-header";
+
+/*
+ * The public landing page, built after the approved landing reference
+ * (docs/references). The artwork is the reference's own (its baked-in text,
+ * buttons and logos removed); every text, button and card is live HTML.
+ * Colours are the reference's, sampled into the theme (indigo, navy, copy).
+ */
 
 /* ------------------------------------------------------------------------- */
 /* Hero                                                                      */
@@ -33,50 +39,39 @@ import { LandingHeader } from "./landing-header";
 export function LandingHero({ t, locale }: { t: Dictionary; locale: Locale }) {
   const l = t.landing;
   return (
-    <section className="relative isolate overflow-hidden bg-gradient-to-b from-[#f5f3ff] via-[#fbfaff] to-white" data-testid="landing-hero">
-      {/* Imagery: end side on large screens, under the text on small ones. */}
-      <div className="pointer-events-none absolute inset-y-0 end-0 -z-10 hidden w-[62%] lg:block">
-        <Image
-          src={heroImage}
-          alt={l.heroImageAlt}
-          fill
-          preload
-          sizes="62vw"
-          className="object-cover object-[58%_30%] ltr:[mask-image:linear-gradient(to_left,#000_62%,transparent_98%)] rtl:[mask-image:linear-gradient(to_right,#000_62%,transparent_98%)]"
-        />
-        <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-white to-transparent" />
-        <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-[#f5f3ff]/80 to-transparent" />
+    <section className="relative isolate overflow-hidden bg-[#fbfbfe] xl:min-h-[max(29.5rem,32.94vw)]" data-testid="landing-hero">
+      {/* Large screens: the approved artwork fills the hero, the text sits on its light side. */}
+      <div className="pointer-events-none absolute inset-0 -z-10 hidden xl:block">
+        <Image src={heroArt} alt={l.heroImageAlt} fill preload sizes="100vw" className="object-cover object-[32%_50%]" />
+        <div className="absolute inset-y-0 right-0 w-[48%] bg-gradient-to-l from-white/70 via-white/35 to-transparent" />
       </div>
-      <Mosaic className="absolute -start-6 top-28 -z-10 hidden opacity-70 lg:block" />
-      <Mosaic flip className="absolute -end-4 bottom-10 -z-10 opacity-60" />
 
       <LandingHeader t={t} />
 
-      <div className="container-page grid lg:min-h-[34rem] lg:grid-cols-2 lg:items-center">
-        <div className="relative pb-10 pt-4 sm:pt-8 lg:py-14">
+      <div className="container-page flex xl:ltr:justify-end">
+        <div className="w-full pb-10 pt-3 sm:pt-6 sm:max-w-xl xl:w-[24rem] xl:pb-8 xl:pt-0">
           <p className="flex flex-col items-start leading-none" data-testid="landing-name">
             {locale === "ar" ? (
               <>
-                <span className="text-2xl font-semibold text-purple-ink sm:text-[1.75rem]">{l.heroPlatform}</span>
-                <span className="mt-1 text-[4.25rem] font-bold leading-[1.15] text-gradient-athar sm:text-[5rem]">{l.heroName}</span>
+                <span className="text-[1.625rem] font-medium text-[#5d6076]">{l.heroPlatform}</span>
+                <span className="mt-0.5 text-[5.25rem] font-bold leading-[1.1] text-gradient-athar sm:text-[5.75rem]">أثـــر</span>
               </>
             ) : (
               <>
-                <span className="text-[3.75rem] font-bold leading-[1.05] tracking-tight text-gradient-athar sm:text-[4.5rem]">{l.heroName}</span>
-                <span className="mt-1 text-2xl font-semibold text-purple-ink sm:text-[1.75rem]">{l.heroPlatform}</span>
+                <span className="text-[4.25rem] font-bold leading-[1.1] tracking-tight text-gradient-athar sm:text-[4.75rem]">{l.heroName}</span>
+                <span className="mt-1 text-[1.625rem] font-medium text-[#5d6076]">{l.heroPlatform}</span>
               </>
             )}
-            <span aria-hidden className="mt-3 h-1.5 w-24 rounded-full bg-gradient-to-r from-teal to-purple rtl:bg-gradient-to-l" />
           </p>
-          <h1 className="mt-6 text-[1.875rem] font-bold leading-[1.4] text-navy sm:text-[2.375rem] lg:text-[2.625rem] ltr:lg:text-[2.375rem] rtl:leading-[1.55]">
+          <h1 className="mt-1 text-[1.875rem] font-bold leading-[1.45] text-navy sm:text-[2.125rem]">
             <span className="block">{l.heroTitle1}</span>
             <span className="block">{l.heroTitle2}</span>
           </h1>
-          <p className="mt-5 max-w-[34rem] text-base leading-[1.9] text-ink-soft sm:text-[1.0625rem]">{l.heroBody}</p>
-          <div className="mt-8 flex flex-wrap gap-3">
+          <p className="mt-2 text-[0.9375rem] leading-[1.7] text-copy">{l.heroBody}</p>
+          <div className="mt-5 flex flex-wrap gap-2.5">
             <Link
               href="/welcome"
-              className="inline-flex h-13 min-w-40 items-center justify-center gap-2.5 rounded-xl bg-purple-ink px-8 text-base font-semibold text-white shadow-[0_14px_30px_-14px_rgb(51_36_143/0.9)] transition hover:bg-[#2a1d78]"
+              className="inline-flex h-11 min-w-[9.5rem] items-center justify-center gap-2.5 rounded-lg bg-indigo px-7 text-base font-semibold text-white shadow-[0_14px_28px_-16px_rgb(66_31_190/0.95)] transition hover:bg-[#3418a6]"
               data-testid="hero-login"
             >
               <UserRound className="size-5" aria-hidden />
@@ -84,45 +79,23 @@ export function LandingHero({ t, locale }: { t: Dictionary; locale: Locale }) {
             </Link>
             <Link
               href="/partners"
-              className="inline-flex h-13 min-w-40 items-center justify-center gap-2.5 rounded-xl bg-white px-7 text-base font-semibold text-purple-ink ring-1 ring-inset ring-purple-ink/35 transition hover:bg-lavender-soft hover:ring-purple-ink/60"
+              className="inline-flex h-11 min-w-[10rem] items-center justify-center gap-2.5 rounded-lg bg-white/90 px-6 text-base font-semibold text-indigo-ink ring-1 ring-inset ring-[#8d81bc] transition hover:bg-lavender-soft"
               data-testid="hero-partner"
             >
-              <Handshake className="size-5" aria-hidden />
+              <Handshake className="size-5 text-indigo" aria-hidden />
               {l.ctaPartner}
             </Link>
           </div>
         </div>
+      </div>
 
-        {/* Small screens: the image under the text. */}
-        <div className="relative mb-10 aspect-[16/10] overflow-hidden rounded-3xl ring-1 ring-line-soft lg:hidden">
-          <Image src={heroImage} alt="" fill sizes="(min-width: 640px) 90vw, 100vw" className="object-cover object-[60%_30%]" />
-          <HeroCard t={t} className="absolute bottom-4 start-4" />
-        </div>
-        <div className="relative hidden h-full lg:block">
-          <HeroCard t={t} className="absolute bottom-16 end-[8%]" />
+      {/* Small screens: the artwork under the text. */}
+      <div className="container-page pb-10 xl:hidden">
+        <div className="relative aspect-[16/9] overflow-hidden rounded-2xl ring-1 ring-line-soft">
+          <Image src={heroArt} alt={l.heroImageAlt} fill sizes="(min-width: 640px) 90vw, 100vw" className="object-cover object-[12%_50%]" />
         </div>
       </div>
     </section>
-  );
-}
-
-function HeroCard({ t, className }: { t: Dictionary; className?: string }) {
-  return (
-    <div
-      aria-hidden
-      className={cn("flex items-center gap-3 rounded-2xl bg-white/80 p-3 pe-5 shadow-lift ring-1 ring-white/90 backdrop-blur-md", className)}
-    >
-      <span className="grid size-11 place-items-center rounded-xl bg-gradient-to-br from-purple to-purple-ink text-white">
-        <Lightbulb className="size-5" />
-      </span>
-      <span className="leading-tight">
-        <span className="block text-sm font-bold text-navy">{t.landing.cardProject}</span>
-        <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-teal-deep">
-          <CircleCheck className="size-3.5" />
-          {t.landing.cardDocumented}
-        </span>
-      </span>
-    </div>
   );
 }
 
@@ -130,38 +103,42 @@ function HeroCard({ t, className }: { t: Dictionary; className?: string }) {
 /* Why Athar Platform?                                                       */
 /* ------------------------------------------------------------------------- */
 
-const WHY: { key: keyof Dictionary["landing"]["why"]; icon: LucideIcon; tile: string; title: string }[] = [
-  { key: "empower", icon: GraduationCap, tile: "bg-lavender text-purple-ink", title: "text-purple-ink" },
-  { key: "rights", icon: ShieldCheck, tile: "bg-mint text-teal-deep", title: "text-teal-deep" },
-  { key: "showcase", icon: UsersRound, tile: "bg-[#e3efff] text-[#2456b8]", title: "text-[#1f3f99]" },
-  { key: "opportunities", icon: ChartNoAxesColumn, tile: "bg-lavender text-purple", title: "text-purple-ink" },
+const WHY: { key: keyof Dictionary["landing"]["why"]; icon: LucideIcon; card: string; tile: string; tone: string; title: string; filled?: boolean }[] = [
+  { key: "empower", icon: GraduationCap, card: "from-[#f7f3fe] to-white", tile: "bg-[#e3dbff]", tone: "text-[#4118c5]", title: "text-[#371793]", filled: true },
+  { key: "rights", icon: ShieldCheck, card: "from-[#f3fcfb] to-white", tile: "bg-[#c5f6e1]", tone: "text-[#198c7a]", title: "text-[#197b6c]" },
+  { key: "showcase", icon: UsersRound, card: "from-[#eff7fe] to-white", tile: "bg-[#cbe2ff]", tone: "text-[#062dad]", title: "text-[#062397]", filled: true },
+  { key: "opportunities", icon: ChartNoAxesColumn, card: "from-[#f8f5fd] to-white", tile: "bg-[#e5ddfd]", tone: "text-[#4118c5]", title: "text-[#3b2080]" },
 ];
 
 export function WhySection({ t }: { t: Dictionary }) {
   const l = t.landing;
   return (
-    <section aria-labelledby="why-title" className="relative overflow-hidden py-14 lg:py-16" data-testid="landing-why">
-      <Mosaic className="absolute -start-10 top-10 hidden opacity-50 md:block" />
-      <Mosaic flip className="absolute -end-10 bottom-4 hidden opacity-40 md:block" />
+    <section aria-labelledby="why-title" className="relative overflow-hidden bg-[#fcfbfe] pb-9 pt-5" data-testid="landing-why">
+      <Mosaic className="absolute -start-12 top-6 hidden opacity-45 md:block" flip />
+      <Mosaic className="absolute -end-12 top-24 hidden opacity-45 md:block" />
       <div className="container-page relative">
-        <div className="flex flex-col items-center gap-3 text-center xl:relative xl:block xl:min-h-12">
-          <h2 id="why-title" className="flex items-center justify-center gap-4 text-[1.75rem] font-bold text-navy sm:text-[2rem]">
-            <span aria-hidden className="h-0.5 w-10 rounded-full bg-teal/70" />
+        <div className="flex flex-col items-center gap-2 text-center xl:relative xl:block xl:min-h-11">
+          <h2 id="why-title" className="flex items-center justify-center gap-4 text-[1.75rem] font-bold text-[#041e47]">
+            <span aria-hidden className="h-0.5 w-9 rounded-full bg-[#438e7a]" />
             {l.whyTitle}
-            <span aria-hidden className="h-0.5 w-10 rounded-full bg-teal/70" />
+            <span aria-hidden className="h-0.5 w-9 rounded-full bg-[#438e7a]" />
           </h2>
-          <p className="max-w-2xl text-[0.9375rem] leading-relaxed text-muted xl:absolute xl:start-0 xl:top-1/2 xl:max-w-[26rem] xl:-translate-y-1/2 xl:text-start">
+          <p className="max-w-2xl text-[0.875rem] leading-relaxed text-copy xl:absolute xl:start-0 xl:top-1/2 xl:max-w-[29rem] xl:-translate-y-1/2 xl:text-start">
             {l.whyIntro}
           </p>
         </div>
-        <ul className="mt-9 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {WHY.map(({ key, icon: Icon, tile, title }) => (
-            <li key={key} className="relative rounded-2xl bg-white/90 p-6 text-center shadow-soft ring-1 ring-line-soft backdrop-blur" data-why={key}>
-              <span aria-hidden className={cn("absolute start-5 top-5 grid size-12 place-items-center rounded-xl", tile)}>
-                <Icon className="size-6" strokeWidth={1.9} />
+        <ul className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {WHY.map(({ key, icon: Icon, card, tile, tone, title, filled }) => (
+            <li
+              key={key}
+              className={cn("relative rounded-2xl bg-gradient-to-b px-4 pb-4 pt-3 text-center shadow-[0_10px_30px_-18px_rgb(40_30_120/0.35)] ring-1 ring-[#ece9f6]", card)}
+              data-why={key}
+            >
+              <span aria-hidden className={cn("me-auto grid size-12 place-items-center rounded-xl", tile)}>
+                <Icon className={cn("size-6", tone)} strokeWidth={filled ? 1.6 : 2.1} fill={filled ? "currentColor" : "none"} />
               </span>
-              <h3 className={cn("mt-14 text-lg font-bold", title)}>{l.why[key].title}</h3>
-              <p className="mt-2 text-[0.9375rem] leading-relaxed text-muted">{l.why[key].body}</p>
+              <h3 className={cn("mt-1.5 text-[1.0625rem] font-bold", title)}>{l.why[key].title}</h3>
+              <p className="mt-1 text-[0.8125rem] leading-relaxed text-copy">{l.why[key].body}</p>
             </li>
           ))}
         </ul>
@@ -174,10 +151,10 @@ export function WhySection({ t }: { t: Dictionary }) {
 /* How the platform works                                                    */
 /* ------------------------------------------------------------------------- */
 
-const STEPS: { key: keyof Dictionary["landing"]["how"]; icon: LucideIcon }[] = [
-  { key: "upload", icon: CloudUpload },
-  { key: "organize", icon: FileText },
-  { key: "impact", icon: ChartColumnIncreasing },
+const STEPS: { key: keyof Dictionary["landing"]["how"]; icon: LucideIcon; tone: string }[] = [
+  { key: "upload", icon: CloudUpload, tone: "text-[#367b84]" },
+  { key: "organize", icon: FileText, tone: "text-[#1a6f94]" },
+  { key: "impact", icon: ChartColumnIncreasing, tone: "text-[#196598]" },
 ];
 
 export function HowSection({ t, locale }: { t: Dictionary; locale: Locale }) {
@@ -185,82 +162,62 @@ export function HowSection({ t, locale }: { t: Dictionary; locale: Locale }) {
   return (
     <section
       aria-labelledby="how-title"
-      className="relative overflow-hidden bg-gradient-to-b from-[#f2f0fe] via-[#f6f5ff] to-[#f2f0fe] py-12 lg:py-14"
+      className="relative isolate overflow-hidden bg-gradient-to-b from-[#f1f1fa] to-[#e9ecf6] pb-6"
       data-testid="landing-how"
     >
+      {/* The approved illustration, on the end side of large screens. */}
+      <div className="pointer-events-none absolute end-0 top-1/2 -z-10 hidden aspect-[418/156] h-[11rem] -translate-y-1/2 lg:block">
+        <Image
+          src={howArt}
+          alt=""
+          fill
+          sizes="26rem"
+          className="object-cover rtl:object-left ltr:object-right rtl:[mask-image:linear-gradient(to_left,transparent,#000_16%)] ltr:[mask-image:linear-gradient(to_right,transparent,#000_16%)]"
+        />
+      </div>
       <div className="container-page">
-        <h2 id="how-title" className="text-center text-[1.75rem] font-bold text-navy sm:text-[2rem]">
+        <h2 id="how-title" className="text-center text-[1.625rem] font-bold leading-[2.75rem] text-[#180878]">
           {l.howTitle}
         </h2>
-        <div className="mt-9 grid items-center gap-10 lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
-          <ol className="grid gap-4 md:grid-cols-3 md:gap-12">
-            {STEPS.map(({ key, icon: Icon }, i) => (
-              <li key={key} className="relative rounded-2xl bg-white p-5 shadow-soft ring-1 ring-line-soft" data-step={i + 1}>
-                <div className="flex items-start gap-3.5">
-                  <span aria-hidden className="grid size-11 shrink-0 place-items-center rounded-xl bg-lavender-soft text-purple ring-1 ring-inset ring-purple/10">
-                    <Icon className="size-5.5" strokeWidth={1.9} />
-                  </span>
-                  <div>
-                    <p className="text-lg font-bold tabular-nums text-purple-ink">
-                      <span className="sr-only">{fmt(l.stepLabel, { n: formatNumber(i + 1, locale) })}: </span>
-                      <span aria-hidden>{String(i + 1).padStart(2, "0")}</span>
-                    </p>
-                    <h3 className="text-base font-bold text-navy">{l.how[key].title}</h3>
-                  </div>
+        <ol className="mt-2 grid gap-4 md:grid-cols-3 md:gap-12 lg:me-[26%] lg:gap-11">
+          {STEPS.map(({ key, icon: Icon, tone }, i) => (
+            <li key={key} className="relative rounded-2xl bg-white px-5 py-4 shadow-[0_10px_30px_-20px_rgb(40_30_120/0.35)] ring-1 ring-[#eceaf5]" data-step={i + 1}>
+              <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4">
+                <Icon aria-hidden className={cn("mt-1 size-7", tone)} strokeWidth={1.9} />
+                <div>
+                  <p className="text-[1.0625rem] font-bold tabular-nums text-[#1a0577]">
+                    <span className="sr-only">{fmt(l.stepLabel, { n: formatNumber(i + 1, locale) })}: </span>
+                    <span aria-hidden>{String(i + 1).padStart(2, "0")}</span>
+                  </p>
+                  <h3 className="text-[0.9375rem] font-bold text-[#170a69]">{l.how[key].title}</h3>
+                  <p className="mt-1 text-[0.8125rem] leading-relaxed text-copy">{l.how[key].body}</p>
                 </div>
-                <p className="mt-3 text-[0.9375rem] leading-relaxed text-muted">{l.how[key].body}</p>
-                {i < STEPS.length - 1 ? (
-                  <ChevronRight
-                    aria-hidden
-                    className="absolute -end-9 top-1/2 hidden size-6 -translate-y-1/2 text-purple-ink/70 md:block rtl:rotate-180"
-                  />
-                ) : null}
-              </li>
-            ))}
-          </ol>
-          <HowIllustration t={t} />
+              </div>
+              {i < STEPS.length - 1 ? (
+                <ChevronRight aria-hidden className="absolute -end-9 top-1/2 hidden size-5 -translate-y-1/2 text-[#16066b] md:block lg:-end-8" strokeWidth={2.4} />
+              ) : null}
+            </li>
+          ))}
+        </ol>
+      </div>
+      <div className="container-page mt-5 lg:hidden">
+        <div className="relative mx-auto h-36 max-w-md overflow-hidden rounded-xl">
+          <Image src={howArt} alt="" fill sizes="28rem" className="object-cover" />
         </div>
       </div>
     </section>
   );
 }
 
-/** Layered project cards (decorative). */
-function HowIllustration({ t }: { t: Dictionary }) {
-  return (
-    <div aria-hidden className="relative mx-auto hidden h-52 w-full max-w-[18rem] lg:block">
-      <div className="absolute end-0 top-2 h-36 w-44 -rotate-6 rounded-2xl bg-white/70 p-3 shadow-soft ring-1 ring-white">
-        <div className="flex h-full items-end justify-end gap-2 px-2 pb-1">
-          {[35, 55, 45, 75, 60, 90].map((h, i) => (
-            <span key={i} className="w-3 rounded-sm bg-gradient-to-t from-purple/50 to-violet/40" style={{ height: `${h}%` }} />
-          ))}
-        </div>
-      </div>
-      <div className="absolute start-0 top-10 w-52 rotate-3 rounded-2xl bg-white p-3 shadow-lift ring-1 ring-line-soft">
-        <div className="grid h-24 place-items-center rounded-xl bg-gradient-to-br from-[#e9e5ff] via-[#dff7f1] to-[#e3efff]">
-          <Bot className="size-12 text-purple-ink/80" strokeWidth={1.5} />
-        </div>
-        <div className="mt-3 space-y-1.5">
-          <span className="block h-2 w-3/4 rounded-full bg-line" />
-          <span className="block h-2 w-1/2 rounded-full bg-line-soft" />
-        </div>
-      </div>
-      <span className="absolute bottom-4 end-2 -rotate-6 rounded-full bg-white px-3.5 py-1.5 text-sm font-semibold text-purple-ink shadow-lift ring-1 ring-line-soft">
-        {t.landing.illustrationProject}
-      </span>
-    </div>
-  );
-}
-
 /* ------------------------------------------------------------------------- */
-/* For partners                                                              */
+/* For partners (colours unified with the upper sections)                    */
 /* ------------------------------------------------------------------------- */
 
 const PARTNER_ITEMS: { key: keyof Dictionary["landing"]["partners"]; icon: LucideIcon; tone: string }[] = [
-  { key: "opportunities", icon: Handshake, tone: "text-teal-deep" },
-  { key: "talent", icon: UsersRound, tone: "text-purple" },
-  { key: "innovation", icon: Lightbulb, tone: "text-teal-deep" },
-  { key: "impact", icon: ChartNoAxesColumn, tone: "text-purple" },
+  { key: "opportunities", icon: Handshake, tone: "text-[#4118c5]" },
+  { key: "talent", icon: UsersRound, tone: "text-[#062dad]" },
+  { key: "innovation", icon: Lightbulb, tone: "text-[#198c7a]" },
+  { key: "impact", icon: ChartNoAxesColumn, tone: "text-[#4118c5]" },
 ];
 
 export function PartnersBand({ t }: { t: Dictionary }) {
@@ -268,45 +225,44 @@ export function PartnersBand({ t }: { t: Dictionary }) {
   return (
     <section
       aria-labelledby="partners-title"
-      className="relative isolate overflow-hidden bg-gradient-to-b from-white to-[#f7f6ff]"
+      className="relative isolate overflow-hidden bg-gradient-to-b from-[#fbfbfe] to-[#f4f2fd]"
       data-testid="landing-partners-section"
     >
-      <div className="absolute inset-y-0 end-0 -z-10 hidden w-[30%] lg:block">
+      <div className="pointer-events-none absolute inset-y-0 end-0 -z-10 hidden w-[31%] max-w-[29rem] lg:block">
         <Image
-          src={skylineImage}
+          src={skylineArt}
           alt={l.skylineAlt}
           fill
-          sizes="30vw"
-          className="object-cover object-[50%_38%] ltr:[clip-path:polygon(38%_0,100%_0,100%_100%,0_100%)] rtl:[clip-path:polygon(0_0,62%_0,100%_100%,0_100%)]"
+          sizes="29rem"
+          className="object-cover object-left [mask-image:linear-gradient(to_left,transparent,#000_10%)] ltr:-scale-x-100"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-purple-ink/25 via-purple/5 to-transparent ltr:[clip-path:polygon(38%_0,100%_0,100%_100%,0_100%)] rtl:[clip-path:polygon(0_0,62%_0,100%_100%,0_100%)]" />
       </div>
-      <div className="container-page py-12 lg:py-14">
-        <div className="lg:max-w-[72%]">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-10">
+      <div className="container-page py-8 lg:py-7">
+        <div className="lg:me-[26%] xl:me-[27%]">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-8">
             <div className="shrink-0">
-              <h2 id="partners-title" className="text-[1.75rem] font-bold text-navy sm:text-[2rem]">
+              <h2 id="partners-title" className="text-[1.625rem] font-bold text-indigo-ink">
                 {l.partnersTitle}
               </h2>
-              <span aria-hidden className="mt-2 block h-1 w-16 rounded-full bg-gradient-to-r from-purple-ink to-teal rtl:bg-gradient-to-l" />
+              <span aria-hidden className="mt-1.5 block h-1 w-14 rounded-full bg-gradient-to-r from-indigo to-[#9abeff] rtl:bg-gradient-to-l" />
             </div>
-            <p className="max-w-2xl text-[0.9375rem] leading-[1.9] text-ink-soft lg:pt-2">{l.partnersBody}</p>
+            <p className="max-w-[27rem] text-[0.8125rem] leading-[1.8] text-copy lg:pt-1.5">{l.partnersBody}</p>
           </div>
-          <div className="mt-9 flex flex-col gap-8 lg:mt-10 lg:flex-col-reverse lg:items-start">
+          <div className="mt-6 grid gap-7 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center lg:gap-8">
             <Link
               href="/partners"
-              className="inline-flex h-14 w-full items-center justify-center gap-3 rounded-xl bg-teal-deep px-8 text-[1.0625rem] font-bold text-white shadow-[0_16px_32px_-16px_rgb(15_118_110/0.9)] transition hover:bg-[#0c625b] sm:w-auto"
+              className="inline-flex h-12 items-center justify-center gap-3 rounded-lg bg-indigo px-9 text-[1.0625rem] font-bold text-white shadow-[0_16px_30px_-16px_rgb(66_31_190/0.95)] transition hover:bg-[#3418a6] lg:min-w-[14.5rem]"
               data-testid="become-partner"
             >
               {l.partnersCta}
               <ArrowRight className="size-5 rtl:-scale-x-100" aria-hidden />
             </Link>
-            <ul className="grid w-full grid-cols-2 gap-y-7 md:grid-cols-4 md:divide-x md:divide-line rtl:md:divide-x-reverse">
+            <ul className="grid grid-cols-2 gap-y-6 md:grid-cols-4 md:divide-x md:divide-[#e3e1ee] rtl:md:divide-x-reverse">
               {PARTNER_ITEMS.map(({ key, icon: Icon, tone }) => (
-                <li key={key} className="px-3 text-center">
-                  <Icon aria-hidden className={cn("mx-auto size-8", tone)} strokeWidth={1.6} />
-                  <h3 className="mt-2.5 text-[0.9375rem] font-bold text-navy">{l.partners[key].title}</h3>
-                  <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-muted">{l.partners[key].body}</p>
+                <li key={key} className="px-2 text-center">
+                  <Icon aria-hidden className={cn("mx-auto size-8", tone)} strokeWidth={1.7} />
+                  <h3 className="mt-2 text-[0.9375rem] font-bold text-[#190474]">{l.partners[key].title}</h3>
+                  <p className="mt-1 text-[0.78125rem] leading-relaxed text-copy">{l.partners[key].body}</p>
                 </li>
               ))}
             </ul>
@@ -325,8 +281,8 @@ export function LandingFooter({ t }: { t: Dictionary }) {
   const year = new Date().getFullYear();
   return (
     <footer className="border-t border-line-soft bg-white">
-      <div className="container-page flex flex-col items-center justify-between gap-2 py-6 text-center text-sm text-muted sm:flex-row sm:text-start">
-        <p className="font-semibold text-navy">{t.brand.name}</p>
+      <div className="container-page flex flex-col items-center justify-between gap-2 py-5 text-center text-sm text-copy sm:flex-row sm:text-start">
+        <p className="font-semibold text-indigo-ink">{t.brand.name}</p>
         <p>
           © {year} {t.footer.rights}
         </p>

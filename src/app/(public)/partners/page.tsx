@@ -1,9 +1,10 @@
-import { ChartNoAxesColumn, Handshake, Lightbulb, UsersRound, type LucideIcon } from "lucide-react";
+import { ArrowRight, ChartNoAxesColumn, Handshake, Lightbulb, UsersRound, type LucideIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import { Mosaic } from "@/components/landing/decor";
 import { LandingHeader } from "@/components/landing/landing-header";
 import { PartnerApplicationForm } from "@/components/partners/partner-form";
+import Link from "@/components/ui/link";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { getI18n } from "@/i18n/server";
 import skylineImage from "../../../../public/images/entry-scene-right.webp";
@@ -14,10 +15,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 const BENEFITS: { key: keyof Dictionary["landing"]["partners"]; icon: LucideIcon; tone: string }[] = [
-  { key: "opportunities", icon: Handshake, tone: "bg-mint text-teal-deep" },
-  { key: "talent", icon: UsersRound, tone: "bg-lavender text-purple-ink" },
-  { key: "innovation", icon: Lightbulb, tone: "bg-mint text-teal-deep" },
-  { key: "impact", icon: ChartNoAxesColumn, tone: "bg-lavender text-purple-ink" },
+  { key: "opportunities", icon: Handshake, tone: "bg-[#e3dbff] text-[#4118c5]" },
+  { key: "talent", icon: UsersRound, tone: "bg-[#cbe2ff] text-[#062dad]" },
+  { key: "innovation", icon: Lightbulb, tone: "bg-[#c5f6e1] text-[#198c7a]" },
+  { key: "impact", icon: ChartNoAxesColumn, tone: "bg-[#e5ddfd] text-[#4118c5]" },
 ];
 
 /** Public partnership application (no sign-in needed). */
@@ -30,15 +31,23 @@ export default async function PartnersPage() {
       <Mosaic flip className="absolute -end-8 top-[34rem] -z-10 hidden opacity-50 lg:block" />
       <LandingHeader t={t} />
 
-      <div className="container-page pb-16 pt-6 sm:pt-10 lg:pb-24">
-        <header className="max-w-3xl">
-          <p className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3.5 py-1.5 text-sm font-semibold text-teal-deep ring-1 ring-inset ring-teal/25">
+      <div className="container-page pb-16 pt-4 sm:pt-6 lg:pb-24">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 rounded-lg text-sm font-semibold text-indigo transition hover:text-indigo-ink hover:underline"
+          data-testid="partners-back-home"
+        >
+          <ArrowRight className="size-4 ltr:rotate-180" aria-hidden />
+          {p.backHome}
+        </Link>
+        <header className="mt-5 max-w-3xl">
+          <p className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3.5 py-1.5 text-sm font-semibold text-indigo ring-1 ring-inset ring-indigo/20">
             <Handshake className="size-4" aria-hidden />
             {p.eyebrow}
           </p>
-          <h1 className="mt-4 text-[2rem] font-bold leading-tight text-navy sm:text-[2.5rem]">{p.title}</h1>
-          <span aria-hidden className="mt-3 block h-1.5 w-20 rounded-full bg-gradient-to-r from-purple-ink to-teal rtl:bg-gradient-to-l" />
-          <p className="mt-5 text-base leading-[1.9] text-ink-soft sm:text-[1.0625rem]">{p.intro}</p>
+          <h1 className="mt-4 text-[2rem] font-bold leading-tight text-indigo-ink sm:text-[2.5rem]">{p.title}</h1>
+          <span aria-hidden className="mt-3 block h-1.5 w-20 rounded-full bg-gradient-to-r from-indigo to-[#9abeff] rtl:bg-gradient-to-l" />
+          <p className="mt-5 text-base leading-[1.9] text-copy sm:text-[1.0625rem]">{p.intro}</p>
         </header>
 
         <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start xl:grid-cols-[minmax(0,1fr)_22rem] xl:gap-10">
@@ -51,7 +60,7 @@ export default async function PartnersPage() {
                 <div className="absolute inset-0 bg-gradient-to-t from-white via-white/10 to-transparent" />
               </div>
               <div className="px-5 pb-6">
-                <h2 id="partner-aside-title" className="text-lg font-bold text-navy">
+                <h2 id="partner-aside-title" className="text-lg font-bold text-indigo-ink">
                   {p.asideTitle}
                 </h2>
                 <ul className="mt-4 space-y-4">

@@ -1,5 +1,5 @@
 import "server-only";
-import type { InterestField, OrganizationCategory, PartnerType, SupportType } from "@/lib/partners";
+import type { OrganizationCategory, PartnerType, StoredInterestField, SupportType } from "@/lib/partners";
 import { requireAdmin } from "../auth";
 import { sql } from "../db";
 
@@ -9,19 +9,25 @@ export type PartnerApplication = {
   full_name: string;
   organization_name: string | null;
   organization_category: OrganizationCategory | null;
+  organization_category_other: string | null;
   job_title: string | null;
   phone: string;
   email: string;
   city: string;
   support_types: SupportType[];
-  interest_fields: InterestField[];
+  support_other: string | null;
+  interest_fields: StoredInterestField[];
+  interest_other: string | null;
   proposal: string;
   consent_at: string;
   locale: "ar" | "en";
   created_at: string;
 };
 
-export type PartnerListRow = Omit<PartnerApplication, "proposal" | "consent_at" | "locale" | "interest_fields" | "job_title" | "city">;
+export type PartnerListRow = Omit<
+  PartnerApplication,
+  "proposal" | "consent_at" | "locale" | "interest_fields" | "interest_other" | "support_other" | "job_title" | "city"
+>;
 
 export type PartnerFilters = {
   q?: string;
@@ -57,7 +63,7 @@ export async function listPartnerApplications(filters: PartnerFilters, page: num
   const offset = (Math.max(Math.trunc(page) || 1, 1) - 1) * size;
   const [rows, [{ total, overall }]] = await Promise.all([
     sql<PartnerListRow[]>`
-      select id, partner_type, full_name, organization_name, organization_category, phone, email, support_types, created_at
+      select id, partner_type, full_name, organization_name, organization_category, organization_category_other, phone, email, support_types, created_at
         from partner_applications
        where true ${where(filters)}
        order by created_at desc, id desc
@@ -79,8 +85,8 @@ export async function getPartnerApplication(id: string): Promise<PartnerApplicat
   await requireAdmin();
   if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
   const [row] = await sql<PartnerApplication[]>`
-    select id, partner_type, full_name, organization_name, organization_category, job_title, phone, email, city,
-           support_types, interest_fields, proposal, consent_at, locale, created_at
+    select id, partner_type, full_name, organization_name, organization_category, organization_category_other, job_title,
+           phone, email, city, support_types, support_other, interest_fields, interest_other, proposal, consent_at, locale, created_at
       from partner_applications
      where id = ${id}`;
   return row ? { ...row, created_at: iso(row.created_at), consent_at: iso(row.consent_at) } : null;

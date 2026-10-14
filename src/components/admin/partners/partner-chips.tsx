@@ -13,7 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { Dictionary } from "@/i18n/dictionaries";
-import type { InterestField, OrganizationCategory, PartnerType, SupportType } from "@/lib/partners";
+import type { OrganizationCategory, PartnerType, StoredInterestField, SupportType } from "@/lib/partners";
 import { cn } from "@/lib/utils";
 
 const chip = "inline-flex max-w-full items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset";
@@ -50,15 +50,18 @@ export function SupportChip({ type, t, className }: { type: SupportType; t: Dict
 export function PartyChip({
   type,
   category,
+  other,
   t,
 }: {
   type: PartnerType;
   category: OrganizationCategory | null;
+  /** The organization type in words, when "Other" was chosen. */
+  other?: string | null;
   t: Dictionary;
 }) {
   const key = type === "individual" || !category ? "individual" : category;
   const { icon: Icon, className: tone } = PARTY_STYLE[key];
-  const label = key === "individual" ? t.admin.partners.individual : t.partners.categories[key];
+  const label = key === "individual" ? t.admin.partners.individual : key === "other" && other ? other : t.partners.categories[key];
   return (
     <span className={cn(chip, tone, "max-w-[10rem]")} data-party={key} title={label}>
       <Icon className="size-3.5 shrink-0" aria-hidden />
@@ -67,6 +70,6 @@ export function PartyChip({
   );
 }
 
-export function InterestChip({ field, t }: { field: InterestField; t: Dictionary }) {
+export function InterestChip({ field, t }: { field: StoredInterestField; t: Dictionary }) {
   return <span className={cn(chip, "bg-white text-ink-soft ring-line")}>{t.partners.interests[field]}</span>;
 }

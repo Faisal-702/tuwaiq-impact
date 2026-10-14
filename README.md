@@ -127,12 +127,25 @@ Signed-in students add their own projects at `/add-project` (the homepage's prim
 
 ### Landing page and partners (الشركاء)
 
-- **`/` is the public landing page** (no sign-in): official logos, language switch, **Partners** and **Sign in** buttons, hero, *Why Athar Platform?*, *How does the platform work?* and *For partners*. **Sign in** opens the existing entry page (`/welcome`, unchanged). Signed-out visits to other pages still go to `/welcome`.
-- **`/partners`** is the public partnership application: partner type (individual / organization), full name, organization name, type and the representative's position (organizations only), Saudi mobile, email, city, support types, fields of interest, the proposal and a privacy acknowledgment. Errors are announced and linked to their fields, and the first one gets the focus.
-- **Admin → Partners** (directly below *Student Codes*) lists the applications, newest first. It has search (name, organization, email), filters (individual / organization and organization type, partnership type, date range in Riyadh time) and pages of 10, 20 or 50. **View** (`/admin/partners/[id]`) shows every answer, the submission time, the consent time, and copy, email and call actions. There are no statuses and no approval workflow.
-- The header logos are the official files supplied for this page (`public/brand/official/`; only transparent margins trimmed).
+- **`/` is the public landing page** (no sign-in), built after the approved reference (`docs/references/landing-reference.webp`). It has the official logos, language switch, **Partners** and **Sign in** buttons, the hero, *Why Athar Platform?*, *How does the platform work?* and *For partners*. **Sign in** opens the existing entry page (`/welcome`, unchanged). Signed-out visits to other pages still go to `/welcome`.
+  - The artwork in `public/images/landing/` is taken from the approved reference itself. Its baked-in buttons, logos and text were removed, so everything readable is live HTML. To use higher-resolution originals, replace these files and keep their framing.
+  - The colours are the reference's, sampled into the theme (`indigo`, `indigo-ink`, `navy`, `copy`). The *For partners* section uses the same palette as the upper sections: an indigo button and purple, light-blue and mint icons, with no dark green.
+- **`/partners`** is the public partnership application. It has a visible **العودة للرئيسية** link, and the logos also lead home. The form has four sections:
+  - **A, applicant:** partner type, full name. Organizations also give the organization name, the representative's position and the organization type, plus *specify* when it is "Other".
+  - **B, contact:** email, Saudi mobile number, city.
+  - **C, partnership:**
+    - type of support and fields of interest, each a dropdown multi-select with the choices shown inside the field (the fields list is searchable); "Other" asks for words
+    - how they would like to contribute
+  - **D, declaration:** the declaration checkbox.
 
-**Database migration.** The feature needs `supabase/migrations/20261014000000_partner_applications.sql`. It is additive and idempotent: it creates one table with indexes, enables RLS and revokes the public grants, and does not touch existing tables or data. Review it, then apply it yourself: `DATABASE_URL=… npm run db:migrate` (applies only migrations not yet recorded in `_ti_migrations`), or paste the file into the Supabase SQL editor. Until it is applied, submitting the form shows a generic error and the admin Partners page fails to load; every other page keeps working.
+  Errors are announced and linked to their fields, and the first one gets the focus.
+- **Admin → Partners** (directly below *Student Codes*) follows `docs/references/partners-admin-reference.webp`. It lists the applications newest first. It has filters (period, partnership type, organization type) and search (name, organization, email), with pages of 10, 20 or 50. **View** (`/admin/partners/[id]`) shows every answer, including the "Other" texts, the submission and consent times, and copy, email and call actions. There are no statuses and no approval workflow.
+
+**Database migrations.** The feature needs two migrations, applied in order:
+- `supabase/migrations/20261014000000_partner_applications.sql` creates the table with its indexes, enables RLS and revokes the public grants.
+- `supabase/migrations/20261015000000_partner_applications_details.sql` adds the three "Other" text columns and the approved list of fields of interest. It keeps the first list's values allowed and adds the new "other" rule as `NOT VALID`, so rows stored earlier stay valid.
+
+Both are additive and idempotent, and neither touches other tables or existing data. Review them, then apply them yourself: `DATABASE_URL=… npm run db:migrate` (applies only migrations not yet recorded in `_ti_migrations`), or paste the files, in order, into the Supabase SQL editor. Until they are applied, submitting the form shows a generic error and the admin Partners page fails to load; every other page keeps working.
 
 ### Homepage statistics
 
@@ -246,9 +259,9 @@ It removes only the students it created.
 It removes the project and submissions it created. Set `QA_SHOTS=<dir>` to save screenshots.
 
 `npm run test:partners` (same variables; needs `DATABASE_URL`, read from `.env.local` when present) checks the landing page and partnerships end to end:
-- `/` is public and shows the logos, hero, the three sections and the CTAs. **Sign in** opens `/welcome`, and every Partners button opens `/partners`. AR ⇄ EN switches in place.
-- the form: accessible errors and focus, conditional organization fields, phone and email validation, an organization and an individual stored with normalised values, a double click stored once, the honeypot and the per-address limit
-- privacy: `/admin/partners` and the details page redirect when signed out, no submitted data on public pages, RLS on, no `anon`/`authenticated` access
+- `/` is public and shows the logos, hero, the three sections and the CTAs. The partners button uses the brand indigo. **Sign in** opens `/welcome`, every Partners button opens `/partners`, and `/partners` leads back home. AR ⇄ EN switches in place.
+- the form: accessible errors and focus, conditional organization fields, "Other" fields that appear only when chosen, the dropdown multi-selects (21 searchable fields of interest), phone and email validation, an organization and an individual stored with normalised values, a double click stored once, the honeypot and the per-address limit
+- privacy: `/admin/partners` and the details page redirect when signed out, no submitted data on public pages, RLS on, no `anon`/`authenticated` access, and the database refuses "Other" without words
 - admin: the sidebar item sits right below Student Codes; the row, details and copy button; search, every filter including the date picker; pagination and page size; AR ⇄ EN
 - no sideways scrolling at mobile, tablet and desktop widths
 

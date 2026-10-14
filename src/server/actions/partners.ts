@@ -9,6 +9,7 @@ import {
   INTEREST_FIELDS,
   inOrder,
   isOrganization,
+  otherApplies,
   SUPPORT_TYPES,
   tidyText,
   validatePartnerForm,
@@ -42,19 +43,22 @@ async function addressHash(): Promise<string> {
 function coerce(input: unknown): PartnerForm {
   const d = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
   const str = (v: unknown) => (typeof v === "string" ? v.slice(0, 4000) : "");
-  const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").slice(0, 10) : []);
+  const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").slice(0, 30) : []);
   return {
     ...EMPTY_PARTNER_FORM,
     partnerType: str(d.partnerType) as PartnerForm["partnerType"],
     fullName: str(d.fullName),
     organizationName: str(d.organizationName),
-    organizationCategory: str(d.organizationCategory) as PartnerForm["organizationCategory"],
     jobTitle: str(d.jobTitle),
+    organizationCategory: str(d.organizationCategory) as PartnerForm["organizationCategory"],
+    organizationCategoryOther: str(d.organizationCategoryOther),
     phone: str(d.phone),
     email: str(d.email),
     city: str(d.city),
     supportTypes: list(d.supportTypes) as PartnerForm["supportTypes"],
+    supportOther: str(d.supportOther),
     interestFields: list(d.interestFields) as PartnerForm["interestFields"],
+    interestOther: str(d.interestOther),
     proposal: str(d.proposal),
     consent: d.consent === true,
   };
@@ -86,17 +90,21 @@ export async function submitPartnerApplication(input: {
   if (Object.keys(fields).length > 0) return { ok: false, error: "invalid", fields };
 
   const org = isOrganization(form);
+  const other = otherApplies(form);
   const values = {
     partner_type: form.partnerType,
     full_name: collapseSpaces(form.fullName),
     organization_name: org ? collapseSpaces(form.organizationName) : null,
     organization_category: org ? form.organizationCategory : null,
     job_title: org ? collapseSpaces(form.jobTitle) : null,
+    organization_category_other: other.organizationCategoryOther ? collapseSpaces(form.organizationCategoryOther) : null,
     phone: normalizeSaudiPhone(form.phone)!,
     email: form.email.trim().toLowerCase(),
     city: collapseSpaces(form.city),
     support_types: inOrder(SUPPORT_TYPES, form.supportTypes),
+    support_other: other.supportOther ? collapseSpaces(form.supportOther) : null,
     interest_fields: inOrder(INTEREST_FIELDS, form.interestFields),
+    interest_other: other.interestOther ? collapseSpaces(form.interestOther) : null,
     proposal: tidyText(form.proposal),
   };
 
@@ -125,13 +133,13 @@ export async function submitPartnerApplication(input: {
 
     await sql`
       insert into partner_applications (
-        partner_type, full_name, organization_name, organization_category, job_title,
-        phone, email, city, support_types, interest_fields, proposal,
+        partner_type, full_name, organization_name, organization_category, organization_category_other, job_title,
+        phone, email, city, support_types, support_other, interest_fields, interest_other, proposal,
         consent_at, locale, client_token, ip_hash
       ) values (
         ${values.partner_type}, ${values.full_name}, ${values.organization_name}, ${values.organization_category},
-        ${values.job_title}, ${values.phone}, ${values.email}, ${values.city},
-        ${values.support_types}, ${values.interest_fields}, ${values.proposal},
+        ${values.organization_category_other}, ${values.job_title}, ${values.phone}, ${values.email}, ${values.city},
+        ${values.support_types}, ${values.support_other}, ${values.interest_fields}, ${values.interest_other}, ${values.proposal},
         now(), ${locale}, ${token}, ${ipHash}
       )
       on conflict (client_token) do nothing`;

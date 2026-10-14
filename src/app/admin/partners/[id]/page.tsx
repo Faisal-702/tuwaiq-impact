@@ -39,7 +39,7 @@ export default async function AdminPartnerDetailsPage(props: PageProps<"/admin/p
           {app.full_name}
         </h1>
         <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-muted">
-          <PartyChip type={app.partner_type} category={app.organization_category} t={t} />
+          <PartyChip type={app.partner_type} category={app.organization_category} other={app.organization_category_other} t={t} />
           <span className="inline-flex items-center gap-1.5">
             <CalendarClock className="size-4" aria-hidden />
             {a.submittedAt}: <time dateTime={app.created_at} className="font-medium text-ink-soft">{formatDateTime(app.created_at, locale)}</time>
@@ -57,10 +57,15 @@ export default async function AdminPartnerDetailsPage(props: PageProps<"/admin/p
             <Row label={f.organizationName} auto>
               {app.organization_name}
             </Row>
-            <Row label={f.organizationCategory}>{app.organization_category ? t.partners.categories[app.organization_category] : "—"}</Row>
             <Row label={f.jobTitle} auto>
               {app.job_title}
             </Row>
+            <Row label={f.organizationCategory}>{app.organization_category ? t.partners.categories[app.organization_category] : "—"}</Row>
+            {app.organization_category_other ? (
+              <Row label={f.organizationCategoryOther} auto>
+                <span data-testid="detail-category-other">{app.organization_category_other}</span>
+              </Row>
+            ) : null}
           </>
         ) : null}
       </Card>
@@ -102,6 +107,11 @@ export default async function AdminPartnerDetailsPage(props: PageProps<"/admin/p
             ))}
           </span>
         </Row>
+        {app.support_other ? (
+          <Row label={f.supportOther} auto>
+            <span data-testid="detail-support-other">{app.support_other}</span>
+          </Row>
+        ) : null}
         <Row label={f.interestFields}>
           <span className="flex flex-wrap gap-2">
             {app.interest_fields.map((s) => (
@@ -109,6 +119,11 @@ export default async function AdminPartnerDetailsPage(props: PageProps<"/admin/p
             ))}
           </span>
         </Row>
+        {app.interest_other ? (
+          <Row label={f.interestOther} auto>
+            <span data-testid="detail-interest-other">{app.interest_other}</span>
+          </Row>
+        ) : null}
         <div className="px-5 py-4 sm:px-6">
           <p className="text-sm font-medium text-muted">{f.proposal}</p>
           <p dir="auto" className="mt-2 whitespace-pre-line break-words rounded-xl bg-canvas p-4 text-[0.9375rem] leading-[1.9] text-ink-soft ring-1 ring-inset ring-line-soft" data-testid="detail-proposal">

@@ -1,18 +1,6 @@
 "use client";
 
-import {
-  AlertCircle,
-  Building2,
-  Check,
-  CircleCheckBig,
-  Loader2,
-  Lock,
-  MapPin,
-  Phone,
-  Send,
-  UserRound,
-  type LucideIcon,
-} from "lucide-react";
+import { AlertCircle, Building2, CircleCheckBig, FileCheck2, Handshake, Loader2, Lock, MapPin, Phone, Send, UserRound, type LucideIcon } from "lucide-react";
 import { useRef, useState, type ReactNode } from "react";
 import { Checkbox, describedBy, FieldShell, SelectInput, TextArea, TextInput } from "@/components/submission/fields";
 import Link from "@/components/ui/link";
@@ -22,11 +10,10 @@ import {
   EMPTY_PARTNER_FORM,
   INTEREST_FIELDS,
   ORGANIZATION_CATEGORIES,
+  otherApplies,
   PARTNER_FIELD_ORDER,
   PARTNER_LIMITS,
   SUPPORT_TYPES,
-  toggleInterest,
-  toggleSupport,
   validatePartnerForm,
   type PartnerError,
   type PartnerField,
@@ -35,6 +22,7 @@ import {
 } from "@/lib/partners";
 import { cn } from "@/lib/utils";
 import { submitPartnerApplication } from "@/server/actions/partners";
+import { MultiSelect } from "./multi-select";
 
 type Errors = Partial<Record<PartnerField, PartnerError>>;
 
@@ -152,24 +140,24 @@ export function PartnerApplicationForm() {
   if (status === "sent") {
     return (
       <div className="rounded-[1.5rem] bg-white p-8 text-center shadow-panel ring-1 ring-line-soft sm:p-12" role="status" data-testid="partner-success">
-        <span className="mx-auto grid size-16 place-items-center rounded-full bg-mint text-teal-deep ring-8 ring-mint-soft">
+        <span className="mx-auto grid size-16 place-items-center rounded-full bg-[#c5f6e1] text-[#198c7a] ring-8 ring-[#f3fcfb]">
           <CircleCheckBig className="size-8" aria-hidden />
         </span>
-        <h2 ref={successHeading} tabIndex={-1} className="mt-6 text-2xl font-bold text-navy focus:outline-none">
+        <h2 ref={successHeading} tabIndex={-1} className="mt-6 text-2xl font-bold text-indigo-ink focus:outline-none">
           {p.successTitle}
         </h2>
-        <p className="mx-auto mt-3 max-w-lg text-[0.9375rem] leading-[1.9] text-ink-soft">{p.successBody}</p>
+        <p className="mx-auto mt-3 max-w-lg text-[0.9375rem] leading-[1.9] text-copy">{p.successBody}</p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Link
             href="/"
-            className="inline-flex h-12 items-center justify-center rounded-xl bg-purple-ink px-7 text-[0.9375rem] font-semibold text-white transition hover:bg-[#2a1d78]"
+            className="inline-flex h-12 items-center justify-center rounded-xl bg-indigo px-7 text-[0.9375rem] font-semibold text-white transition hover:bg-[#3418a6]"
           >
             {p.backHome}
           </Link>
           <button
             type="button"
             onClick={reset}
-            className="inline-flex h-12 items-center justify-center rounded-xl bg-white px-6 text-[0.9375rem] font-semibold text-purple-ink ring-1 ring-inset ring-purple-ink/30 transition hover:bg-lavender-soft"
+            className="inline-flex h-12 items-center justify-center rounded-xl bg-white px-6 text-[0.9375rem] font-semibold text-indigo-ink ring-1 ring-inset ring-[#8d81bc] transition hover:bg-lavender-soft"
           >
             {p.another}
           </button>
@@ -179,12 +167,41 @@ export function PartnerApplicationForm() {
   }
 
   const org = form.partnerType === "organization";
+  const other = otherApplies(form);
   const errorCount = Object.keys(errors).length;
   const proposalLength = form.proposal.trim().length;
+  const multiLabels = p.multi;
+
+  /** A single-line text field of this form. */
+  const text = (
+    field: "fullName" | "organizationName" | "jobTitle" | "organizationCategoryOther" | "email" | "phone" | "city" | "supportOther" | "interestOther",
+    opts: { max: number; icon?: LucideIcon; autoComplete?: string; type?: string; inputMode?: "tel" | "email"; ltr?: boolean; hint?: string; className?: string },
+  ) => (
+    <FieldShell id={field} label={p.fields[field]} required hint={opts.hint} error={message(field)} className={opts.className}>
+      <TextInput
+        id={field}
+        data-focus={field}
+        type={opts.type}
+        inputMode={opts.inputMode}
+        icon={opts.icon}
+        value={form[field]}
+        onChange={(v) => update(field, v)}
+        onBlur={() => blur(field)}
+        invalid={Boolean(errors[field])}
+        describedById={describedBy(field, message(field), opts.hint)}
+        placeholder={p.placeholders[field]}
+        autoComplete={opts.autoComplete}
+        maxLength={opts.max}
+        aria-required="true"
+        dir={opts.ltr ? "ltr" : "auto"}
+        className={opts.ltr ? "text-start rtl:text-right" : undefined}
+      />
+    </FieldShell>
+  );
 
   return (
     <form ref={formRef} onSubmit={onSubmit} noValidate className="space-y-6" data-testid="partner-form" aria-describedby="partner-required-note">
-      <p id="partner-required-note" className="text-sm text-muted">
+      <p id="partner-required-note" className="text-sm text-copy">
         {p.requiredNote}
       </p>
 
@@ -201,7 +218,8 @@ export function PartnerApplicationForm() {
         <input ref={honeypot} id="partner-website" name="website" type="text" tabIndex={-1} autoComplete="off" />
       </div>
 
-      <Section title={p.sections.applicant} icon={UserRound}>
+      {/* A — Applicant */}
+      <Section title={p.sections.applicant} icon={UserRound} letter="A">
         <fieldset aria-describedby={describedBy("partnerType", message("partnerType"))} data-field="partnerType">
           <legend className="text-[0.9375rem] font-semibold text-ink">
             {p.fields.partnerType}
@@ -217,9 +235,9 @@ export function PartnerApplicationForm() {
                 <label
                   key={type}
                   className={cn(
-                    "flex cursor-pointer items-center gap-3.5 rounded-xl border bg-white p-4 transition-[border-color,box-shadow,background-color] duration-200 has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-purple/15",
+                    "flex cursor-pointer items-center gap-3.5 rounded-xl border bg-white p-4 transition-[border-color,box-shadow,background-color] duration-200 has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-indigo/15",
                     checked
-                      ? "border-purple/60 bg-lavender-soft/70 shadow-[0_0_0_3px_rgb(109_74_255/0.08)]"
+                      ? "border-indigo/60 bg-lavender-soft/70 shadow-[0_0_0_3px_rgb(66_31_190/0.08)]"
                       : errors.partnerType
                         ? "border-danger-ink/50"
                         : "border-line hover:border-[#cfd3da]",
@@ -240,20 +258,20 @@ export function PartnerApplicationForm() {
                     aria-hidden
                     className={cn(
                       "grid size-11 shrink-0 place-items-center rounded-xl transition-colors",
-                      checked ? "bg-purple text-white" : "bg-canvas text-purple-ink ring-1 ring-inset ring-line",
+                      checked ? "bg-indigo text-white" : "bg-canvas text-indigo ring-1 ring-inset ring-line",
                     )}
                   >
                     <Icon className="size-5" />
                   </span>
                   <span className="min-w-0">
                     <span className="block text-[0.9375rem] font-bold text-ink">{p.types[type]}</span>
-                    <span className="mt-0.5 block text-[0.8125rem] text-muted">{p.typeHints[type]}</span>
+                    <span className="mt-0.5 block text-[0.8125rem] text-copy">{p.typeHints[type]}</span>
                   </span>
                   <span
                     aria-hidden
                     className={cn(
                       "ms-auto grid size-5 shrink-0 place-items-center rounded-full border-2",
-                      checked ? "border-purple bg-purple" : "border-[#c5cad3]",
+                      checked ? "border-indigo bg-indigo" : "border-[#c5cad3]",
                     )}
                   >
                     {checked ? <span className="size-1.5 rounded-full bg-white" /> : null}
@@ -265,152 +283,72 @@ export function PartnerApplicationForm() {
           <ErrorText id="partnerType" text={message("partnerType")} />
         </fieldset>
 
-        <FieldShell id="fullName" label={p.fields.fullName} required error={message("fullName")}>
-          <TextInput
-            id="fullName"
-            data-focus="fullName"
-            value={form.fullName}
-            onChange={(v) => update("fullName", v)}
-            onBlur={() => blur("fullName")}
-            invalid={Boolean(errors.fullName)}
-            describedById={describedBy("fullName", message("fullName"))}
-            placeholder={p.placeholders.fullName}
-            autoComplete="name"
-            maxLength={PARTNER_LIMITS.fullName[1]}
-            aria-required="true"
-            dir="auto"
-          />
-        </FieldShell>
+        {text("fullName", { max: PARTNER_LIMITS.fullName[1], autoComplete: "name" })}
 
         {org ? (
           <div className="grid gap-5 sm:grid-cols-2" data-testid="organization-fields">
-            <FieldShell id="organizationName" label={p.fields.organizationName} required error={message("organizationName")} className="sm:col-span-2">
-              <TextInput
-                id="organizationName"
-                data-focus="organizationName"
-                icon={Building2}
-                value={form.organizationName}
-                onChange={(v) => update("organizationName", v)}
-                onBlur={() => blur("organizationName")}
-                invalid={Boolean(errors.organizationName)}
-                describedById={describedBy("organizationName", message("organizationName"))}
-                placeholder={p.placeholders.organizationName}
-                autoComplete="organization"
-                maxLength={PARTNER_LIMITS.organizationName[1]}
-                aria-required="true"
-                dir="auto"
-              />
-            </FieldShell>
+            {text("organizationName", { max: PARTNER_LIMITS.organizationName[1], icon: Building2, autoComplete: "organization", className: "sm:col-span-2" })}
+            {text("jobTitle", { max: PARTNER_LIMITS.jobTitle[1], autoComplete: "organization-title" })}
             <FieldShell id="organizationCategory" label={p.fields.organizationCategory} required error={message("organizationCategory")}>
-              <SelectInputFocus
-                id="organizationCategory"
-                value={form.organizationCategory}
-                onChange={(v) => update("organizationCategory", v as PartnerFormValues["organizationCategory"])}
-                invalid={Boolean(errors.organizationCategory)}
-                describedById={describedBy("organizationCategory", message("organizationCategory"))}
-                placeholder={p.placeholders.organizationCategory}
-                options={ORGANIZATION_CATEGORIES.map((c) => ({ value: c, label: p.categories[c] }))}
-              />
+              <FocusMark id="organizationCategory" selector="select">
+                <SelectInput
+                  id="organizationCategory"
+                  value={form.organizationCategory}
+                  onChange={(v) => update("organizationCategory", v as PartnerFormValues["organizationCategory"])}
+                  invalid={Boolean(errors.organizationCategory)}
+                  describedById={describedBy("organizationCategory", message("organizationCategory"))}
+                  placeholder={p.placeholders.organizationCategory}
+                  options={ORGANIZATION_CATEGORIES.map((c) => ({ value: c, label: p.categories[c] }))}
+                />
+              </FocusMark>
             </FieldShell>
-            <FieldShell id="jobTitle" label={p.fields.jobTitle} required error={message("jobTitle")}>
-              <TextInput
-                id="jobTitle"
-                data-focus="jobTitle"
-                value={form.jobTitle}
-                onChange={(v) => update("jobTitle", v)}
-                onBlur={() => blur("jobTitle")}
-                invalid={Boolean(errors.jobTitle)}
-                describedById={describedBy("jobTitle", message("jobTitle"))}
-                placeholder={p.placeholders.jobTitle}
-                autoComplete="organization-title"
-                maxLength={PARTNER_LIMITS.jobTitle[1]}
-                aria-required="true"
-                dir="auto"
-              />
-            </FieldShell>
+            {other.organizationCategoryOther
+              ? text("organizationCategoryOther", { max: PARTNER_LIMITS.other[1], className: "sm:col-span-2" })
+              : null}
           </div>
         ) : null}
       </Section>
 
-      <Section title={p.sections.contact} icon={Phone}>
+      {/* B — Contact */}
+      <Section title={p.sections.contact} icon={Phone} letter="B">
         <div className="grid gap-5 sm:grid-cols-2">
-          <FieldShell id="phone" label={p.fields.phone} required hint={p.hints.phone} error={message("phone")}>
-            <TextInput
-              id="phone"
-              data-focus="phone"
-              type="tel"
-              inputMode="tel"
-              value={form.phone}
-              onChange={(v) => update("phone", v)}
-              onBlur={() => blur("phone")}
-              invalid={Boolean(errors.phone)}
-              describedById={describedBy("phone", message("phone"), p.hints.phone)}
-              placeholder={p.placeholders.phone}
-              autoComplete="tel"
-              maxLength={20}
-              aria-required="true"
-              dir="ltr"
-              className="text-start rtl:text-right"
-            />
-          </FieldShell>
-          <FieldShell id="email" label={p.fields.email} required error={message("email")}>
-            <TextInput
-              id="email"
-              data-focus="email"
-              type="email"
-              inputMode="email"
-              value={form.email}
-              onChange={(v) => update("email", v)}
-              onBlur={() => blur("email")}
-              invalid={Boolean(errors.email)}
-              describedById={describedBy("email", message("email"))}
-              placeholder={p.placeholders.email}
-              autoComplete="email"
-              maxLength={PARTNER_LIMITS.email[1]}
-              aria-required="true"
-              dir="ltr"
-              className="text-start rtl:text-right"
-            />
-          </FieldShell>
-          <FieldShell id="city" label={p.fields.city} required error={message("city")} className="sm:col-span-2">
-            <TextInput
-              id="city"
-              data-focus="city"
-              icon={MapPin}
-              value={form.city}
-              onChange={(v) => update("city", v)}
-              onBlur={() => blur("city")}
-              invalid={Boolean(errors.city)}
-              describedById={describedBy("city", message("city"))}
-              placeholder={p.placeholders.city}
-              autoComplete="address-level2"
-              maxLength={PARTNER_LIMITS.city[1]}
-              aria-required="true"
-              dir="auto"
-            />
-          </FieldShell>
+          {text("email", { max: PARTNER_LIMITS.email[1], type: "email", inputMode: "email", autoComplete: "email", ltr: true })}
+          {text("phone", { max: 20, type: "tel", inputMode: "tel", autoComplete: "tel", ltr: true, hint: p.hints.phone })}
+          {text("city", { max: PARTNER_LIMITS.city[1], icon: MapPin, autoComplete: "address-level2", className: "sm:col-span-2" })}
         </div>
       </Section>
 
-      <Section title={p.sections.partnership} icon={Send}>
-        <ChipGroup
-          id="supportTypes"
-          legend={p.fields.supportTypes}
-          hint={p.hints.multi}
-          error={message("supportTypes")}
-          options={SUPPORT_TYPES.map((s) => ({ value: s, label: p.support[s] }))}
-          selected={form.supportTypes}
-          onToggle={(v) => update("supportTypes", toggleSupport(form.supportTypes, v as (typeof SUPPORT_TYPES)[number]))}
-        />
-        <ChipGroup
-          id="interestFields"
-          legend={p.fields.interestFields}
-          hint={p.hints.multi}
-          error={message("interestFields")}
-          options={INTEREST_FIELDS.map((s) => ({ value: s, label: p.interests[s] }))}
-          selected={form.interestFields}
-          onToggle={(v) => update("interestFields", toggleInterest(form.interestFields, v as (typeof INTEREST_FIELDS)[number]))}
-        />
+      {/* C — Partnership */}
+      <Section title={p.sections.partnership} icon={Handshake} letter="C">
+        <FieldShell id="supportTypes" label={p.fields.supportTypes} required hint={p.hints.multi} error={message("supportTypes")}>
+          <MultiSelect
+            id="supportTypes"
+            value={form.supportTypes}
+            options={SUPPORT_TYPES.map((s) => ({ value: s, label: p.support[s] }))}
+            onChange={(v) => update("supportTypes", v as PartnerFormValues["supportTypes"])}
+            placeholder={p.placeholders.supportTypes}
+            invalid={Boolean(errors.supportTypes)}
+            describedById={describedBy("supportTypes", message("supportTypes"), p.hints.multi)}
+            labels={multiLabels}
+          />
+        </FieldShell>
+        {other.supportOther ? text("supportOther", { max: PARTNER_LIMITS.other[1] }) : null}
+
+        <FieldShell id="interestFields" label={p.fields.interestFields} required hint={p.hints.multi} error={message("interestFields")}>
+          <MultiSelect
+            id="interestFields"
+            value={form.interestFields}
+            options={INTEREST_FIELDS.map((s) => ({ value: s, label: p.interests[s] }))}
+            onChange={(v) => update("interestFields", v as PartnerFormValues["interestFields"])}
+            placeholder={p.placeholders.interestFields}
+            invalid={Boolean(errors.interestFields)}
+            describedById={describedBy("interestFields", message("interestFields"), p.hints.multi)}
+            labels={multiLabels}
+            searchable
+          />
+        </FieldShell>
+        {other.interestOther ? text("interestOther", { max: PARTNER_LIMITS.other[1] }) : null}
+
         <FieldShell
           id="proposal"
           label={p.fields.proposal}
@@ -439,25 +377,28 @@ export function PartnerApplicationForm() {
         </FieldShell>
       </Section>
 
-      <div className="rounded-2xl border border-line bg-canvas/70 p-5 sm:p-6" data-field="consent">
-        <p className="flex items-center gap-2 text-sm font-bold text-ink">
-          <Lock className="size-4 text-teal-deep" aria-hidden />
-          {p.fields.consent}
-        </p>
-        <p id="consent-note" className="mt-2 text-sm leading-relaxed text-muted">
-          {p.privacyNote}
-        </p>
-        <div className="mt-4" data-focus-wrap>
-          <ConsentCheckbox
-            checked={form.consent}
-            onChange={(v) => update("consent", v)}
-            label={<span className="font-medium leading-relaxed">{p.consentText}</span>}
-            invalid={Boolean(errors.consent)}
-            describedById={errors.consent ? "consent-error" : "consent-note"}
-          />
+      {/* D — Declaration */}
+      <Section title={p.sections.declaration} icon={FileCheck2} letter="D">
+        <div data-field="consent">
+          <p id="consent-note" className="flex items-start gap-2 text-sm leading-relaxed text-copy">
+            <Lock className="mt-0.5 size-4 shrink-0 text-[#198c7a]" aria-hidden />
+            {p.privacyNote}
+          </p>
+          <div className="mt-4">
+            <FocusMark id="consent" selector="input">
+              <Checkbox
+                id="consent"
+                checked={form.consent}
+                onChange={(v) => update("consent", v)}
+                label={<span className="font-medium leading-relaxed">{p.consentText}</span>}
+                invalid={Boolean(errors.consent)}
+                describedById={errors.consent ? "consent-error" : "consent-note"}
+              />
+            </FocusMark>
+          </div>
+          <ErrorText id="consent" text={message("consent")} />
         </div>
-        <ErrorText id="consent" text={message("consent")} />
-      </div>
+      </Section>
 
       {failure ? (
         <p className="flex items-start gap-2 rounded-xl bg-danger-soft px-4 py-3 text-sm font-medium text-danger-ink" role="alert" data-testid="partner-failure">
@@ -466,12 +407,13 @@ export function PartnerApplicationForm() {
         </p>
       ) : null}
 
+      {/* E — Submit */}
       <div className="flex justify-end">
         <button
           type="submit"
           disabled={status === "sending"}
           aria-disabled={status === "sending" || undefined}
-          className="inline-flex h-13 w-full items-center justify-center gap-2.5 rounded-xl bg-purple-ink px-9 text-base font-semibold text-white shadow-[0_14px_30px_-14px_rgb(51_36_143/0.9)] transition hover:bg-[#2a1d78] disabled:cursor-wait disabled:opacity-80 sm:w-auto"
+          className="inline-flex h-13 w-full items-center justify-center gap-2.5 rounded-xl bg-indigo px-10 text-base font-bold text-white shadow-[0_16px_30px_-16px_rgb(66_31_190/0.95)] transition hover:bg-[#3418a6] disabled:cursor-wait disabled:opacity-80 sm:w-auto"
           data-testid="partner-submit"
         >
           {status === "sending" ? <Loader2 className="size-5 animate-spin" aria-hidden /> : <Send className="size-5 rtl:-scale-x-100" aria-hidden />}
@@ -482,11 +424,11 @@ export function PartnerApplicationForm() {
   );
 }
 
-function Section({ title, icon: Icon, children }: { title: string; icon: LucideIcon; children: ReactNode }) {
+function Section({ title, icon: Icon, letter, children }: { title: string; icon: LucideIcon; letter: string; children: ReactNode }) {
   return (
-    <section className="rounded-[1.25rem] bg-white p-5 shadow-soft ring-1 ring-line-soft sm:p-7">
-      <h2 className="flex items-center gap-2.5 text-lg font-bold text-navy">
-        <span aria-hidden className="grid size-9 place-items-center rounded-lg bg-lavender-soft text-purple ring-1 ring-inset ring-purple/10">
+    <section className="rounded-[1.25rem] bg-white p-5 shadow-[0_10px_30px_-20px_rgb(40_30_120/0.35)] ring-1 ring-[#eceaf5] sm:p-7" data-section={letter}>
+      <h2 className="flex items-center gap-2.5 text-lg font-bold text-indigo-ink">
+        <span aria-hidden className="grid size-9 place-items-center rounded-lg bg-[#e3dbff] text-indigo">
           <Icon className="size-4.5" />
         </span>
         {title}
@@ -505,93 +447,15 @@ function ErrorText({ id, text }: { id: string; text?: string }) {
   );
 }
 
-/** Multi-select shown as toggle chips (native checkboxes underneath). */
-function ChipGroup({
-  id,
-  legend,
-  hint,
-  error,
-  options,
-  selected,
-  onToggle,
-}: {
-  id: PartnerField;
-  legend: string;
-  hint: string;
-  error?: string;
-  options: { value: string; label: string }[];
-  selected: readonly string[];
-  onToggle: (value: string) => void;
-}) {
-  return (
-    <fieldset aria-describedby={error ? `${id}-error` : `${id}-hint`} data-field={id}>
-      <legend className="text-[0.9375rem] font-semibold text-ink">
-        {legend}
-        <span className="ms-1 text-danger-ink" aria-hidden>
-          *
-        </span>
-      </legend>
-      <p id={`${id}-hint`} className="mt-1 text-[0.8125rem] text-muted">
-        {hint}
-      </p>
-      <div className="mt-3 flex flex-wrap gap-2.5">
-        {options.map((o, i) => {
-          const checked = selected.includes(o.value);
-          return (
-            <label
-              key={o.value}
-              className={cn(
-                "inline-flex min-h-10 cursor-pointer select-none items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-colors has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-purple/15",
-                checked
-                  ? "border-purple bg-purple text-white"
-                  : error
-                    ? "border-danger-ink/50 bg-white text-ink hover:border-danger-ink/70"
-                    : "border-line bg-white text-ink-soft hover:border-purple/40 hover:text-ink",
-              )}
-              data-option={o.value}
-            >
-              <input
-                type="checkbox"
-                name={id}
-                value={o.value}
-                checked={checked}
-                onChange={() => onToggle(o.value)}
-                aria-invalid={Boolean(error) || undefined}
-                className="sr-only"
-                data-focus={i === 0 ? id : undefined}
-              />
-              {checked ? <Check className="size-4" strokeWidth={2.6} aria-hidden /> : null}
-              {o.label}
-            </label>
-          );
-        })}
-      </div>
-      <ErrorText id={id} text={error} />
-    </fieldset>
-  );
-}
-
-function SelectInputFocus(props: React.ComponentProps<typeof SelectInput>) {
-  // The shared select has no extra attributes; mark it for focusing errors.
+/** Marks a control inside a shared field component as the target for "focus the first error". */
+function FocusMark({ id, selector, children }: { id: string; selector: string; children: ReactNode }) {
   return (
     <div
       ref={(el) => {
-        el?.querySelector("select")?.setAttribute("data-focus", props.id);
+        el?.querySelector(selector)?.setAttribute("data-focus", id);
       }}
     >
-      <SelectInput {...props} />
-    </div>
-  );
-}
-
-function ConsentCheckbox(props: Omit<React.ComponentProps<typeof Checkbox>, "id">) {
-  return (
-    <div
-      ref={(el) => {
-        el?.querySelector("input")?.setAttribute("data-focus", "consent");
-      }}
-    >
-      <Checkbox id="consent" {...props} />
+      {children}
     </div>
   );
 }

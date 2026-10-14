@@ -82,8 +82,35 @@ export function PartnerFilters() {
   };
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.35fr)_repeat(3,minmax(0,1fr))]" data-testid="partner-filters" aria-busy={pending || undefined}>
-      <div className={cn(boxClass, "flex items-center sm:col-span-2 xl:col-span-1")}>
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[repeat(3,minmax(0,1fr))_minmax(0,1.9fr)]" data-testid="partner-filters" aria-busy={pending || undefined}>
+      <FilterBox label={a.filterPeriod} htmlFor="partner-period">
+        <PeriodPicker from={params.get("from") ?? ""} to={params.get("to") ?? ""} onApply={(from, to) => update({ from: from || null, to: to || null })} />
+      </FilterBox>
+      <FilterBox label={a.filterSupport} htmlFor="partner-support">
+        <NativeSelect id="partner-support" value={params.get("support") ?? ""} onChange={(v) => update({ support: v || null })}>
+          <option value="">{a.allTypes}</option>
+          {SUPPORT_TYPES.map((s) => (
+            <option key={s} value={s}>
+              {t.partners.support[s]}
+            </option>
+          ))}
+        </NativeSelect>
+      </FilterBox>
+
+      <FilterBox label={a.filterParty} htmlFor="partner-party">
+        <NativeSelect id="partner-party" value={party} onChange={setParty}>
+          <option value="">{a.allTypes}</option>
+          <option value="individual">{a.individuals}</option>
+          <option value="organization">{a.allOrganizations}</option>
+          {ORGANIZATION_CATEGORIES.map((c) => (
+            <option key={c} value={`category:${c}`}>
+              {t.partners.categories[c]}
+            </option>
+          ))}
+        </NativeSelect>
+      </FilterBox>
+
+      <div className={cn(boxClass, "order-first flex items-center sm:col-span-2 xl:order-none xl:col-span-1")}>
         <label htmlFor="partner-search" className="sr-only">
           {a.searchLabel}
         </label>
@@ -102,33 +129,6 @@ export function PartnerFilters() {
         </div>
       </div>
 
-      <FilterBox label={a.filterParty} htmlFor="partner-party">
-        <NativeSelect id="partner-party" value={party} onChange={setParty}>
-          <option value="">{a.allTypes}</option>
-          <option value="individual">{a.individuals}</option>
-          <option value="organization">{a.allOrganizations}</option>
-          {ORGANIZATION_CATEGORIES.map((c) => (
-            <option key={c} value={`category:${c}`}>
-              {t.partners.categories[c]}
-            </option>
-          ))}
-        </NativeSelect>
-      </FilterBox>
-
-      <FilterBox label={a.filterSupport} htmlFor="partner-support">
-        <NativeSelect id="partner-support" value={params.get("support") ?? ""} onChange={(v) => update({ support: v || null })}>
-          <option value="">{a.allTypes}</option>
-          {SUPPORT_TYPES.map((s) => (
-            <option key={s} value={s}>
-              {t.partners.support[s]}
-            </option>
-          ))}
-        </NativeSelect>
-      </FilterBox>
-
-      <FilterBox label={a.filterPeriod} htmlFor="partner-period">
-        <PeriodPicker from={params.get("from") ?? ""} to={params.get("to") ?? ""} onApply={(from, to) => update({ from: from || null, to: to || null })} />
-      </FilterBox>
     </div>
   );
 }

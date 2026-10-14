@@ -147,7 +147,7 @@ export default async function AdminPartnersPage(props: PageProps<"/admin/partner
                         {item.organization_name ?? <span className="text-muted">—</span>}
                       </td>
                       <td className="px-2.5 py-3.5">
-                        <PartyChip type={item.partner_type} category={item.organization_category} t={t} />
+                        <PartyChip type={item.partner_type} category={item.organization_category} other={item.organization_category_other} t={t} />
                       </td>
                       <td className="px-2.5 py-3.5">
                         <span className="flex items-center gap-1.5" title={item.support_types.map((s) => t.partners.support[s]).join(locale === "ar" ? "، " : ", ")}>
