@@ -22,6 +22,11 @@
   --color-violet: #a78bfa;
   --color-lavender: #ede9fe;
   --color-lavender-soft: #f5f3ff;
+  /* Landing page palette, sampled from the approved landing reference. */
+  --color-navy: #0e2242;
+  --color-indigo: #421fbe;
+  --color-indigo-ink: #1c056a;
+  --color-copy: #6d6e80;
 
   --color-ink: #1f2937;
   --color-ink-soft: #374151;
@@ -151,6 +156,17 @@
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
+  }
+
+  /* "أثر" logotype: purple to education green, as on the approved landing reference. */
+  .text-gradient-athar {
+    background: linear-gradient(270deg, #3f23a3 0%, #343da3 38%, #057976 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  html[dir="ltr"] .text-gradient-athar {
+    background-image: linear-gradient(90deg, #3f23a3 0%, #343da3 38%, #057976 100%);
   }
 
   .hairline-gradient {

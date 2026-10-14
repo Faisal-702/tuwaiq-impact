@@ -55,9 +55,12 @@ async function adminLogin(page) {
 // ---------------------------------------------------------------------------
 let s = await newBrowserSession();
 
-await check("/ redirects to /welcome", async () => {
-  await s.page.goto(BASE + "/");
-  assert(path(s.page) === "/welcome", s.page.url());
+await check("/ shows the public landing page; its Sign in button opens /welcome", async () => {
+  const res = await s.page.goto(BASE + "/");
+  assert(res.status() === 200 && path(s.page) === "/", s.page.url());
+  await s.page.getByTestId("landing-hero").waitFor();
+  await s.page.getByTestId("landing-login").click();
+  await s.page.waitForURL((u) => u.pathname === "/welcome");
   await s.page.getByRole("button", { name: "Enter Platform" }).waitFor();
 });
 
@@ -124,9 +127,9 @@ await check("Admin session cookie is httpOnly and browser-session only", async (
   assert(sid && sid.httpOnly && sid.expires === -1 && sid.sameSite === "Lax", JSON.stringify(sid));
 });
 
-await check("Returning to the site in the same session shows /welcome, not /admin", async () => {
+await check("Returning to the site in the same session shows the landing page and /welcome, not /admin", async () => {
   await s.page.goto(BASE + "/");
-  assert(path(s.page) === "/welcome", s.page.url());
+  assert(path(s.page) === "/", s.page.url());
   await s.page.goto(BASE + "/welcome");
   await s.page.waitForTimeout(500);
   assert(path(s.page) === "/welcome", "welcome auto-redirected to " + s.page.url());
@@ -146,7 +149,7 @@ await check("Admin: closing and reopening the browser requires the code again", 
   await s.context.close();
   s = await newBrowserSession(kept);
   await s.page.goto(BASE + "/");
-  assert(path(s.page) === "/welcome", s.page.url());
+  assert(path(s.page) === "/", s.page.url()); // the public landing page, not the dashboard
   await s.page.goto(BASE + "/admin");
   assert(path(s.page) === "/welcome", s.page.url());
 });

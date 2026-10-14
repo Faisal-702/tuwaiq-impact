@@ -14,7 +14,8 @@ export function LanguageSwitcher({
   variant = "pill",
 }: {
   className?: string;
-  variant?: "pill" | "compact";
+  /** "adaptive": compact on small screens, pill from the `sm` breakpoint. */
+  variant?: "pill" | "compact" | "adaptive";
 }) {
   const { t, targetLocale, switching, switchLocale } = useI18n();
 
@@ -31,7 +32,7 @@ export function LanguageSwitcher({
       dir="ltr"
       className={cn(
         "inline-flex items-center rounded-full bg-white/90 p-1 ring-1 ring-line backdrop-blur",
-        variant === "pill" ? "shadow-soft" : "",
+        variant === "pill" ? "shadow-soft" : variant === "adaptive" ? "sm:shadow-soft" : "",
         switching && "opacity-70",
         className,
       )}
@@ -48,7 +49,11 @@ export function LanguageSwitcher({
             onClick={() => switchLocale(o.value)}
             className={cn(
               "rounded-full font-medium transition-colors duration-200",
-              variant === "pill" ? "px-4 py-1.5 text-sm" : "px-3 py-1 text-[0.8125rem]",
+              variant === "pill"
+                ? "px-4 py-1.5 text-sm"
+                : variant === "adaptive"
+                  ? "px-3 py-1 text-[0.8125rem] sm:px-4 sm:py-1.5 sm:text-sm"
+                  : "px-3 py-1 text-[0.8125rem]",
               o.value === "ar" && "font-[family-name:var(--font-arabic)]",
               active ? "bg-purple-ink text-white shadow-sm" : "text-ink-soft hover:text-ink",
             )}
