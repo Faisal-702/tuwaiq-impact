@@ -1,4 +1,4 @@
-/** The public homepage. "/" always redirects to the entry page (/welcome). */
+/** The signed-in homepage. "/" is the public landing page; /welcome is the entry (sign-in) page. */
 export const HOME_PATH = "/home";
 
 /** Cookie names shared by the proxy (edge of the app) and server code. */

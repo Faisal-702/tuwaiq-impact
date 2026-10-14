@@ -22,6 +22,7 @@
   --color-violet: #a78bfa;
   --color-lavender: #ede9fe;
   --color-lavender-soft: #f5f3ff;
+  --color-navy: #1e1b5a;
 
   --color-ink: #1f2937;
   --color-ink-soft: #374151;
@@ -148,6 +149,13 @@
 
   .text-gradient-purple {
     background: linear-gradient(100deg, #4f2fe6 0%, var(--color-purple) 60%, #7c5cff 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .text-gradient-athar {
+    background: linear-gradient(100deg, var(--color-navy) 0%, #3b22c9 55%, var(--color-purple) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;

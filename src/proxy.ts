@@ -1,9 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { ADMIN_COOKIE, LEGACY_COOKIES, STUDENT_COOKIE } from "@/lib/routes";
 
+/** Pages anyone can open without a session. */
+const PUBLIC_PATHS = new Set(["/", "/partners", "/welcome"]);
+
 /**
  * Fast, optimistic routing guard (cookie presence only).
- *  - "/" always goes to the entry page (/welcome).
+ *  - The public pages need no session: the landing page ("/"), the
+ *    partnership application form (/partners) and the entry page (/welcome).
  *  - /admin requires an admin session cookie.
  *  - Every other page requires a student or admin session cookie.
  * Sessions themselves are verified against the database on the server: the
@@ -23,13 +27,13 @@ export function proxy(request: NextRequest) {
   };
 
   let response: NextResponse;
-  if (pathname === "/") {
-    response = toWelcome("");
+  if (PUBLIC_PATHS.has(pathname)) {
+    response = NextResponse.next();
   } else if (pathname.startsWith("/admin")) {
     response = hasAdminCookie
       ? NextResponse.next()
       : toWelcome(`?mode=admin&next=${encodeURIComponent(pathname + search)}`);
-  } else if (pathname === "/welcome" || hasAdminCookie || hasStudentCookie) {
+  } else if (hasAdminCookie || hasStudentCookie) {
     response = NextResponse.next();
   } else {
     response = toWelcome(`?next=${encodeURIComponent(pathname + search)}`);

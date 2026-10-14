@@ -90,6 +90,7 @@ No variable is prefixed with `NEXT_PUBLIC_`, so none of them reach browser code.
   - the proxy redirects to `/welcome` when no session cookie is present
   - every page also verifies the student or admin session against the database (`requireViewer()`)
   - so do the search and view-counter APIs and the suggestion action
+- **Partnership applications**: anyone can apply at `/partners` without signing in. The server action validates every answer again (Saudi mobile, email, required organisation fields, allowed options, lengths; also table `check` constraints). It drops honeypot submissions and stores a retried or double-clicked application once (per-form token, plus same email and proposal within a day). It accepts at most 5 applications per network address per hour and 3 per email address per day (counted in the database; the address is kept only as a salted hash). Answers are never written to the logs. The `partner_applications` table has RLS enabled and the `anon`/`authenticated` grants revoked: the public cannot list or read applications, and only the admin **Partners** page (admin session re-checked in every query) shows them.
 - **Suggestions**: signed-in students submit through a server action that validates the input (zod, also enforced by table `check` constraints), drops honeypot submissions and rate-limits each visitor (best-effort, per server instance). The `suggestions` table has no public policies or grants, so submissions can only be read on the admin **Suggestions** page.
 - **Uploads**: the server validates MIME type, size and video length, then issues short-lived signed upload URLs for unguessable paths (`media/<yyyy>/<mm>/<uuid>/…`). SVG and HTML uploads are not accepted.
 - **User content** is rendered as plain text (never as HTML). External links accept only `http(s)` and open with `rel="noopener noreferrer"`.
@@ -108,7 +109,7 @@ No variable is prefixed with `NEXT_PUBLIC_`, so none of them reach browser code.
 
 ### Data model (`supabase/migrations`)
 
-`categories`, `students`, `projects` (with the public `summary`, `requested_amount`, `field` and `field_other` from submissions), `project_students` (group projects), `project_media` (images, video, documents, links), `project_views` (anonymous, deduplicated per visitor per day), `admin_sessions`, `activity_logs`, `settings`, `suggestions` (student suggestions: name, grade 10/11/12, text up to 500 characters), `student_access_codes` (one 8-digit code per student), `student_sessions`, `student_login_attempts`, `project_submissions` (student questionnaires and drafts, private).
+`categories`, `students`, `projects` (with the public `summary`, `requested_amount`, `field` and `field_other` from submissions), `project_students` (group projects), `project_media` (images, video, documents, links), `project_views` (anonymous, deduplicated per visitor per day), `admin_sessions`, `activity_logs`, `settings`, `suggestions` (student suggestions: name, grade 10/11/12, text up to 500 characters), `student_access_codes` (one 8-digit code per student), `student_sessions`, `student_login_attempts`, `project_submissions` (student questionnaires and drafts, private), `partner_applications` (partnership requests from the public form, private).
 - Students have an optional `section` (الشعبة: 1, 2 or 3; empty = not set). **Students → Add students in bulk** creates many students at once (one name per line, same grade and section for all) in a single transaction: blank lines are ignored, repeated lines count once, and names already in that grade and section are skipped.
 
 - Projects use **soft delete** (`deleted_at`) → **Trash** → restore, or delete permanently (which also removes the stored media).
@@ -123,6 +124,15 @@ Signed-in students add their own projects at `/add-project` (the homepage's prim
 - **Submitting** publishes the project immediately: title, summary, project field, grade, requested amount, cover image and the student link. The project field maps to one of the existing categories, so category chips keep working. Administrators hide a project with the existing **Move to drafts** / Trash actions. Points start at 0.
 - **Privacy.** Every answer, including national ID, mobile number, email, supervisor and supporting files, is kept in `project_submissions` (RLS on, grants revoked). Public queries never read that table. Administrators see the full form under **Edit project → Submission form**. Supporting files live in a private bucket (`project-submissions`; locally `.data/private`). They are downloaded through `/api/admin/submission-files`, which checks the admin session on every request.
 - **Explore Projects** cards show only the cover, title, project field, students, grade, the exact summary and the requested amount. They are not links and have no support or donation actions. Search also matches the summary and field; the filters dialog has a **Project field** filter.
+
+### Landing page and partners (الشركاء)
+
+- **`/` is the public landing page** (no sign-in): official logos, language switch, **Partners** and **Sign in** buttons, hero, *Why Athar Platform?*, *How does the platform work?* and *For partners*. **Sign in** opens the existing entry page (`/welcome`, unchanged). Signed-out visits to other pages still go to `/welcome`.
+- **`/partners`** is the public partnership application: partner type (individual / organization), full name, organization name, type and the representative's position (organizations only), Saudi mobile, email, city, support types, fields of interest, the proposal and a privacy acknowledgment. Errors are announced and linked to their fields, and the first one gets the focus.
+- **Admin → Partners** (directly below *Student Codes*) lists the applications, newest first. It has search (name, organization, email), filters (individual / organization and organization type, partnership type, date range in Riyadh time) and pages of 10, 20 or 50. **View** (`/admin/partners/[id]`) shows every answer, the submission time, the consent time, and copy, email and call actions. There are no statuses and no approval workflow.
+- The header logos are the official files supplied for this page (`public/brand/official/`; only transparent margins trimmed).
+
+**Database migration.** The feature needs `supabase/migrations/20261014000000_partner_applications.sql`. It is additive and idempotent: it creates one table with indexes, enables RLS and revokes the public grants, and does not touch existing tables or data. Review it, then apply it yourself: `DATABASE_URL=… npm run db:migrate` (applies only migrations not yet recorded in `_ti_migrations`), or paste the file into the Supabase SQL editor. Until it is applied, submitting the form shows a generic error and the admin Partners page fails to load; every other page keeps working.
 
 ### Homepage statistics
 
@@ -235,6 +245,15 @@ It removes only the students it created.
 
 It removes the project and submissions it created. Set `QA_SHOTS=<dir>` to save screenshots.
 
+`npm run test:partners` (same variables; needs `DATABASE_URL`, read from `.env.local` when present) checks the landing page and partnerships end to end:
+- `/` is public and shows the logos, hero, the three sections and the CTAs. **Sign in** opens `/welcome`, and every Partners button opens `/partners`. AR ⇄ EN switches in place.
+- the form: accessible errors and focus, conditional organization fields, phone and email validation, an organization and an individual stored with normalised values, a double click stored once, the honeypot and the per-address limit
+- privacy: `/admin/partners` and the details page redirect when signed out, no submitted data on public pages, RLS on, no `anon`/`authenticated` access
+- admin: the sidebar item sits right below Student Codes; the row, details and copy button; search, every filter including the date picker; pagination and page size; AR ⇄ EN
+- no sideways scrolling at mobile, tablet and desktop widths
+
+Its test rows are named "QA Partner …" and are removed at the start and the end.
+
 `npm run test:language-switch` (same variables) checks switching between English and Arabic on the entry page, student pages and admin pages:
 - text, direction, `lang` and the tab title switch in place, without reloading and without a half-switched state (also on a slow server, where the loading indicator shows)
 - typed input is kept; switching five times in a row stays consistent
@@ -261,7 +280,8 @@ The other end-to-end suites sign in as a demo student through the same flow (`te
 
 ```
 src/
-  app/(site)/        public pages (home, projects, students, leaderboard, about)
+  app/(public)/      landing page (/) and partnership application (/partners), no sign-in
+  app/(site)/        student pages (home, projects, students, leaderboard, about)
   app/welcome/       entry page + sign-in server actions
   app/admin/         administrator dashboard (server-guarded)
   app/present/       Presentation Mode

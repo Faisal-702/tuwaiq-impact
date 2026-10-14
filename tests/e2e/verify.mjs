@@ -49,9 +49,11 @@ const visitor = await browser.newContext({ viewport: { width: 1440, height: 900 
 const vp = await visitor.newPage();
 watch(vp, "visitor");
 
-await check("First visit is routed to the entry page", async () => {
+await check("First visit shows the landing page; Sign in leads to the entry page", async () => {
   await vp.goto(BASE + "/");
-  assert(new URL(vp.url()).pathname === "/welcome", `landed on ${vp.url()}`);
+  assert(new URL(vp.url()).pathname === "/", `landed on ${vp.url()}`);
+  await vp.getByTestId("landing-login").click();
+  await vp.waitForURL((u) => u.pathname === "/welcome");
   await vp.getByRole("heading", { name: /Athar Platform/ }).waitFor();
 });
 

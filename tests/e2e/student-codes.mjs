@@ -201,13 +201,13 @@ await check("Existing admin login still works (Admin Access tab)", async () => {
   await A.getByRole("heading", { name: "Overview" }).waitFor();
 });
 
-await check("Sidebar: Student Codes sits between Suggestions and Leaderboard", async () => {
+await check("Sidebar: Student Codes sits between Suggestions and Partners", async () => {
   const items = (await A.locator("aside nav").first().locator("li").allInnerTexts()).map((t) => t.trim());
   const i = items.indexOf("Student Codes");
   assert(i > 0, JSON.stringify(items));
   assert(
     JSON.stringify(items.slice(i - 3, i + 3)) ===
-      JSON.stringify(["Students", "Categories", "Suggestions", "Student Codes", "Leaderboard", "Analytics"]),
+      JSON.stringify(["Students", "Categories", "Suggestions", "Student Codes", "Partners", "Leaderboard"]),
     JSON.stringify(items),
   );
 });
@@ -542,7 +542,7 @@ await check("AR · Student Codes page labels, sidebar and print grouping", async
   for (const b of ["إنشاء الأكواد للكل", "طباعة الأكواد"]) await ar.page.getByRole("button", { name: b }).waitFor();
   const items = (await ar.page.locator("aside nav").first().locator("li").allInnerTexts()).map((t) => t.trim());
   const i = items.indexOf("أكواد الطلاب");
-  assert(JSON.stringify(items.slice(i - 3, i + 3)) === JSON.stringify(["الطلاب", "التصنيفات", "الاقتراحات", "أكواد الطلاب", "لوحة الصدارة", "التحليلات"]), JSON.stringify(items));
+  assert(JSON.stringify(items.slice(i - 3, i + 3)) === JSON.stringify(["الطلاب", "التصنيفات", "الاقتراحات", "أكواد الطلاب", "الشركاء", "لوحة الصدارة"]), JSON.stringify(items));
   const options = await ar.page.locator("#code-grade option").allTextContents();
   assert(JSON.stringify(options) === JSON.stringify(["جميع الصفوف", "أولى ثانوي", "ثاني ثانوي", "ثالث ثانوي"]), JSON.stringify(options));
   const status = await ar.page.locator("#code-status option").allTextContents();
