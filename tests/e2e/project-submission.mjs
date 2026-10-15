@@ -129,11 +129,13 @@ const pdf = Buffer.from(
 const studentCode = await ensureStudentCode(browser, { base: BASE, admin: ADMIN, student: STUDENT });
 const otherCode = await ensureStudentCode(browser, { base: BASE, admin: ADMIN, student: OTHER_STUDENT });
 
-// Start from a clean slate for the students used here (drafts from earlier runs).
+// Start from a clean slate for the students used here (drafts and saved
+// profiles from earlier runs; a saved profile would pre-fill the form).
 if (sql) {
   await sql`
-    delete from project_submissions where status = 'draft'
+    delete from project_submissions where status in ('draft', 'editing')
        and student_id in (select id from students where name_en in (${STUDENT}, ${OTHER_STUDENT}))`;
+  await sql`delete from student_profiles where student_id in (select id from students where name_en in (${STUDENT}, ${OTHER_STUDENT}))`;
 }
 
 const context = await newContext("ar");
@@ -518,6 +520,7 @@ if (sql) {
     await sql`delete from projects where id = ${p.id}`;
   }
   await sql`delete from project_submissions ps using students st where st.id = ps.student_id and st.name_en in (${STUDENT}, ${OTHER_STUDENT}) and ps.status = 'draft'`;
+  await sql`delete from student_profiles where student_id in (select id from students where name_en in (${STUDENT}, ${OTHER_STUDENT}))`;
   await sql.end();
 }
 
