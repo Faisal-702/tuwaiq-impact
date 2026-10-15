@@ -22,6 +22,7 @@
     "test:language-switch": "node --env-file-if-exists=.env.local tests/e2e/language-switch.mjs",
     "test:project-submission": "node --env-file-if-exists=.env.local tests/e2e/project-submission.mjs",
     "test:partners": "node --env-file-if-exists=.env.local tests/e2e/partners.mjs",
+    "test:my-projects": "node --env-file-if-exists=.env.local tests/e2e/my-projects.mjs",
     "mock:supabase-auth": "node tests/e2e/mock-supabase-auth.mjs",
     "postinstall": "patch-package",
     "perf:measure": "node --env-file-if-exists=.env.local tests/perf/measure.mjs",

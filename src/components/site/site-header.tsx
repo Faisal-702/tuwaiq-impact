@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { LayoutDashboard, LogOut, Menu, MessageSquareText, Search, UserRound, X } from "lucide-react";
+import { FolderOpen, LayoutDashboard, LogOut, Menu, MessageSquareText, Search, UserRound, X } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import Link from "@/components/ui/link";
 import { usePathname } from "next/navigation";
@@ -157,6 +157,21 @@ export function SiteHeader({
                       {studentName}
                     </p>
                     <DropdownMenu.Separator className="mx-1 my-1 h-px bg-line-soft" />
+                    <DropdownMenu.Item asChild>
+                      <Link
+                        href="/my-projects"
+                        aria-current={pathname.startsWith("/my-projects") ? "page" : undefined}
+                        className={cn(
+                          "flex w-full cursor-pointer select-none items-center gap-2.5 rounded-lg px-3 py-2 text-sm outline-none data-[highlighted]:bg-[#f2f0fe] data-[highlighted]:text-[#644fd3]",
+                          pathname.startsWith("/my-projects") ? "bg-[#f2f0fe] font-medium text-[#644fd3]" : "text-ink",
+                        )}
+                        data-testid="menu-my-projects"
+                      >
+                        <FolderOpen className="size-4" aria-hidden />
+                        {t.nav.myProjects}
+                      </Link>
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Separator className="mx-1 my-1 h-px bg-line-soft" />
                     <form action={signOut}>
                       <DropdownMenu.Item asChild onSelect={(e) => e.preventDefault()}>
                         <button
@@ -241,6 +256,16 @@ export function SiteHeader({
                     </li>
                   ) : null}
                 </ul>
+                {student ? (
+                  <Link
+                    href="/my-projects"
+                    className="mt-4 flex items-center gap-2 rounded-xl px-4 py-3 text-base font-medium text-[#644fd3] transition hover:bg-[#f2f0fe]"
+                    data-testid="mobile-my-projects"
+                  >
+                    <FolderOpen className="size-4" aria-hidden />
+                    {t.nav.myProjects}
+                  </Link>
+                ) : null}
                 {student ? (
                   <form action={signOut} className="mt-4 flex items-center justify-between gap-3 border-t border-line-soft pt-4">
                     <span dir="auto" className="flex min-w-0 items-center gap-2 text-sm font-medium text-ink">

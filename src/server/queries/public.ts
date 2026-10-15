@@ -33,6 +33,8 @@ type CardRow = Omit<ProjectCardData, "cover"> & {
 const CARD_COLUMNS = sql`
   p.id, p.slug, p.title, p.description, p.grade, p.points, p.view_count, p.is_featured, p.award,
   p.published_at, p.summary, p.requested_amount::float8 as requested_amount, p.field, p.field_other,
+  coalesce((select sum(se.amount) from project_support_entries se
+             where se.project_id = p.id and se.reversed_at is null), 0)::float8 as recorded_support,
   json_build_object('id', c.id, 'slug', c.slug, 'name_en', c.name_en, 'name_ar', c.name_ar,
                     'icon', c.icon, 'accent', c.accent) as category,
   coalesce((
@@ -71,6 +73,7 @@ function toCard(row: CardRow): ProjectCardData {
     students: row.students,
     summary: row.summary,
     requested_amount: row.requested_amount,
+    recorded_support: row.recorded_support ?? 0,
     field: row.field,
     field_other: row.field_other,
     cover: coverPath
@@ -282,6 +285,7 @@ type DetailRow = CardRow & {
   class_name: string | null;
   academic_year: string | null;
   supervisor: string | null;
+  supervisors: string[] | null;
   status: "draft" | "published";
   cover_media_id: string | null;
   category_id: string;
@@ -302,7 +306,7 @@ export function mapMedia(row: Omit<ProjectMedia, "original_url" | "preview_url" 
 
 async function loadDetail(where: ReturnType<typeof sql>): Promise<(ProjectDetail & { category_id: string }) | null> {
   const [row] = await sql<DetailRow[]>`
-    select ${CARD_COLUMNS}, p.class_name, p.academic_year, p.supervisor, p.status, p.cover_media_id,
+    select ${CARD_COLUMNS}, p.class_name, p.academic_year, p.supervisor, p.supervisors, p.status, p.cover_media_id,
            p.category_id, p.created_at, p.updated_at
       from projects p
       join categories c on c.id = p.category_id
@@ -329,6 +333,7 @@ async function loadDetail(where: ReturnType<typeof sql>): Promise<(ProjectDetail
     class_name: row.class_name,
     academic_year: row.academic_year,
     supervisor: row.supervisor,
+    supervisors: (row.supervisors?.length ? row.supervisors : row.supervisor ? [row.supervisor] : []).filter((x) => x && x.trim()),
     status: row.status,
     cover_media_id: row.cover_media_id,
     category_id: row.category_id,

@@ -5,6 +5,7 @@ import type { RefObject } from "react";
 import { useI18n } from "@/i18n/client";
 import { fmt, formatBytes, formatNumber, gradeLabel } from "@/i18n/format";
 import {
+  cleanSupervisors,
   fieldLabel,
   parseAmount,
   SUBMISSION_SECTIONS_LIST,
@@ -41,6 +42,7 @@ export function SubmissionReview({
   onAcknowledge,
   onEdit,
   missing,
+  extraSupervisors = [],
 }: {
   headingRef: RefObject<HTMLHeadingElement | null>;
   answers: SubmissionAnswers;
@@ -50,6 +52,8 @@ export function SubmissionReview({
   onAcknowledge: (checked: boolean) => void;
   onEdit: (section: SubmissionSection) => void;
   missing: Partial<Record<StepField, FieldError>>;
+  /** Supervisors after the first one. */
+  extraSupervisors?: string[];
 }) {
   const { t, locale } = useI18n();
   const q = t.submit.questions;
@@ -101,6 +105,8 @@ export function SubmissionReview({
       }
       case "acknowledged":
         return null;
+      case "supervisor":
+        return cleanSupervisors(a.supervisor, extraSupervisors).join(locale === "ar" ? "، " : ", ");
       default:
         return a[field as AnswerKey];
     }

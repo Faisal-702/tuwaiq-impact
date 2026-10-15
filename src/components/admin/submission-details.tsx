@@ -36,6 +36,8 @@ export function SubmissionDetails({ submission, t, locale }: { submission: Admin
         const n = parseAmount(a[field]);
         return n === null ? a[field] : `${formatNumber(n, locale)} ${t.submit.currency}`;
       }
+      case "supervisor":
+        return submission.supervisors.join(locale === "ar" ? "، " : ", ");
       case "cover":
       case "evidence":
       case "acknowledged":

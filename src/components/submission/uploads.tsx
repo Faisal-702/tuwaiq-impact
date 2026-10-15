@@ -1,7 +1,7 @@
 "use client";
 
 import { FileText, Film, ImageIcon, ImagePlus, Loader2, Paperclip, RotateCcw, Trash2, UploadCloud } from "lucide-react";
-import { useRef, useState } from "react";
+import { createContext, useContext, useRef, useState } from "react";
 import { useI18n } from "@/i18n/client";
 import { fmt, formatBytes, formatNumber } from "@/i18n/format";
 import {
@@ -43,6 +43,13 @@ function useUploadError() {
             : t.submit.errors.uploadFailed;
 }
 
+/**
+ * The form the uploads belong to: null for a new project's draft, or the id
+ * of the student's project being edited (the server checks ownership).
+ */
+const SubmissionTarget = createContext<string | null>(null);
+export const SubmissionTargetProvider = SubmissionTarget.Provider;
+
 // ---------------------------------------------------------------------------
 // Cover image (public)
 // ---------------------------------------------------------------------------
@@ -59,6 +66,7 @@ export function CoverUpload({
   describedById?: string;
 }) {
   const { t, locale } = useI18n();
+  const target = useContext(SubmissionTarget);
   const errorText = useUploadError();
   const inputRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<{ phase: "idle" | "processing" | "uploading"; progress: number }>({ phase: "idle", progress: 0 });
@@ -92,7 +100,7 @@ export function CoverUpload({
         contentType: type,
         size: file.size,
         variants: Object.keys(blobs) as ("large" | "thumb")[],
-      });
+      }, target);
       if (!res.ok) throw new Error(res.error);
       const { original, variants } = res.data;
       const total = file.size + Object.values(blobs).reduce((s, b) => s + (b?.size ?? 0), 0);
@@ -114,7 +122,7 @@ export function CoverUpload({
           }),
         ),
       ]);
-      const done = await confirmCoverUpload({ width, height });
+      const done = await confirmCoverUpload({ width, height }, target);
       if (!done.ok) throw new Error(done.error);
       onChange(done.data);
     } catch (e) {
@@ -129,7 +137,7 @@ export function CoverUpload({
 
   async function remove() {
     setError(null);
-    const res = await removeCoverImage();
+    const res = await removeCoverImage(target);
     if (!res.ok) return setError(errorText(res.error));
     onChange(null);
   }
@@ -289,6 +297,7 @@ export function EvidenceUpload({
   describedById?: string;
 }) {
   const { t, locale } = useI18n();
+  const target = useContext(SubmissionTarget);
   const errorText = useUploadError();
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<EvidenceItem[]>([]);
@@ -300,7 +309,7 @@ export function EvidenceUpload({
     const rule = mime ? EVIDENCE_RULES[mime] : null;
     if (!mime || !rule) return setError(`${file.name}: ${t.submit.errors.uploadType}`);
     if (file.size > rule.max) return setError(`${file.name}: ${t.submit.errors.uploadSize}`);
-    const res = await prepareEvidenceUpload({ fileName: file.name, contentType: mime, size: file.size });
+    const res = await prepareEvidenceUpload({ fileName: file.name, contentType: mime, size: file.size }, target);
     if (!res.ok) return setError(`${file.name}: ${errorText(res.error)}`);
     const item: EvidenceItem = { ...res.data.file, uploading: true, progress: 0 };
     setPending((p) => [...p, item]);
@@ -310,14 +319,14 @@ export function EvidenceUpload({
       await putWithProgress(res.data.url, res.data.headers, file, (n) =>
         patch({ progress: Math.min(99, Math.round((n / file.size) * 100)) }),
       );
-      const done = await confirmEvidenceUpload(item.id);
+      const done = await confirmEvidenceUpload(item.id, target);
       if (!done.ok) throw new Error(done.error);
       setPending((p) => p.filter((x) => x.id !== item.id));
       onChange((prev) => [...prev.filter((f) => f.id !== item.id), done.data]);
     } catch {
       setPending((p) => p.filter((x) => x.id !== item.id));
       // Drop the reservation so it does not count against the limit.
-      await removeEvidence(item.id).catch(() => undefined);
+      await removeEvidence(item.id, target).catch(() => undefined);
       setError(`${file.name}: ${t.submit.errors.uploadFailed}`);
     }
   }
@@ -333,7 +342,7 @@ export function EvidenceUpload({
 
   async function remove(id: string) {
     setError(null);
-    const res = await removeEvidence(id);
+    const res = await removeEvidence(id, target);
     if (!res.ok) return setError(errorText(res.error));
     onChange((prev) => prev.filter((f) => f.id !== id));
   }

@@ -2,11 +2,14 @@ import "server-only";
 import { sql } from "./db";
 import { mediaUrl } from "./storage";
 import {
+  cleanSupervisors,
   EMPTY_ANSWERS,
   sanitizeAnswers,
+  sanitizeExtraSupervisors,
   type EvidenceFile,
   type SubmissionAnswers,
 } from "@/lib/submission";
+import { getStudentProfile } from "./profiles";
 
 /** Cover image of a submission (public media bucket, same layout as project media). */
 export type StoredCover = {
@@ -27,7 +30,8 @@ export type StoredEvidence = EvidenceFile & { path: string };
 export type SubmissionRow = {
   id: string;
   student_id: string | null;
-  status: "draft" | "submitted";
+  /** draft: a new project; submitted: published; editing: pending changes to a submitted project. */
+  status: "draft" | "submitted" | "editing";
   answers: Record<string, unknown>;
   cover: StoredCover | null;
   evidence: StoredEvidence[];
@@ -40,6 +44,8 @@ export type SubmissionRow = {
 /** What the student's browser receives for their draft: no storage paths. */
 export type DraftView = {
   answers: SubmissionAnswers;
+  /** Supervisors after the first one (the first is answers.supervisor). */
+  extraSupervisors: string[];
   cover: { thumbUrl: string | null; fileName: string; uploaded: boolean } | null;
   evidence: EvidenceFile[];
   updatedAt: string;
@@ -51,15 +57,27 @@ export async function getStudentDraft(studentId: string): Promise<SubmissionRow 
   return row ?? null;
 }
 
-/** Answers pre-filled from what the platform already knows about the student. */
+/**
+ * Answers pre-filled for a new project: the personal details the student
+ * saved with an earlier project (any device), else what the platform's
+ * student record says (name, grade, section).
+ */
 async function draftPrefill(studentId: string): Promise<SubmissionAnswers> {
-  const [student] = await sql<{ name_ar: string | null; name_en: string | null; grade: number | null; section: number | null }[]>`
-    select name_ar, name_en, grade, section from students where id = ${studentId}`;
+  const [[student], profile] = await Promise.all([
+    sql<{ name_ar: string | null; name_en: string | null; grade: number | null; section: number | null }[]>`
+      select name_ar, name_en, grade, section from students where id = ${studentId}`,
+    getStudentProfile(studentId),
+  ]);
+  const grade = profile?.grade ?? student?.grade;
+  const section = profile?.section ?? student?.section;
   return {
     ...EMPTY_ANSWERS,
-    studentName: student?.name_ar ?? student?.name_en ?? "",
-    grade: student?.grade && [10, 11, 12].includes(student.grade) ? String(student.grade) : "",
-    section: student?.section ? String(student.section) : "",
+    studentName: profile?.full_name ?? student?.name_ar ?? student?.name_en ?? "",
+    nationalId: profile?.national_id ?? "",
+    phone: profile?.phone ?? "",
+    email: profile?.email ?? "",
+    grade: grade && [10, 11, 12].includes(grade) ? String(grade) : "",
+    section: section ? String(section) : "",
   };
 }
 
@@ -70,7 +88,10 @@ async function draftPrefill(studentId: string): Promise<SubmissionAnswers> {
 export async function loadDraftView(studentId: string): Promise<{ view: DraftView; stored: boolean }> {
   const row = await getStudentDraft(studentId);
   if (row) return { view: draftView(row), stored: true };
-  return { view: { answers: await draftPrefill(studentId), cover: null, evidence: [], updatedAt: new Date().toISOString() }, stored: false };
+  return {
+    view: { answers: await draftPrefill(studentId), extraSupervisors: [], cover: null, evidence: [], updatedAt: new Date().toISOString() },
+    stored: false,
+  };
 }
 
 /**
@@ -94,6 +115,7 @@ export function draftView(row: SubmissionRow): DraftView {
   const cover = row.cover;
   return {
     answers: sanitizeAnswers(row.answers),
+    extraSupervisors: sanitizeExtraSupervisors(row.answers),
     cover: cover
       ? {
           thumbUrl: cover.uploaded ? mediaUrl(cover.thumb_path ?? cover.storage_path) : null,
@@ -107,6 +129,116 @@ export function draftView(row: SubmissionRow): DraftView {
 }
 
 // ---------------------------------------------------------------------------
+// Editing a submitted project
+// ---------------------------------------------------------------------------
+// The student's pending changes live in their own row (status 'editing'),
+// so autosave never changes the published project; "Save changes" applies
+// them. Ownership is the submitted questionnaire of the session's student.
+
+type OwnedProject = {
+  submission: SubmissionRow;
+  project: {
+    id: string;
+    slug: string;
+    title: string;
+    summary: string | null;
+    requested_amount: number | null;
+    field: string | null;
+    field_other: string | null;
+    supervisors: string[] | null;
+    supervisor: string | null;
+    status: "draft" | "published";
+    cover: StoredCover | null;
+    cover_media_id: string | null;
+  };
+};
+
+/** The student's submitted project (null when it is not theirs or is in the trash). */
+export async function getOwnedProject(studentId: string, projectId: string): Promise<OwnedProject | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(projectId)) return null;
+  const [row] = await sql<(OwnedProject["project"] & { submission: SubmissionRow })[]>`
+    select p.id, p.slug, p.title, p.summary, p.requested_amount::float8 as requested_amount, p.field, p.field_other,
+           p.supervisors, p.supervisor, p.status, p.cover_media_id,
+           case when m.id is null then null else json_build_object(
+             'storage_path', m.storage_path, 'preview_path', m.preview_path, 'thumb_path', m.thumb_path,
+             'file_name', coalesce(m.file_name, 'cover'), 'mime_type', coalesce(m.mime_type, 'image/jpeg'),
+             'size_bytes', coalesce(m.size_bytes, 0), 'width', m.width, 'height', m.height, 'uploaded', true) end as cover,
+           to_json(ps.*) as submission
+      from project_submissions ps
+      join projects p on p.id = ps.project_id and p.deleted_at is null
+      left join project_media m on m.id = p.cover_media_id and m.kind = 'image'
+     where ps.student_id = ${studentId} and ps.project_id = ${projectId} and ps.status = 'submitted'
+     order by ps.submitted_at desc
+     limit 1`;
+  if (!row) return null;
+  const { submission, ...project } = row;
+  return { submission: { ...submission, evidence: submission.evidence ?? [] }, project };
+}
+
+export async function getEditDraft(studentId: string, projectId: string): Promise<SubmissionRow | null> {
+  const [row] = await sql<SubmissionRow[]>`
+    select * from project_submissions where student_id = ${studentId} and project_id = ${projectId} and status = 'editing'`;
+  return row ?? null;
+}
+
+/** The answers as they are published now (the admin may have adjusted the public fields). */
+function editStartingPoint(owned: OwnedProject) {
+  const { submission, project } = owned;
+  const answers = sanitizeAnswers(submission.answers);
+  const supervisors = project.supervisors?.length ? project.supervisors : [answers.supervisor || project.supervisor || ""].filter(Boolean);
+  return {
+    answers: {
+      ...answers,
+      title: project.title,
+      summary: project.summary ?? answers.summary,
+      requestedAmount: project.requested_amount === null ? answers.requestedAmount : String(project.requested_amount),
+      field: project.field ?? answers.field,
+      fieldOther: project.field === "other" ? (project.field_other ?? "") : answers.fieldOther,
+      supervisor: supervisors[0] ?? answers.supervisor,
+      extraSupervisors: supervisors.slice(1),
+    },
+    cover: project.cover,
+    evidence: submission.evidence ?? [],
+  };
+}
+
+/** The edit form: pending changes when there are any, else the published project. Never writes. */
+export async function loadEditView(
+  studentId: string,
+  projectId: string,
+): Promise<{ view: DraftView; stored: boolean; project: OwnedProject["project"] } | null> {
+  const owned = await getOwnedProject(studentId, projectId);
+  if (!owned) return null;
+  const pending = await getEditDraft(studentId, projectId);
+  if (pending) return { view: draftView(pending), stored: true, project: owned.project };
+  const start = editStartingPoint(owned);
+  const view = draftView({
+    ...owned.submission,
+    status: "editing",
+    answers: start.answers,
+    cover: start.cover,
+    evidence: start.evidence,
+    updated_at: new Date(),
+  });
+  return { view, stored: false, project: owned.project };
+}
+
+/** Returns the pending-changes row, creating it from the published project the first time. */
+export async function ensureEditDraft(studentId: string, projectId: string): Promise<SubmissionRow | null> {
+  const existing = await getEditDraft(studentId, projectId);
+  if (existing) return existing;
+  const owned = await getOwnedProject(studentId, projectId);
+  if (!owned) return null;
+  const start = editStartingPoint(owned);
+  await sql`
+    insert into project_submissions (student_id, project_id, status, answers, cover, evidence)
+    values (${studentId}, ${projectId}, 'editing', ${sql.json(start.answers)}, ${start.cover ? sql.json(start.cover) : null},
+            ${sql.json(start.evidence as never)})
+    on conflict (student_id, project_id) where status = 'editing' do nothing`;
+  return getEditDraft(studentId, projectId);
+}
+
+// ---------------------------------------------------------------------------
 // Administrators
 // ---------------------------------------------------------------------------
 
@@ -114,6 +246,8 @@ export type AdminSubmissionView = {
   id: string;
   submittedAt: string | null;
   answers: SubmissionAnswers & { acknowledgedAt?: string };
+  /** Every supervisor / teacher given on the form. */
+  supervisors: string[];
   studentRecord: { name_ar: string | null; name_en: string | null } | null;
   evidence: (EvidenceFile & { href: string | null })[];
 };
@@ -136,6 +270,7 @@ export async function getSubmissionForProject(projectId: string): Promise<AdminS
     id: row.id,
     submittedAt: row.submitted_at ? new Date(row.submitted_at).toISOString() : null,
     answers: { ...sanitizeAnswers(raw), acknowledgedAt: typeof raw.acknowledgedAt === "string" ? raw.acknowledgedAt : undefined },
+    supervisors: cleanSupervisors(sanitizeAnswers(raw).supervisor, sanitizeExtraSupervisors(raw)),
     studentRecord: row.has_student ? { name_ar: row.name_ar, name_en: row.name_en } : null,
     // Links go through an admin-only route that checks the session and then
     // serves the file (or redirects to a fresh short-lived signed URL).

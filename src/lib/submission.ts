@@ -142,6 +142,40 @@ export function sanitizeAnswers(input: unknown): SubmissionAnswers {
 }
 
 // ---------------------------------------------------------------------------
+// Supervisors / teachers
+// ---------------------------------------------------------------------------
+// The first supervisor is the form's "supervisor" answer (required). Any
+// further supervisors are kept in the answers as "extraSupervisors".
+
+export const SUPERVISOR_MAX_LENGTH = 120;
+/** Upper bound for all supervisors of one project (a safety limit, not a design limit). */
+export const SUPERVISORS_MAX = 20;
+
+/** Additional supervisor inputs as typed (drafts keep empty inputs the student added). */
+export function sanitizeExtraSupervisors(input: unknown): string[] {
+  const list = (input && typeof input === "object" ? (input as Record<string, unknown>).extraSupervisors : undefined) ?? [];
+  if (!Array.isArray(list)) return [];
+  return list
+    .slice(0, SUPERVISORS_MAX - 1)
+    .map((v) => (typeof v === "string" ? v.slice(0, SUPERVISOR_MAX_LENGTH) : ""));
+}
+
+/** The final list: trimmed, empty entries dropped, repeated names kept once. */
+export function cleanSupervisors(first: string, extra: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of [first, ...extra]) {
+    const name = raw.replace(/\s+/g, " ").trim().slice(0, SUPERVISOR_MAX_LENGTH);
+    const key = name.toLocaleLowerCase();
+    if (!name || seen.has(key)) continue;
+    seen.add(key);
+    out.push(name);
+    if (out.length >= SUPERVISORS_MAX) break;
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // Normalisation
 // ---------------------------------------------------------------------------
 

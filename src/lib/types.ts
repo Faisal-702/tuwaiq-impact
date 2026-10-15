@@ -52,6 +52,8 @@ export type ProjectCardData = {
   summary: string | null;
   /** Amount requested in SAR; null when not given. */
   requested_amount: number | null;
+  /** Support recorded manually by the project's students (SAR; reversed entries excluded). */
+  recorded_support: number;
   /** Project field key from the submission form (see PROJECT_FIELDS). */
   field: string | null;
   field_other: string | null;
@@ -81,6 +83,8 @@ export type ProjectDetail = ProjectCardData & {
   class_name: string | null;
   academic_year: string | null;
   supervisor: string | null;
+  /** All supervisors / teachers (falls back to the single supervisor of older projects). */
+  supervisors: string[];
   status: ProjectStatus;
   cover_media_id: string | null;
   created_at: string;
