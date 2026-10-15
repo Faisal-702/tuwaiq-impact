@@ -196,7 +196,8 @@ await check("landing page switches AR ⇄ EN immediately, in place", async () =>
   await page.goto(BASE + "/");
   await page.evaluate(() => (window.__marker = true));
   await page.locator('[role="group"] button').filter({ hasText: "EN" }).first().click();
-  await page.waitForFunction(() => document.documentElement.lang === "en", null, { timeout: 8000 });
+  // The tab title follows the page language a moment later (with the new metadata).
+  await page.waitForFunction(() => document.documentElement.lang === "en" && document.title.startsWith("Athar Platform"), null, { timeout: 8000 });
   const s = await page.evaluate(() => ({
     dir: document.documentElement.dir,
     h1: document.querySelector("h1")?.innerText ?? "",

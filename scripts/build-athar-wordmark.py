@@ -10,7 +10,7 @@ Usage:
       [weight] [thLen] [barLen] [rehLen] [gap] [rehScale]
 Lengths and the gap are in font units (1000 per em). The current wordmark:
   python scripts/build-athar-wordmark.py \
-      node_modules/@fontsource-variable/cairo/files/cairo-arabic-wght-normal.woff2 \
+      src/app/fonts/cairo/cairo-arabic-wght-normal.woff2 \
       wordmark.json 650 420 470 150 235 1.1
 The output lists the paths (with their x offsets) and the view box; copy them
 into the component.
