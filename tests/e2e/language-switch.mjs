@@ -55,7 +55,7 @@ const PROBES = {
   "/projects": { selector: "main h1", en: "Explore Projects", ar: "استكشف المشاريع" },
   "/students": { selector: "main h1", en: "Students", ar: "الطلاب" },
   "/leaderboard": { selector: "main h1", en: "Leaderboard", ar: "لوحة الصدارة" },
-  "/add-project": { selector: "main h1", en: "Add a Project", ar: "إضافة مشروع" },
+  "/profile": { selector: "main h1", en: "Profile", ar: "الملف الشخصي" },
   "/admin": { selector: "aside nav", en: "Manage Projects", ar: "إدارة المشاريع" },
   "/admin/projects": { selector: "main h1", en: "Manage Projects", ar: "إدارة المشاريع" },
 };
@@ -116,7 +116,7 @@ await check("entry page keeps typed input while switching", async () => {
   await context.close();
 });
 
-for (const path of ["/home", "/projects", "/students", "/leaderboard", "/add-project"]) {
+for (const path of ["/home", "/projects", "/students", "/leaderboard", "/profile"]) {
   await check(`student ${path}: AR → EN → AR without reloading`, async () => {
     const { context, page } = await newPage("ar", studentCookies);
     await page.goto(BASE + path);

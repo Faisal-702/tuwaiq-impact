@@ -94,7 +94,6 @@ const PROFILE = {
 };
 const SUP1 = `أ. سعد ${RUN}`;
 const SUP2 = `أ. نورة ${RUN}`;
-const CANCEL_NEW = "نعم، إلغاء";
 const P1 = { title: `QA MyProj ${RUN} الري الذكي`, field: "ai", type: "individual", amount: "500", status: "complete" };
 const P2 = { title: `QA MyProj ${RUN} الأمن`, field: "cybersecurity", type: "group", amount: "1000", status: "incomplete" };
 
@@ -181,14 +180,14 @@ const card = (id) => page.locator(`[data-testid="my-project-card"][data-project=
 // Account menu, empty state
 // ---------------------------------------------------------------------------
 
-await check("account menu shows the name, مشاريعي and تسجيل الخروج; مشاريعي opens /my-projects", async () => {
+await check("account menu shows the name, الملف الشخصي, مشاريعي and تسجيل الخروج; مشاريعي opens /my-projects", async () => {
   await page.goto(BASE + "/home");
   await page.getByTestId("student-menu").click();
   const menu = page.locator('[role="menu"]');
   const text = (await menu.innerText()).replace(/\s+/g, " ");
   assert(text.includes("مشاريعي") && text.includes("تسجيل الخروج"), text);
   const order = await menu.locator('[role="menuitem"]').allInnerTexts();
-  assert(order[0].includes("مشاريعي") && order[1].includes("تسجيل الخروج"), order.join(" | "));
+  assert(order[0].includes("الملف الشخصي") && order[1].includes("مشاريعي") && order[2].includes("تسجيل الخروج"), order.join(" | "));
   await page.getByTestId("menu-my-projects").click();
   await page.waitForURL((u) => u.pathname === "/my-projects");
   await page.getByRole("heading", { level: 1, name: "مشاريعي" }).waitFor();
@@ -199,7 +198,9 @@ await check("empty state: no projects, zero totals, calm sidebar, working add bu
   assert((await page.getByTestId("stat-projects").locator("[data-value]").innerText()) === "0", "0 projects");
   assert((await page.getByTestId("summary-center").innerText()) === "0", "0 collected");
   await page.getByTestId("activity-empty").waitFor();
-  await page.getByTestId("notifications-none").waitFor();
+  // The only notice: the profile must be completed before adding a project.
+  const notices = await page.locator('[data-testid="notifications-list"] li').evaluateAll((els) => els.map((e) => e.getAttribute("data-kind")));
+  assert(JSON.stringify(notices) === JSON.stringify(["profile"]), JSON.stringify(notices));
   assert((await page.getByTestId("add-new-project").getAttribute("href")) === "/add-project", "add button");
 });
 
@@ -207,20 +208,19 @@ await check("empty state: no projects, zero totals, calm sidebar, working add bu
 // First project: personal details, several supervisors, publish without approval
 // ---------------------------------------------------------------------------
 
-await check("first project: personal details entered once; supervisor label; several supervisors added and one removed", async () => {
+await check("first project: the profile is completed first (once); several supervisors added and one removed", async () => {
   await page.getByTestId("add-new-project").click();
-  await step("student-1").waitFor();
-  assert((await page.locator("#nationalId").inputValue()) === "", "no national ID before the first project");
-  await page.locator("#studentName").fill(PROFILE.name);
+  await page.waitForURL((u) => u.pathname === "/profile" && u.search === "?required=project");
+  await page.getByTestId("profile-required").waitFor();
+  await page.locator("#fullName").fill(PROFILE.name);
   await page.locator("#nationalId").fill(PROFILE.nationalId);
   await page.locator("#phone").fill(PROFILE.phone);
   await page.locator("#email").fill(PROFILE.email);
   await choose("grade", "11");
-  await next("student-2");
   await choose("section", "2");
-  await next("details-1");
-  // Supervisor label of the form.
-  assert(true);
+  await page.getByTestId("profile-save").click();
+  await page.waitForURL((u) => u.pathname === "/add-project");
+  await step("details-1").waitFor();
   await fillProjectAndSubmit(P1, { extraSupervisors: [SUP2, `مؤقت ${RUN}`], removeExtra: 1, expectSupervisors: [SUP1, SUP2] });
 });
 
@@ -240,42 +240,28 @@ await check("published at once (no approval); supervisors stored in order and ke
   assert(!html.includes(SUP1) && !html.includes(SUP2), "supervisor shown on the public page");
 });
 
-await check("second project: personal details pre-filled from the saved profile", async () => {
+await check("second project: straight to the form, no personal questions (the saved profile is used)", async () => {
   await page.goto(BASE + "/add-project");
-  await step("student-1").waitFor();
-  assert((await page.locator("#studentName").inputValue()) === PROFILE.name, "name");
-  assert((await page.locator("#nationalId").inputValue()) === PROFILE.nationalId, "national ID");
-  assert((await page.locator("#phone").inputValue()) === PROFILE.phone, "phone");
-  assert((await page.locator("#email").inputValue()) === PROFILE.email, "email");
-  assert(await page.locator('input[name="grade"][value="11"]').isChecked(), "grade");
-  await next("student-2");
-  assert(await page.locator('input[name="section"][value="2"]').isChecked(), "section");
-  await next("details-1");
+  await step("details-1").waitFor();
+  assert((await page.locator("#nationalId").count()) === 0, "personal details asked again");
+  assert((await page.getByTestId("profile-notice").innerText()).includes(PROFILE.name), "profile linked");
   await fillProjectAndSubmit(P2);
 });
 
 const p2 = await projectId(P2.title);
 
-await check("another device (new session): profile still pre-filled; a correction is kept for later projects", async () => {
+await check("another device (new session): the same profile; a correction made there is saved for later projects", async () => {
   const { context, page: other } = await newPage("ar", { width: 390, height: 844 });
   await studentLogin(other, BASE, ownerCode);
-  await other.goto(BASE + "/add-project");
-  await other.locator('[data-step="student-1"]').waitFor();
-  assert((await other.locator("#nationalId").inputValue()) === PROFILE.nationalId, "pre-filled on the other device");
+  await other.goto(BASE + "/profile");
+  await other.locator('[data-testid="profile-status"][data-complete="true"]').waitFor();
+  assert((await other.locator("#nationalId").inputValue()) === PROFILE.nationalId, "same profile on the other device");
   const newPhone = "05" + String(Math.floor(10000000 + Math.random() * 89999999));
   await other.locator("#phone").fill(newPhone);
-  await other.getByTestId("wizard-next").click();
-  await other.locator('[data-step="student-2"]').waitFor();
+  await other.getByTestId("profile-save").click();
   await until(async () => (await sql`select phone from student_profiles where student_id = (select id from students where name_en = ${OWNER})`)[0]?.phone === newPhone, "profile updated");
-  // Cancel this draft; the next project starts with the corrected number.
-  await other.getByTestId("wizard-cancel").click();
-  await other.getByRole("alertdialog").getByRole("button", { name: CANCEL_NEW }).click();
-  await other.waitForURL((u) => u.pathname === "/home");
   await other.goto(BASE + "/add-project");
-  assert((await other.locator("#phone").inputValue()) === newPhone, "corrected phone pre-filled");
-  await other.getByTestId("wizard-cancel").click();
-  await other.getByRole("alertdialog").getByRole("button", { name: CANCEL_NEW }).click();
-  await other.waitForURL((u) => u.pathname === "/home");
+  await other.locator('[data-step="details-1"]').waitFor();
   PROFILE.phone = newPhone;
   await context.close();
 });
@@ -283,8 +269,8 @@ await check("another device (new session): profile still pre-filled; a correctio
 await check("another student never sees these private details or projects", async () => {
   const { context, page: other } = await newPage();
   await studentLogin(other, BASE, otherCode);
-  await other.goto(BASE + "/add-project");
-  await other.locator('[data-step="student-1"]').waitFor();
+  await other.goto(BASE + "/profile");
+  await other.getByTestId("profile-form").waitFor();
   for (const id of ["nationalId", "phone", "email"]) assert((await other.locator(`#${id}`).inputValue()) !== PROFILE[id], `${id} leaked`);
   await other.goto(BASE + "/my-projects");
   await other.getByTestId("my-projects-empty").waitFor();
@@ -477,9 +463,8 @@ await check("Edit opens the form pre-filled (supervisors, amount, cover) and can
   await page.goto(BASE + "/my-projects");
   await card(p1).getByTestId("action-edit").click();
   await page.waitForURL((u) => u.pathname === `/my-projects/${p1}/edit`);
-  await step("student-1").waitFor();
-  assert((await page.locator("#nationalId").inputValue()) === PROFILE.nationalId, "personal details");
-  for (const id of ["student-2", "details-1"]) await next(id);
+  await step("details-1").waitFor();
+  assert((await page.locator("#nationalId").count()) === 0, "no personal questions when editing");
   assert((await page.locator("#title").inputValue()) === P1.title, "title");
   await page.locator("#title").fill(`${P1.title} المطور`);
   for (const id of ["details-2", "details-3", "classification-1", "classification-2"]) await next(id);
@@ -529,7 +514,8 @@ await check("edits are saved in place: same project, support history intact, new
 
 await check("a single-supervisor project edits without extra inputs (legacy compatible)", async () => {
   await page.goto(BASE + `/my-projects/${p2}/edit`);
-  for (const id of ["student-2", "details-1", "details-2", "details-3", "classification-1", "classification-2", "attachments-1"]) await next(id);
+  await step("details-1").waitFor();
+  for (const id of ["details-2", "details-3", "classification-1", "classification-2", "attachments-1"]) await next(id);
   assert((await page.locator("#supervisor").inputValue()) === SUP1, "supervisor");
   assert((await page.getByTestId("extra-supervisor").count()) === 0, "no extra inputs");
   await page.getByTestId("wizard-cancel").click();
@@ -596,7 +582,7 @@ for (const [name, viewport] of [
     assert(await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth <= 1), "no sideways scrolling");
     await shot(p, `my-projects-${name}`);
     await p.goto(BASE + `/my-projects/${p1}/edit`);
-    await p.locator('[data-step="student-1"]').waitFor();
+    await p.locator('[data-step="details-1"]').waitFor();
     assert(await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth <= 1), "edit form fits");
     if (viewport.width < 768) {
       await p.goto(BASE + "/home");

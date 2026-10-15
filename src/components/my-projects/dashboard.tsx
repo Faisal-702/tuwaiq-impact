@@ -45,6 +45,7 @@ import { FundingBar } from "./funding-bar";
 import { FundsDialog } from "./funds-dialog";
 
 export type MyNotification =
+  | { kind: "profile"; projectId?: undefined; title?: undefined }
   | { kind: "pending" | "hidden" | "funded"; projectId: string; title: string }
   | { kind: "stale"; projectId: string; title: string; days: number };
 
@@ -736,19 +737,26 @@ function NotificationsCard({ notifications }: { notifications: MyNotification[] 
         <ul className="mt-4 space-y-3" data-testid="notifications-list">
           {items.map((item) => {
             const style =
-              item.kind === "hidden"
+              item.kind === "hidden" || item.kind === "profile"
                 ? { box: "bg-[#fef4ec] ring-[#fbe2cf]", title: "text-[#b45e3e]", icon: AlertCircle, iconTone: "text-[#d9822b]" }
                 : item.kind === "funded"
                   ? { box: "bg-[#f3fcfb] ring-[#d5f1eb]", title: "text-[#1d7f70]", icon: CircleCheckBig, iconTone: "text-[#029988]" }
                   : { box: "bg-[#edf4ff] ring-[#d6e4ff]", title: "text-[#2348c0]", icon: Info, iconTone: "text-[#2348c0]" };
             const Icon = style.icon;
             const title =
-              item.kind === "stale" ? n.staleTitle : fmt(n[`${item.kind}Title` as "pendingTitle" | "hiddenTitle" | "fundedTitle"], { title: item.title });
+              item.kind === "profile"
+                ? n.profileTitle
+                : item.kind === "stale"
+                  ? n.staleTitle
+                  : fmt(n[`${item.kind}Title` as "pendingTitle" | "hiddenTitle" | "fundedTitle"], { title: item.title });
             const body =
-              item.kind === "stale"
-                ? fmt(n.staleBody, { title: item.title, days: formatNumber(item.days, locale) })
-                : n[`${item.kind}Body` as "pendingBody" | "hiddenBody" | "fundedBody"];
-            const href = item.kind === "pending" || item.kind === "stale" ? `/my-projects/${item.projectId}/edit` : null;
+              item.kind === "profile"
+                ? n.profileBody
+                : item.kind === "stale"
+                  ? fmt(n.staleBody, { title: item.title, days: formatNumber(item.days, locale) })
+                  : n[`${item.kind}Body` as "pendingBody" | "hiddenBody" | "fundedBody"];
+            const href =
+              item.kind === "profile" ? "/profile" : item.kind === "pending" || item.kind === "stale" ? `/my-projects/${item.projectId}/edit` : null;
             const content = (
               <>
                 <Icon aria-hidden className={cn("mt-0.5 size-5 shrink-0", style.iconTone)} />
@@ -763,7 +771,7 @@ function NotificationsCard({ notifications }: { notifications: MyNotification[] 
               </>
             );
             return (
-              <li key={`${item.kind}-${item.projectId}`} data-kind={item.kind}>
+              <li key={`${item.kind}-${item.projectId ?? ""}`} data-kind={item.kind}>
                 {href ? (
                   <Link href={href} className={cn("flex gap-3 rounded-xl p-3.5 ring-1 ring-inset transition hover:brightness-[0.98]", style.box)}>
                     {content}

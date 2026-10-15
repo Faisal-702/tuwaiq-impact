@@ -9,7 +9,6 @@ import {
   type EvidenceFile,
   type SubmissionAnswers,
 } from "@/lib/submission";
-import { getStudentProfile } from "./profiles";
 
 /** Cover image of a submission (public media bucket, same layout as project media). */
 export type StoredCover = {
@@ -58,30 +57,6 @@ export async function getStudentDraft(studentId: string): Promise<SubmissionRow 
 }
 
 /**
- * Answers pre-filled for a new project: the personal details the student
- * saved with an earlier project (any device), else what the platform's
- * student record says (name, grade, section).
- */
-async function draftPrefill(studentId: string): Promise<SubmissionAnswers> {
-  const [[student], profile] = await Promise.all([
-    sql<{ name_ar: string | null; name_en: string | null; grade: number | null; section: number | null }[]>`
-      select name_ar, name_en, grade, section from students where id = ${studentId}`,
-    getStudentProfile(studentId),
-  ]);
-  const grade = profile?.grade ?? student?.grade;
-  const section = profile?.section ?? student?.section;
-  return {
-    ...EMPTY_ANSWERS,
-    studentName: profile?.full_name ?? student?.name_ar ?? student?.name_en ?? "",
-    nationalId: profile?.national_id ?? "",
-    phone: profile?.phone ?? "",
-    email: profile?.email ?? "",
-    grade: grade && [10, 11, 12].includes(grade) ? String(grade) : "",
-    section: section ? String(section) : "",
-  };
-}
-
-/**
  * The form as the student last left it, or a fresh pre-filled one. Viewing
  * the page never writes: a draft row is created on the first save or upload.
  */
@@ -89,22 +64,21 @@ export async function loadDraftView(studentId: string): Promise<{ view: DraftVie
   const row = await getStudentDraft(studentId);
   if (row) return { view: draftView(row), stored: true };
   return {
-    view: { answers: await draftPrefill(studentId), extraSupervisors: [], cover: null, evidence: [], updatedAt: new Date().toISOString() },
+    view: { answers: { ...EMPTY_ANSWERS }, extraSupervisors: [], cover: null, evidence: [], updatedAt: new Date().toISOString() },
     stored: false,
   };
 }
 
 /**
- * Returns the student's open draft, creating it (pre-filled with what the
- * platform already knows about the student) when there is none.
+ * Returns the student's open draft, creating it when there is none. Personal
+ * details are not part of the form: they come from the student profile.
  */
 export async function ensureDraft(studentId: string): Promise<SubmissionRow> {
   const existing = await getStudentDraft(studentId);
   if (existing) return existing;
-  const prefill = await draftPrefill(studentId);
   await sql`
     insert into project_submissions (student_id, answers)
-    values (${studentId}, ${sql.json(prefill)})
+    values (${studentId}, ${sql.json(EMPTY_ANSWERS)})
     on conflict (student_id) where status = 'draft' do nothing`;
   const created = await getStudentDraft(studentId);
   if (!created) throw new Error("Could not create submission draft");

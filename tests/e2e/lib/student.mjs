@@ -101,3 +101,36 @@ export async function studentSessionCookies(browser, { base, admin, student }) {
   if (cookies.length !== 1) throw new Error("student session cookie missing");
   return { code, cookies };
 }
+
+/** A random Saudi national ID with a valid check digit. */
+export function validNationalId() {
+  const body = "1" + Array.from({ length: 8 }, () => Math.floor(Math.random() * 10)).join("");
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    let d = Number(body[i]);
+    if (i % 2 === 0) {
+      d *= 2;
+      if (d > 9) d -= 9;
+    }
+    sum += d;
+  }
+  return body + String((10 - (sum % 10)) % 10);
+}
+
+/**
+ * Fills in and saves the signed-in student's profile (الملف الشخصي) through
+ * the page, as a student would. `values`: { fullName, nationalId, phone,
+ * email, grade, section }. Resolves once the profile is shown as complete.
+ */
+export async function completeProfile(page, base, values) {
+  await page.goto(base + "/profile");
+  await page.getByTestId("profile-form").waitFor();
+  await page.locator("#fullName").fill(values.fullName);
+  await page.locator("#nationalId").fill(values.nationalId);
+  await page.locator("#phone").fill(values.phone);
+  await page.locator("#email").fill(values.email);
+  await page.locator(`label:has(input[name="grade"][value="${values.grade}"])`).click();
+  await page.locator(`label:has(input[name="section"][value="${values.section}"])`).click();
+  await page.getByTestId("profile-save").click();
+  await page.locator('[data-testid="profile-status"][data-complete="true"]').waitFor();
+}

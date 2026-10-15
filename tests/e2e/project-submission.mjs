@@ -12,7 +12,7 @@
  * project and submissions it created afterwards.
  */
 import { chromium } from "playwright";
-import { adminCredentials, adminLogin, ensureStudentCode, randomClientIp, studentLogin } from "./lib/student.mjs";
+import { adminCredentials, adminLogin, completeProfile, ensureStudentCode, randomClientIp, studentLogin, validNationalId } from "./lib/student.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const ADMIN = adminCredentials();
@@ -142,6 +142,9 @@ const context = await newContext("ar");
 const page = await context.newPage();
 watch(page);
 await studentLogin(page, BASE, studentCode);
+// Personal details live in the student profile (الملف الشخصي), entered once.
+const STUDENT_NAME = `طالب اختبار ${RUN}`;
+await completeProfile(page, BASE, { fullName: STUDENT_NAME, nationalId: A.nationalId, phone: A.phone, email: A.email, grade: "12", section: "2" });
 
 const step = (id) => page.locator(`[data-step="${id}"]`);
 const next = async (to) => {
@@ -160,61 +163,25 @@ await check("homepage hero button reads إضافة مشروع and opens the form
   assert(nav.includes("استكشف المشاريع") && nav.includes("لوحة الصدارة"), "navigation items");
   await hero.click();
   await page.waitForURL(BASE + "/add-project");
-  await step("student-1").waitFor();
+  await step("details-1").waitFor();
 });
 
-await check("first screen asks the five student questions; progress shows 1 من 4", async () => {
-  const fields = await step("student-1").locator("[data-field]").evaluateAll((els) => els.map((e) => e.getAttribute("data-field")));
-  assert(JSON.stringify(fields) === JSON.stringify(["studentName", "nationalId", "phone", "email", "grade"]), `fields ${fields}`);
-  assert((await page.getByTestId("section-of").innerText()).includes("1 من 4"), "section indicator");
-  const text = await page.locator("main").innerText();
-  for (const label of ["الاسم الثلاثي للطالب", "رقم الهوية الوطنية", "رقم الجوال", "البريد الإلكتروني", "الصف الدراسي", "أولى ثانوي", "ثاني ثانوي", "ثالث ثانوي"]) {
-    assert(text.includes(label), `missing ${label}`);
-  }
-  assert((await page.locator("#studentName").inputValue()).trim().length > 0, "name pre-filled from the student record");
+await check("the form starts with the project details (no personal questions); progress shows 1 من 3; the profile is linked", async () => {
+  const fields = await step("details-1").locator("[data-field]").evaluateAll((els) => els.map((e) => e.getAttribute("data-field")));
+  assert(JSON.stringify(fields) === JSON.stringify(["projectType", "participants", "title", "description"]), `fields ${fields}`);
+  assert((await page.getByTestId("section-of").innerText()).includes("1 من 3"), "section indicator");
+  for (const id of ["studentName", "nationalId", "phone", "email"]) assert((await page.locator(`#${id}`).count()) === 0, `${id} asked in the form`);
+  assert((await page.getByTestId("profile-notice").innerText()).includes(STUDENT_NAME), "profile shown");
 });
 
 await check("validation blocks Next and explains each problem", async () => {
-  await page.locator("#studentName").fill("");
-  await page.locator("#nationalId").fill("1234567890");
-  await page.locator("#phone").fill("0412");
-  await page.locator("#email").fill("not-an-email");
   await page.getByTestId("wizard-next").click();
-  await fieldError("studentName").waitFor();
-  assert((await fieldError("nationalId").innerText()).includes("رقم الهوية غير صحيح"), "national ID error");
-  assert((await fieldError("phone").innerText()).includes("رقم جوال"), "phone error");
-  assert((await fieldError("email").innerText()).includes("بريد"), "email error");
-  assert(await step("student-1").isVisible(), "stayed on the step");
-  // Errors clear as the student fixes them.
-  await page.locator("#studentName").fill(`طالب اختبار ${RUN}`);
-  assert((await fieldError("studentName").count()) === 0, "error cleared on edit");
-});
-
-await check("student details accepted; section question on the next screen", async () => {
-  await page.locator("#nationalId").fill(A.nationalId);
-  await page.locator("#phone").fill(A.phone);
-  await page.locator("#email").fill(A.email);
-  await choose("grade", "12");
-  await next("student-2");
-  assert((await page.locator("main").innerText()).includes("الشعبة الدراسية"), "section question");
-  await page.getByTestId("wizard-next").click();
-  await fieldError("section").waitFor();
-  await choose("section", "2");
-  await next("details-1");
-  assert((await page.getByTestId("section-of").innerText()).includes("2 من 4"), "second section");
-});
-
-await check("Previous keeps every answer", async () => {
-  await page.getByTestId("wizard-previous").click();
-  await step("student-2").waitFor();
-  assert(await page.locator('input[name="section"][value="2"]').isChecked(), "section kept");
-  await page.getByTestId("wizard-previous").click();
-  await step("student-1").waitFor();
-  assert((await page.locator("#nationalId").inputValue()) === A.nationalId, "ID kept");
-  assert((await page.locator("#email").inputValue()) === A.email, "email kept");
-  assert(await page.locator('input[name="grade"][value="12"]').isChecked(), "grade kept");
-  await next("student-2");
-  await next("details-1");
+  await fieldError("projectType").waitFor();
+  assert(await fieldError("title").isVisible(), "title error");
+  assert(await fieldError("description").isVisible(), "description error");
+  assert(await step("details-1").isVisible(), "stayed on the step");
+  await page.locator("#title").fill(A.title);
+  assert((await fieldError("title").count()) === 0, "error cleared on edit");
 });
 
 await check("project details: group project requires participants", async () => {
@@ -227,6 +194,12 @@ await check("project details: group project requires participants", async () => 
   await page.getByTestId("wizard-next").click();
   await fieldError("participants").waitFor();
   await page.locator("#participants").fill(A.participants);
+  await next("details-2");
+  // Previous keeps every answer.
+  await page.getByTestId("wizard-previous").click();
+  await step("details-1").waitFor();
+  assert((await page.locator("#title").inputValue()) === A.title, "title kept");
+  assert((await page.locator("#participants").inputValue()) === A.participants, "participants kept");
   await next("details-2");
   await page.locator("#goals").fill(A.goals);
   await page.locator("#idea").fill(A.idea);
@@ -276,8 +249,8 @@ await check("save draft, reload and resume with answers restored", async () => {
   await until(async () => /حُفظت المسودة/.test(await page.getByTestId("save-status").innerText()), "save status");
   await page.reload();
   await page.getByTestId("draft-restored").waitFor();
-  assert((await page.locator("#nationalId").inputValue()) === A.nationalId, "ID restored");
-  for (const id of ["student-2", "details-1", "details-2", "details-3", "classification-1", "classification-2", "attachments-1"]) await next(id);
+  assert((await page.locator("#title").inputValue()) === A.title, "title restored");
+  for (const id of ["details-2", "details-3", "classification-1", "classification-2", "attachments-1"]) await next(id);
   assert((await page.locator("#summary").count()) === 0, "on attachments step");
 });
 
@@ -424,12 +397,21 @@ await check("another student gets their own empty form (no access to others' ans
   const p2 = await other.newPage();
   watch(p2);
   await studentLogin(p2, BASE, otherCode);
+  await completeProfile(p2, BASE, {
+    fullName: `طالب آخر ${RUN}`,
+    nationalId: validNationalId(),
+    phone: "0551234567",
+    email: `qa.other.${RUN.toLowerCase()}@example.com`,
+    grade: "10",
+    section: "1",
+  });
   await p2.goto(BASE + "/add-project");
-  await p2.locator('[data-step="student-1"]').waitFor();
-  assert((await p2.locator("#nationalId").inputValue()) === "", "empty ID");
-  assert(!(await p2.locator("#studentName").inputValue()).includes(RUN), "not the first student's name");
+  await p2.locator('[data-step="details-1"]').waitFor();
+  assert((await p2.locator("#title").inputValue()) === "", "empty title");
+  assert(!(await p2.getByTestId("profile-notice").innerText()).includes(STUDENT_NAME), "not the first student's profile");
+  assert(!(await p2.content()).includes(A.nationalId), "first student's ID not in the page");
   // Cancel deletes the draft and returns home.
-  await p2.locator("#nationalId").fill("1000000008");
+  await p2.locator("#title").fill(`QA other ${RUN}`);
   await p2.getByTestId("wizard-save").click();
   await until(async () => /حُفظت المسودة/.test(await p2.getByTestId("save-status").innerText()), "saved");
   await p2.getByTestId("wizard-cancel").click();
@@ -461,7 +443,7 @@ await check("English UI and mobile layout", async () => {
   watch(p3);
   await p3.goto(BASE + "/add-project");
   await p3.getByRole("heading", { name: "Add a Project", level: 1 }).waitFor();
-  assert((await p3.getByTestId("section-of").innerText()).includes("1 of 4"), "English progress");
+  assert((await p3.getByTestId("section-of").innerText()).includes("1 of 3"), "English progress");
   const overflow = await p3.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   assert(overflow <= 0, `add-project overflows by ${overflow}px`);
   await p3.goto(BASE + "/projects");

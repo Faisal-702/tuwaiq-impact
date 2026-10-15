@@ -6,6 +6,7 @@ import { buttonClasses } from "@/components/ui/button";
 import Link from "@/components/ui/link";
 import { getI18n } from "@/i18n/server";
 import { requireViewer } from "@/server/auth";
+import { isProfileComplete } from "@/server/profiles";
 import { listMyActivity, listMyProjects, type MyProject } from "@/server/queries/my-projects";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -17,8 +18,10 @@ export async function generateMetadata(): Promise<Metadata> {
 const STALE_DAYS = 60;
 
 /** Helpful, data-based notices only (no invented alerts, no funding pressure). */
-function notificationsFor(projects: MyProject[], now: Date): MyNotification[] {
+function notificationsFor(projects: MyProject[], now: Date, profileComplete: boolean): MyNotification[] {
   const out: MyNotification[] = [];
+  // A new project needs a complete profile: say so first.
+  if (!profileComplete) out.push({ kind: "profile" });
   for (const p of projects) if (p.hasPendingEdit) out.push({ kind: "pending", projectId: p.id, title: p.title });
   for (const p of projects) if (p.status === "draft") out.push({ kind: "hidden", projectId: p.id, title: p.title });
   for (const p of projects) if (p.hasTarget && p.funding.remaining <= 0) out.push({ kind: "funded", projectId: p.id, title: p.title });
@@ -57,7 +60,11 @@ export default async function MyProjectsPage() {
   }
 
   const studentId = viewer.student.studentId;
-  const [projects, activity] = await Promise.all([listMyProjects(studentId), listMyActivity(studentId, 30)]);
+  const [projects, activity, profileComplete] = await Promise.all([
+    listMyProjects(studentId),
+    listMyActivity(studentId, 30),
+    isProfileComplete(studentId),
+  ]);
   const now = new Date();
 
   return (
@@ -100,7 +107,7 @@ export default async function MyProjectsPage() {
           </Link>
         </header>
 
-        <MyProjectsDashboard projects={projects} activity={activity} notifications={notificationsFor(projects, now)} now={now.toISOString()} />
+        <MyProjectsDashboard projects={projects} activity={activity} notifications={notificationsFor(projects, now, profileComplete)} now={now.toISOString()} />
       </div>
     </div>
   );

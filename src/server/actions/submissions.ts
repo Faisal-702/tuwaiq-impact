@@ -10,8 +10,6 @@ import {
   EVIDENCE_MAX_FILES,
   EVIDENCE_RULES,
   evidenceMime,
-  normalizeNationalId,
-  normalizeSaudiPhone,
   parseAmount,
   projectField,
   sanitizeAnswers,
@@ -30,7 +28,7 @@ import { VARIANT_MIME } from "@/lib/media-rules";
 import { logActivity } from "../activity";
 import { getStudentSession } from "../auth";
 import { sql } from "../db";
-import { saveProfileFromAnswers } from "../profiles";
+import { getStudentProfile, isProfileComplete, type StudentProfile } from "../profiles";
 import { isSafeObjectPath, mediaUrl, privateStorage, storage } from "../storage";
 import {
   ensureDraft,
@@ -69,15 +67,47 @@ async function findRow(studentId: string, target: Target): Promise<SubmissionRow
   return projectId ? getEditDraft(studentId, projectId) : getStudentDraft(studentId);
 }
 
-async function ensureRow(studentId: string, target: Target): Promise<SubmissionRow | null> {
-  if (target != null && !validTarget(target)) return null;
+/**
+ * The row to write to, created when needed. A new project needs a complete
+ * student profile (the database refuses the draft otherwise too); changes to
+ * an existing project do not.
+ */
+async function ensureRow(studentId: string, target: Target): Promise<SubmissionRow | "not_found" | "profile_incomplete"> {
+  if (target != null && !validTarget(target)) return "not_found";
   const projectId = validTarget(target);
-  return projectId ? ensureEditDraft(studentId, projectId) : ensureDraft(studentId);
+  if (projectId) return (await ensureEditDraft(studentId, projectId)) ?? "not_found";
+  if (!(await isProfileComplete(studentId))) return "profile_incomplete";
+  return ensureDraft(studentId);
+}
+
+/**
+ * Personal details live in the student profile, not in the project form.
+ * They are copied into the stored questionnaire only when a project is
+ * submitted (a snapshot for administrators), never taken from the browser.
+ */
+const PERSONAL_KEYS = ["studentName", "nationalId", "phone", "email", "grade", "section"] as const satisfies readonly AnswerKey[];
+
+function withoutPersonal(answers: SubmissionAnswers): SubmissionAnswers {
+  const out = { ...answers };
+  for (const key of PERSONAL_KEYS) out[key] = "";
+  return out;
+}
+
+/** The profile as stored with a submitted project. */
+function personalSnapshot(profile: StudentProfile): Pick<SubmissionAnswers, (typeof PERSONAL_KEYS)[number]> {
+  return {
+    studentName: profile.full_name ?? "",
+    nationalId: profile.national_id ?? "",
+    phone: profile.phone ?? "",
+    email: profile.email ?? "",
+    grade: profile.grade ? String(profile.grade) : "",
+    section: profile.section ? String(profile.section) : "",
+  };
 }
 
 /** Answers + extra supervisors as stored in the row (drafts keep empty supervisor inputs). */
 function storedAnswers(answers: unknown, extraSupervisors: unknown) {
-  return { ...sanitizeAnswers(answers), extraSupervisors: sanitizeExtraSupervisors({ extraSupervisors }) };
+  return { ...withoutPersonal(sanitizeAnswers(answers)), extraSupervisors: sanitizeExtraSupervisors({ extraSupervisors }) };
 }
 
 // ---------------------------------------------------------------------------
@@ -92,8 +122,7 @@ export async function loadSubmissionDraft(): Promise<Result<DraftView>> {
 
 /**
  * Saves the answers given so far (any step). Values are trimmed to their
- * limits. Valid personal details are also kept in the student's profile so
- * the next project starts with them.
+ * limits. A new project needs a complete student profile.
  */
 export async function saveSubmissionDraft(
   answers: unknown,
@@ -103,14 +132,13 @@ export async function saveSubmissionDraft(
   const studentId = await requireStudentId();
   if (!studentId) return fail("unauthorized");
   const row = await ensureRow(studentId, target);
-  if (!row) return fail("not_found");
+  if (typeof row === "string") return fail(row);
   const clean = storedAnswers(answers, extraSupervisors);
   const [saved] = await sql<{ updated_at: Date }[]>`
     update project_submissions set answers = ${sql.json(clean)}
      where id = ${row.id} and status = ${row.status}
     returning updated_at`;
   if (!saved) return fail("not_found");
-  await saveProfileFromAnswers(studentId, clean).catch(() => console.error("Could not save the student profile"));
   return { ok: true, data: { updatedAt: new Date(saved.updated_at).toISOString() } };
 }
 
@@ -186,7 +214,7 @@ export async function prepareCoverUpload(
   if (size > COVER_MAX_BYTES) return fail("size");
 
   const row = await ensureRow(studentId, target);
-  if (!row) return fail("not_found");
+  if (typeof row === "string") return fail(row);
   const now = new Date();
   const dir = `media/${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}/${randomUUID()}`;
   const ext = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
@@ -244,7 +272,7 @@ export async function removeCoverImage(target?: Target): Promise<Result> {
   const studentId = await requireStudentId();
   if (!studentId) return fail("unauthorized");
   const row = target ? await ensureRow(studentId, target) : await findRow(studentId, target);
-  if (!row) return { ok: true, data: undefined };
+  if (!row || typeof row === "string") return { ok: true, data: undefined };
   const [old] = await sql<{ cover: StoredCover | null }[]>`
     update project_submissions ps set cover = null
       from (select id, cover from project_submissions where id = ${row.id} for update) old
@@ -278,7 +306,7 @@ export async function prepareEvidenceUpload(
   if (parsed.data.size > rule.max) return fail("size");
 
   const row = await ensureRow(studentId, target);
-  if (!row) return fail("not_found");
+  if (typeof row === "string") return fail(row);
   const id = randomUUID();
   const entry: StoredEvidence = {
     id,
@@ -321,7 +349,8 @@ export async function confirmEvidenceUpload(id: string, target?: Target): Promis
 export async function removeEvidence(id: string, target?: Target): Promise<Result> {
   const studentId = await requireStudentId();
   if (!studentId) return fail("unauthorized");
-  const row = target ? await ensureRow(studentId, target) : await findRow(studentId, target);
+  const found = target ? await ensureRow(studentId, target) : await findRow(studentId, target);
+  const row = typeof found === "string" ? null : found;
   const entry = row?.evidence.find((e) => e.id === id);
   if (!row || !entry) return fail("not_found");
   await sql`
@@ -345,13 +374,10 @@ export type SubmitResult =
   | { ok: false; error: string; fields?: Partial<Record<StepField, FieldError>>; recorded?: number };
 
 /** Answers as stored with a published project (normalised; dates of acknowledgment). */
-function normalizedAnswers(answers: SubmissionAnswers, supervisors: string[]) {
+function normalizedAnswers(answers: SubmissionAnswers, supervisors: string[], personal: Pick<SubmissionAnswers, (typeof PERSONAL_KEYS)[number]>) {
   return {
     ...answers,
-    studentName: answers.studentName.trim(),
-    nationalId: normalizeNationalId(answers.nationalId),
-    phone: normalizeSaudiPhone(answers.phone) ?? answers.phone,
-    email: answers.email.trim().toLowerCase(),
+    ...personal,
     toolsCost: String(parseAmount(answers.toolsCost)),
     requestedAmount: String(parseAmount(answers.requestedAmount)),
     competitionName: answers.competition === "yes" ? answers.competitionName.trim() : "",
@@ -399,6 +425,9 @@ export async function submitProject(input: { acknowledged: boolean }): Promise<S
   if (!studentId) return fail("unauthorized");
   const draft = await getStudentDraft(studentId);
   if (!draft) return fail("not_found");
+  // A new project needs a complete profile (the database checks it again).
+  const profile = await getStudentProfile(studentId);
+  if (!profile?.is_complete) return fail("profile_incomplete");
 
   const [{ recent }] = await sql<{ recent: number }[]>`
     select count(*)::int as recent from project_submissions
@@ -414,7 +443,7 @@ export async function submitProject(input: { acknowledged: boolean }): Promise<S
     if (e.uploaded && (await privateStorage().exists(e.path))) evidence.push(e);
   }
 
-  const normalized = normalizedAnswers(answers, supervisors);
+  const normalized = normalizedAnswers(answers, supervisors, personalSnapshot(profile));
   const { title, summary } = normalized;
   const { field, categoryId } = await categoryFor(answers.field);
   if (!categoryId) return fail("no_category");
@@ -432,7 +461,7 @@ export async function submitProject(input: { acknowledged: boolean }): Promise<S
       const [project] = await tx<{ id: string }[]>`
         insert into projects (slug, title, description, summary, category_id, grade, academic_year, points,
                               status, published_at, requested_amount, field, field_other, supervisors)
-        values (${slug}, ${title}, ${summary}, ${summary}, ${categoryId}, ${Number(answers.grade)}, ${academicYear}, 0,
+        values (${slug}, ${title}, ${summary}, ${summary}, ${categoryId}, ${profile.grade}, ${academicYear}, 0,
                 'published', now(), ${parseAmount(answers.requestedAmount)}, ${field.key},
                 ${field.key === "other" ? normalized.fieldOther : null}, ${supervisors})
         returning id`;
@@ -453,6 +482,7 @@ export async function submitProject(input: { acknowledged: boolean }): Promise<S
     });
   } catch (error) {
     if (error instanceof Error && error.message === "already_submitted") return fail("not_found");
+    if ((error as { hint?: string })?.hint === "profile_incomplete") return fail("profile_incomplete");
     console.error("Project submission failed", error instanceof Error ? error.message : "unknown");
     return fail("server");
   }
@@ -462,7 +492,6 @@ export async function submitProject(input: { acknowledged: boolean }): Promise<S
   const dropped = (draft.evidence ?? []).filter((e) => !kept.has(e.path)).map((e) => e.path);
   if (dropped.length) await privateStorage().remove(dropped).catch(() => {});
 
-  await saveProfileFromAnswers(studentId, answers).catch(() => console.error("Could not save the student profile"));
   // Activity log: the project only — never personal data.
   await logActivity({ action: "project.submitted", targetType: "project", targetId: projectId, targetLabel: title });
   revalidatePath("/", "layout");
@@ -481,7 +510,7 @@ const TRACKED: AnswerKey[] = [
 
 /**
  * Applies the student's pending changes to their published project: the
- * public fields (title, summary, field, grade, requested amount, supervisors,
+ * public fields (title, summary, field, requested amount, supervisors,
  * cover) and the full questionnaire. The project keeps its id, address,
  * points and recorded support; nothing else is overwritten. The requested
  * amount can not go below the support already recorded.
@@ -503,11 +532,15 @@ export async function saveProjectEdit(input: { projectId: string; acknowledged: 
   for (const e of pending.evidence ?? []) {
     if (e.uploaded && (await privateStorage().exists(e.path))) evidence.push(e);
   }
-  const normalized = normalizedAnswers(answers, supervisors);
+  const before = sanitizeAnswers(owned.submission.answers);
+  // Personal details stay as they were stored with this project.
+  const normalized = normalizedAnswers(answers, supervisors, {
+    studentName: before.studentName, nationalId: before.nationalId, phone: before.phone,
+    email: before.email, grade: before.grade, section: before.section,
+  });
   const { field, categoryId } = await categoryFor(answers.field);
   if (!categoryId) return fail("no_category");
 
-  const before = sanitizeAnswers(owned.submission.answers);
   const beforeSupervisors = owned.project.supervisors ?? [];
   const changed = TRACKED.filter((k) => String(before[k] ?? "").trim() !== String(normalized[k] ?? "").trim());
   if (beforeSupervisors.join("\n") !== supervisors.join("\n") && !changed.includes("supervisor")) changed.push("supervisor");
@@ -546,7 +579,7 @@ export async function saveProjectEdit(input: { projectId: string; acknowledged: 
       await tx`
         update projects
            set title = ${normalized.title}, description = ${normalized.summary}, summary = ${normalized.summary},
-               category_id = ${categoryId}, grade = ${Number(answers.grade)}, requested_amount = ${requested},
+               category_id = ${categoryId}, requested_amount = ${requested},
                field = ${field.key}, field_other = ${field.key === "other" ? normalized.fieldOther : null},
                supervisors = ${supervisors}, cover_media_id = ${coverMediaId}
          where id = ${projectId}`;
@@ -578,7 +611,6 @@ export async function saveProjectEdit(input: { projectId: string; acknowledged: 
   const dropped = [...(owned.submission.evidence ?? []), ...(pending.evidence ?? [])].map((e) => e.path).filter((p) => !kept.has(p));
   await removeEvidenceFiles([...new Set(dropped)]);
 
-  await saveProfileFromAnswers(studentId, answers).catch(() => console.error("Could not save the student profile"));
   await logActivity({ action: "project.edited", targetType: "project", targetId: projectId, targetLabel: normalized.title, details: { by: "student" } });
   revalidatePath("/", "layout");
   return { ok: true, data: { title: normalized.title } };

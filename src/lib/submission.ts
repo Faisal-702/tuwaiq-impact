@@ -234,15 +234,25 @@ export function parseAmount(raw: string): number | null {
 /** Pseudo-fields validated outside the answers (files, acknowledgment). */
 export type StepField = AnswerKey | "cover" | "evidence" | "acknowledged";
 
-export const SUBMISSION_SECTIONS_LIST = ["student", "details", "classification", "attachments"] as const;
+/**
+ * Sections of the project form. Personal details are not part of it: they
+ * come from the student profile (الملف الشخصي), see lib/profile.ts.
+ */
+export const SUBMISSION_SECTIONS_LIST = ["details", "classification", "attachments"] as const;
 export type SubmissionSection = (typeof SUBMISSION_SECTIONS_LIST)[number];
 
 export type SubmissionStep = { id: string; section: SubmissionSection; fields: StepField[] };
 
+/**
+ * The stored questionnaire as administrators read it: the student's details
+ * (copied from the profile when the project was submitted) come first.
+ */
+export const QUESTIONNAIRE_SECTIONS = ["student", ...SUBMISSION_SECTIONS_LIST] as const;
+export type QuestionnaireSection = (typeof QUESTIONNAIRE_SECTIONS)[number];
+export const PERSONAL_FIELDS: AnswerKey[] = ["studentName", "nationalId", "phone", "email", "grade", "section"];
+
 /** At most ~5 questions per screen; every question of the form is here. */
 export const SUBMISSION_STEPS: SubmissionStep[] = [
-  { id: "student-1", section: "student", fields: ["studentName", "nationalId", "phone", "email", "grade"] },
-  { id: "student-2", section: "student", fields: ["section"] },
   { id: "details-1", section: "details", fields: ["projectType", "participants", "title", "description"] },
   { id: "details-2", section: "details", fields: ["goals", "idea"] },
   { id: "details-3", section: "details", fields: ["competition", "competitionName", "summary"] },

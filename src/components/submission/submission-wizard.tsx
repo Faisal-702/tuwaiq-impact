@@ -16,7 +16,6 @@ import {
   Save,
   ShieldCheck,
   Trash2,
-  UserRound,
   type LucideIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -26,15 +25,13 @@ import { buttonClasses, Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import Link from "@/components/ui/link";
 import { useI18n } from "@/i18n/client";
-import { fmt, formatNumber, gradeLabel } from "@/i18n/format";
+import { fmt, formatNumber } from "@/i18n/format";
 import {
   PROJECT_FIELDS,
   PROJECT_STATUSES,
   PROJECT_TYPES,
   SUPERVISOR_MAX_LENGTH,
   SUPERVISORS_MAX,
-  SUBMISSION_GRADES,
-  SUBMISSION_SECTIONS,
   SUBMISSION_SECTIONS_LIST,
   SUBMISSION_STEPS,
   SUMMARY_MAX,
@@ -47,15 +44,15 @@ import {
   type SubmissionAnswers,
   type SubmissionSection,
 } from "@/lib/submission";
+import type { ProfileValues } from "@/lib/profile";
 import { cn } from "@/lib/utils";
 import { discardSubmissionDraft, saveProjectEdit, saveSubmissionDraft, submitProject } from "@/server/actions/submissions";
 import type { DraftView } from "@/server/submissions";
 import { Checkbox, ChoiceCards, describedBy, FieldShell, SelectInput, TextArea, TextInput } from "./fields";
-import { SubmissionReview } from "./review";
+import { ProfileNotice, SubmissionReview } from "./review";
 import { CoverUpload, EvidenceUpload, SubmissionTargetProvider } from "./uploads";
 
 const SECTION_ICONS: Record<SubmissionSection, LucideIcon> = {
-  student: UserRound,
   details: FileText,
   classification: PieChart,
   attachments: FileStack,
@@ -70,7 +67,18 @@ type SaveState = { status: "idle" | "saving" | "saved" | "error"; at?: string };
 /** Editing one of the student's published projects (the same form, applied on "Save changes"). */
 export type WizardEdit = { projectId: string; slug: string; published: boolean };
 
-export function SubmissionWizard({ initial, restored, edit }: { initial: DraftView; restored: boolean; edit?: WizardEdit }) {
+export function SubmissionWizard({
+  initial,
+  restored,
+  edit,
+  profile,
+}: {
+  initial: DraftView;
+  restored: boolean;
+  edit?: WizardEdit;
+  /** The student's saved profile (new projects): shown, never edited here. */
+  profile?: ProfileValues;
+}) {
   const { t, locale, dir } = useI18n();
   const router = useRouter();
   const target = edit?.projectId ?? null;
@@ -104,12 +112,22 @@ export function SubmissionWizard({ initial, restored, edit }: { initial: DraftVi
     [t],
   );
 
+  /** The server refuses a new project while the profile is incomplete: go and complete it. */
+  const toProfile = useCallback(() => {
+    toast.error(t.profile.requiredToast);
+    router.replace("/profile?required=project");
+  }, [router, t]);
+
   const save = useCallback(
     async (mode: "auto" | "manual") => {
       const saving = version.current;
       setSaveState((s) => ({ ...s, status: "saving" }));
       try {
         const res = await saveSubmissionDraft(answers, extraSupervisors, target);
+        if (!res.ok && res.error === "profile_incomplete") {
+          toProfile();
+          return false;
+        }
         if (!res.ok) throw new Error(res.error);
         if (version.current === saving) setDirty(false);
         setSaveState({ status: "saved", at: res.data.updatedAt });
@@ -121,7 +139,7 @@ export function SubmissionWizard({ initial, restored, edit }: { initial: DraftVi
         return false;
       }
     },
-    [answers, extraSupervisors, target, t, sessionError],
+    [answers, extraSupervisors, target, t, sessionError, toProfile],
   );
 
   // Autosave shortly after the student stops typing.
@@ -234,9 +252,11 @@ export function SubmissionWizard({ initial, restored, edit }: { initial: DraftVi
     try {
       // The server validates the stored answers, so store the latest first.
       const saved = await saveSubmissionDraft(answers, extraSupervisors, target);
+      if (!saved.ok && saved.error === "profile_incomplete") return toProfile();
       if (!saved.ok) throw new Error(saved.error);
       setDirty(false);
       const res = edit ? await saveProjectEdit({ projectId: edit.projectId, acknowledged }) : await submitProject({ acknowledged });
+      if (!res.ok && res.error === "profile_incomplete") return toProfile();
       if (res.ok) {
         setDone(res.data);
         requestAnimationFrame(() => topRef.current?.scrollIntoView({ block: "start" }));
@@ -364,59 +384,16 @@ export function SubmissionWizard({ initial, restored, edit }: { initial: DraftVi
           </div>
         );
       }
-      case "studentName":
       case "title":
       case "competitionName":
       case "fieldOther": {
         const p = text(field);
         return (
           <FieldShell key={field} {...p.shell} required className="sm:col-span-2">
-            <TextInput {...p.input} autoComplete={field === "studentName" ? "name" : "off"} maxLength={field === "fieldOther" ? 80 : field === "studentName" ? 120 : 150} />
+            <TextInput {...p.input} autoComplete="off" maxLength={field === "fieldOther" ? 80 : 150} />
           </FieldShell>
         );
       }
-      case "nationalId":
-      case "phone": {
-        const p = text(field);
-        return (
-          <FieldShell key={field} {...p.shell} required>
-            <TextInput
-              {...p.input}
-              inputMode="numeric"
-              autoComplete={field === "phone" ? "tel-national" : "off"}
-              dir="ltr"
-              className="rtl:text-right"
-              maxLength={field === "phone" ? 16 : 12}
-            />
-          </FieldShell>
-        );
-      }
-      case "email": {
-        const p = text(field);
-        return (
-          <FieldShell key={field} {...p.shell} required className="sm:col-span-2">
-            <TextInput {...p.input} type="email" inputMode="email" autoComplete="email" dir="ltr" className="rtl:text-right" maxLength={254} />
-          </FieldShell>
-        );
-      }
-      case "grade":
-        return (
-          <div key={field} className="sm:col-span-2">
-            {choice(
-              "grade",
-              SUBMISSION_GRADES.map((g) => ({ value: String(g), label: gradeLabel(g, t.grades) })),
-            )}
-          </div>
-        );
-      case "section":
-        return (
-          <div key={field} className="sm:col-span-2">
-            {choice(
-              "section",
-              SUBMISSION_SECTIONS.map((n) => ({ value: String(n), label: fmt(t.submit.options.section, { n: formatNumber(n, locale) }) })),
-            )}
-          </div>
-        );
       case "projectType":
         return (
           <div key={field} className="sm:col-span-2">
@@ -557,6 +534,7 @@ export function SubmissionWizard({ initial, restored, edit }: { initial: DraftVi
               {edit ? t.myProjects.edit.pendingRestored : t.submit.draftRestored}
             </p>
           ) : null}
+          {profile && !edit && !isReview && stepIndex === 0 ? <ProfileNotice profile={profile} /> : null}
           {isReview ? (
             <SubmissionReview
               headingRef={headingRef}
@@ -571,6 +549,7 @@ export function SubmissionWizard({ initial, restored, edit }: { initial: DraftVi
               onEdit={editSection}
               missing={allErrors}
               extraSupervisors={extraSupervisors}
+              profile={edit ? undefined : profile}
             />
           ) : (
             <>
