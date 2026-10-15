@@ -15,7 +15,7 @@ import {
   Plus,
   Save,
   ShieldCheck,
-  UserRound,
+  Trash2,
   type LucideIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -25,13 +25,13 @@ import { buttonClasses, Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import Link from "@/components/ui/link";
 import { useI18n } from "@/i18n/client";
-import { fmt, formatNumber, gradeLabel } from "@/i18n/format";
+import { fmt, formatNumber } from "@/i18n/format";
 import {
   PROJECT_FIELDS,
   PROJECT_STATUSES,
   PROJECT_TYPES,
-  SUBMISSION_GRADES,
-  SUBMISSION_SECTIONS,
+  SUPERVISOR_MAX_LENGTH,
+  SUPERVISORS_MAX,
   SUBMISSION_SECTIONS_LIST,
   SUBMISSION_STEPS,
   SUMMARY_MAX,
@@ -44,15 +44,15 @@ import {
   type SubmissionAnswers,
   type SubmissionSection,
 } from "@/lib/submission";
+import type { ProfileValues } from "@/lib/profile";
 import { cn } from "@/lib/utils";
-import { discardSubmissionDraft, saveSubmissionDraft, submitProject } from "@/server/actions/submissions";
+import { discardSubmissionDraft, saveProjectEdit, saveSubmissionDraft, submitProject } from "@/server/actions/submissions";
 import type { DraftView } from "@/server/submissions";
 import { Checkbox, ChoiceCards, describedBy, FieldShell, SelectInput, TextArea, TextInput } from "./fields";
-import { SubmissionReview } from "./review";
-import { CoverUpload, EvidenceUpload } from "./uploads";
+import { ProfileNotice, SubmissionReview } from "./review";
+import { CoverUpload, EvidenceUpload, SubmissionTargetProvider } from "./uploads";
 
 const SECTION_ICONS: Record<SubmissionSection, LucideIcon> = {
-  student: UserRound,
   details: FileText,
   classification: PieChart,
   attachments: FileStack,
@@ -64,10 +64,26 @@ const AUTOSAVE_MS = 2500;
 type Errors = Partial<Record<StepField, FieldError>>;
 type SaveState = { status: "idle" | "saving" | "saved" | "error"; at?: string };
 
-export function SubmissionWizard({ initial, restored }: { initial: DraftView; restored: boolean }) {
+/** Editing one of the student's published projects (the same form, applied on "Save changes"). */
+export type WizardEdit = { projectId: string; slug: string; published: boolean };
+
+export function SubmissionWizard({
+  initial,
+  restored,
+  edit,
+  profile,
+}: {
+  initial: DraftView;
+  restored: boolean;
+  edit?: WizardEdit;
+  /** The student's saved profile (new projects): shown, never edited here. */
+  profile?: ProfileValues;
+}) {
   const { t, locale, dir } = useI18n();
   const router = useRouter();
+  const target = edit?.projectId ?? null;
   const [answers, setAnswers] = useState<SubmissionAnswers>(initial.answers);
+  const [extraSupervisors, setExtraSupervisors] = useState<string[]>(initial.extraSupervisors);
   const [cover, setCover] = useState<DraftView["cover"]>(initial.cover);
   const [evidence, setEvidence] = useState<EvidenceFile[]>(initial.evidence);
   const [acknowledged, setAcknowledged] = useState(false);
@@ -96,12 +112,22 @@ export function SubmissionWizard({ initial, restored }: { initial: DraftView; re
     [t],
   );
 
+  /** The server refuses a new project while the profile is incomplete: go and complete it. */
+  const toProfile = useCallback(() => {
+    toast.error(t.profile.requiredToast);
+    router.replace("/profile?required=project");
+  }, [router, t]);
+
   const save = useCallback(
     async (mode: "auto" | "manual") => {
       const saving = version.current;
       setSaveState((s) => ({ ...s, status: "saving" }));
       try {
-        const res = await saveSubmissionDraft(answers);
+        const res = await saveSubmissionDraft(answers, extraSupervisors, target);
+        if (!res.ok && res.error === "profile_incomplete") {
+          toProfile();
+          return false;
+        }
         if (!res.ok) throw new Error(res.error);
         if (version.current === saving) setDirty(false);
         setSaveState({ status: "saved", at: res.data.updatedAt });
@@ -113,7 +139,7 @@ export function SubmissionWizard({ initial, restored }: { initial: DraftView; re
         return false;
       }
     },
-    [answers, t, sessionError],
+    [answers, extraSupervisors, target, t, sessionError, toProfile],
   );
 
   // Autosave shortly after the student stops typing.
@@ -148,6 +174,19 @@ export function SubmissionWizard({ initial, restored }: { initial: DraftView; re
       if (key === "projectType") delete next.participants;
       return next;
     });
+  }
+
+  /** Additional supervisor / teacher inputs (the first one is the "supervisor" answer). */
+  function setSupervisors(update: (list: string[]) => string[]) {
+    version.current += 1;
+    setDirty(true);
+    setExtraSupervisors((list) => update(list));
+  }
+  function addSupervisor() {
+    if (extraSupervisors.length >= SUPERVISORS_MAX - 1) return;
+    const index = extraSupervisors.length;
+    setSupervisors((list) => [...list, ""]);
+    requestAnimationFrame(() => document.getElementById(`supervisor-${index + 2}`)?.focus());
   }
 
   function clearError(key: StepField) {
@@ -212,23 +251,29 @@ export function SubmissionWizard({ initial, restored }: { initial: DraftView; re
     setFormError(null);
     try {
       // The server validates the stored answers, so store the latest first.
-      const saved = await saveSubmissionDraft(answers);
+      const saved = await saveSubmissionDraft(answers, extraSupervisors, target);
+      if (!saved.ok && saved.error === "profile_incomplete") return toProfile();
       if (!saved.ok) throw new Error(saved.error);
       setDirty(false);
-      const res = await submitProject({ acknowledged });
+      const res = edit ? await saveProjectEdit({ projectId: edit.projectId, acknowledged }) : await submitProject({ acknowledged });
+      if (!res.ok && res.error === "profile_incomplete") return toProfile();
       if (res.ok) {
         setDone(res.data);
         requestAnimationFrame(() => topRef.current?.scrollIntoView({ block: "start" }));
         router.refresh();
         return;
       }
-      if (res.error === "validation" && res.fields) {
+      if ((res.error === "validation" || res.error === "below_recorded") && res.fields) {
         const errs = res.fields;
         const index = SUBMISSION_STEPS.findIndex((s) => s.fields.some((f) => errs[f]));
         setErrors(errs);
         if (index >= 0) {
           go(index);
-          setFormError(t.submit.errors.fixErrors);
+          setFormError(
+            res.error === "below_recorded"
+              ? fmt(t.myProjects.edit.belowRecorded, { amount: `${formatNumber(res.recorded ?? 0, locale)} ${t.submit.currency}` })
+              : t.submit.errors.fixErrors,
+          );
           focusFirstError(errs, SUBMISSION_STEPS[index].fields);
         }
         return;
@@ -241,10 +286,11 @@ export function SubmissionWizard({ initial, restored }: { initial: DraftView; re
     }
   }
 
-  if (done) return <SuccessCard ref={topRef} title={done.title} />;
+  if (done) return edit ? <EditSuccessCard ref={topRef} title={done.title} edit={edit} /> : <SuccessCard ref={topRef} title={done.title} />;
 
   // "Correct the highlighted fields" goes away once nothing is highlighted.
-  const shownFormError = formError === t.submit.errors.fixErrors && Object.keys(errors).length === 0 ? null : formError;
+  const aboutFields = formError === t.submit.errors.fixErrors || Boolean(formError?.startsWith(t.myProjects.edit.belowRecorded.split("{")[0]));
+  const shownFormError = aboutFields && Object.keys(errors).length === 0 ? null : formError;
 
   const errorText = (field: StepField) => {
     const code = errors[field];
@@ -290,60 +336,64 @@ export function SubmissionWizard({ initial, restored }: { initial: DraftView; re
 
   function renderField(field: StepField) {
     switch (field) {
-      case "studentName":
+      case "supervisor": {
+        const p = text(field);
+        return (
+          <div key={field} className="space-y-3 sm:col-span-2" data-testid="supervisors">
+            <FieldShell {...p.shell} required>
+              <TextInput {...p.input} autoComplete="off" maxLength={SUPERVISOR_MAX_LENGTH} />
+            </FieldShell>
+            {extraSupervisors.map((name, i) => (
+              <div key={i} className="flex items-center gap-2" data-testid="extra-supervisor">
+                <div className="min-w-0 flex-1">
+                  <label htmlFor={`supervisor-${i + 2}`} className="sr-only">
+                    {fmt(t.myProjects.supervisorN, { n: formatNumber(i + 2, locale) })}
+                  </label>
+                  <TextInput
+                    id={`supervisor-${i + 2}`}
+                    value={name}
+                    onChange={(v) => setSupervisors((list) => list.map((x, j) => (j === i ? v : x)))}
+                    invalid={false}
+                    autoComplete="off"
+                    maxLength={SUPERVISOR_MAX_LENGTH}
+                    placeholder={fmt(t.myProjects.supervisorN, { n: formatNumber(i + 2, locale) })}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSupervisors((list) => list.filter((_, j) => j !== i))}
+                  className="grid size-12 shrink-0 place-items-center rounded-xl text-muted ring-1 ring-inset ring-line transition hover:bg-danger-soft hover:text-danger-ink"
+                  aria-label={fmt(t.myProjects.removeSupervisor, { n: formatNumber(i + 2, locale) })}
+                  data-testid="remove-supervisor"
+                >
+                  <Trash2 className="size-4" aria-hidden />
+                </button>
+              </div>
+            ))}
+            {extraSupervisors.length < SUPERVISORS_MAX - 1 ? (
+              <button
+                type="button"
+                onClick={addSupervisor}
+                className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-purple transition hover:bg-lavender-soft"
+                data-testid="add-supervisor"
+              >
+                <Plus className="size-4" aria-hidden />
+                {t.myProjects.addSupervisor}
+              </button>
+            ) : null}
+          </div>
+        );
+      }
       case "title":
-      case "supervisor":
       case "competitionName":
       case "fieldOther": {
         const p = text(field);
         return (
           <FieldShell key={field} {...p.shell} required className="sm:col-span-2">
-            <TextInput {...p.input} autoComplete={field === "studentName" ? "name" : "off"} maxLength={field === "fieldOther" ? 80 : field === "studentName" || field === "supervisor" ? 120 : 150} />
+            <TextInput {...p.input} autoComplete="off" maxLength={field === "fieldOther" ? 80 : 150} />
           </FieldShell>
         );
       }
-      case "nationalId":
-      case "phone": {
-        const p = text(field);
-        return (
-          <FieldShell key={field} {...p.shell} required>
-            <TextInput
-              {...p.input}
-              inputMode="numeric"
-              autoComplete={field === "phone" ? "tel-national" : "off"}
-              dir="ltr"
-              className="rtl:text-right"
-              maxLength={field === "phone" ? 16 : 12}
-            />
-          </FieldShell>
-        );
-      }
-      case "email": {
-        const p = text(field);
-        return (
-          <FieldShell key={field} {...p.shell} required className="sm:col-span-2">
-            <TextInput {...p.input} type="email" inputMode="email" autoComplete="email" dir="ltr" className="rtl:text-right" maxLength={254} />
-          </FieldShell>
-        );
-      }
-      case "grade":
-        return (
-          <div key={field} className="sm:col-span-2">
-            {choice(
-              "grade",
-              SUBMISSION_GRADES.map((g) => ({ value: String(g), label: gradeLabel(g, t.grades) })),
-            )}
-          </div>
-        );
-      case "section":
-        return (
-          <div key={field} className="sm:col-span-2">
-            {choice(
-              "section",
-              SUBMISSION_SECTIONS.map((n) => ({ value: String(n), label: fmt(t.submit.options.section, { n: formatNumber(n, locale) }) })),
-            )}
-          </div>
-        );
       case "projectType":
         return (
           <div key={field} className="sm:col-span-2">
@@ -468,6 +518,7 @@ export function SubmissionWizard({ initial, restored }: { initial: DraftView; re
   const Back = dir === "rtl" ? ArrowRight : ArrowLeft;
 
   return (
+    <SubmissionTargetProvider value={target}>
     <div ref={topRef} className="scroll-mt-24">
       <StepsHeader current={sectionIndex} progress={progress} isReview={isReview} onSelect={(i) => editSection(SUBMISSION_SECTIONS_LIST[i])} />
 
@@ -480,9 +531,10 @@ export function SubmissionWizard({ initial, restored }: { initial: DraftView; re
           {showRestored ? (
             <p className="mb-6 flex items-center gap-2 rounded-xl bg-mint-soft px-4 py-3 text-sm font-medium text-teal-deep" role="status" data-testid="draft-restored">
               <CheckCircle2 className="size-4 shrink-0" aria-hidden />
-              {t.submit.draftRestored}
+              {edit ? t.myProjects.edit.pendingRestored : t.submit.draftRestored}
             </p>
           ) : null}
+          {profile && !edit && !isReview && stepIndex === 0 ? <ProfileNotice profile={profile} /> : null}
           {isReview ? (
             <SubmissionReview
               headingRef={headingRef}
@@ -496,6 +548,8 @@ export function SubmissionWizard({ initial, restored }: { initial: DraftView; re
               }}
               onEdit={editSection}
               missing={allErrors}
+              extraSupervisors={extraSupervisors}
+              profile={edit ? undefined : profile}
             />
           ) : (
             <>
@@ -547,14 +601,14 @@ export function SubmissionWizard({ initial, restored }: { initial: DraftView; re
                     {t.submit.cancel}
                   </Button>
                 }
-                title={t.submit.cancelTitle}
-                body={t.submit.cancelBody}
-                confirmLabel={t.submit.cancelConfirm}
+                title={edit ? t.myProjects.edit.cancelTitle : t.submit.cancelTitle}
+                body={edit ? t.myProjects.edit.cancelBody : t.submit.cancelBody}
+                confirmLabel={edit ? t.myProjects.edit.cancelConfirm : t.submit.cancelConfirm}
                 cancelLabel={t.submit.keepEditing}
                 onConfirm={async () => {
-                  await discardSubmissionDraft();
+                  await discardSubmissionDraft(target);
                   setDirty(false);
-                  router.push("/home");
+                  router.push(edit ? "/my-projects" : "/home");
                 }}
               />
             </div>
@@ -562,12 +616,12 @@ export function SubmissionWizard({ initial, restored }: { initial: DraftView; re
               <SaveStatus state={saveState} dirty={dirty} />
               <Button variant="secondary" onClick={() => void save("manual")} disabled={submitting || saveState.status === "saving"} data-testid="wizard-save">
                 <Save className="size-4" aria-hidden />
-                {t.submit.saveDraft}
+                {edit ? t.myProjects.edit.saveDraft : t.submit.saveDraft}
               </Button>
               {isReview ? (
                 <Button onClick={submit} disabled={!canSubmit} aria-disabled={!canSubmit} data-testid="wizard-submit">
                   {submitting ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Check className="size-4" aria-hidden />}
-                  {submitting ? t.submit.submitting : t.submit.submitProject}
+                  {submitting ? (edit ? t.myProjects.edit.saving : t.submit.submitting) : edit ? t.myProjects.edit.save : t.submit.submitProject}
                 </Button>
               ) : (
                 <Button onClick={next} data-testid="wizard-next">
@@ -582,6 +636,7 @@ export function SubmissionWizard({ initial, restored }: { initial: DraftView; re
         <InfoPanel section={isReview ? "attachments" : step.section} />
       </div>
     </div>
+    </SubmissionTargetProvider>
   );
 }
 
@@ -780,6 +835,39 @@ function SuccessCard({ title, ref }: { title: string; ref: React.Ref<HTMLDivElem
             <Home className="size-4" aria-hidden />
             {t.submit.successHome}
           </Link>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function EditSuccessCard({ title, edit, ref }: { title: string; edit: WizardEdit; ref: React.Ref<HTMLDivElement> }) {
+  const { t } = useI18n();
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => headingRef.current?.focus(), []);
+  return (
+    <div ref={ref} className="scroll-mt-24">
+      <section
+        className="mx-auto max-w-2xl rounded-[1.75rem] bg-white px-6 py-12 text-center shadow-soft ring-1 ring-line-soft motion-safe:animate-[fade-in_300ms_ease-out] sm:px-12"
+        data-testid="edit-success"
+        aria-labelledby="edit-success-heading"
+      >
+        <span className="mx-auto grid size-20 place-items-center rounded-full bg-mint-soft text-teal-deep ring-8 ring-mint-soft/50">
+          <CheckCircle2 className="size-10" strokeWidth={1.8} aria-hidden />
+        </span>
+        <h2 id="edit-success-heading" ref={headingRef} tabIndex={-1} className="mt-6 text-2xl font-bold text-ink focus:outline-none sm:text-3xl">
+          {t.myProjects.edit.successTitle}
+        </h2>
+        <p className="mx-auto mt-3 max-w-md text-[1.0625rem] leading-relaxed text-muted">{fmt(t.myProjects.edit.successBody, { title })}</p>
+        <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+          <Link href="/my-projects" className={buttonClasses("primary", "md")}>
+            {t.myProjects.edit.backToMyProjects}
+          </Link>
+          {edit.published ? (
+            <Link href={`/projects/${edit.slug}`} className={buttonClasses("secondary", "md")}>
+              {t.myProjects.actions.view}
+            </Link>
+          ) : null}
         </div>
       </section>
     </div>

@@ -1,10 +1,12 @@
-import { ArrowLeft, Award, CalendarDays, Eye, ExternalLink, Sparkles, Star } from "lucide-react";
+import { ArrowLeft, Award, CalendarDays, Coins, Eye, ExternalLink, Sparkles, Star } from "lucide-react";
+import { FundingBar } from "@/components/my-projects/funding-bar";
 import Link from "@/components/ui/link";
 import { CategoryChip } from "@/components/ui/chip";
 import { Reveal } from "@/components/ui/reveal";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
-import { formatDate, formatNumber, gradeLabel, localName } from "@/i18n/format";
+import { fmt, formatDate, formatNumber, gradeLabel, localName } from "@/i18n/format";
+import { funding } from "@/lib/funding";
 import type { ProjectCardData, ProjectDetail } from "@/lib/types";
 import { safeHttpUrl } from "@/lib/utils";
 import { ProjectCard } from "../project-card";
@@ -276,6 +278,7 @@ export function ProjectView({
                   ))}
                 </dl>
               </div>
+              {project.requested_amount !== null ? <FundingPanel project={project} t={t} locale={locale} /> : null}
               {!preview ? <CopyLinkButton /> : null}
             </div>
           </aside>
@@ -297,5 +300,40 @@ export function ProjectView({
         ) : null}
       </div>
     </article>
+  );
+}
+
+/** Requested / recorded / remaining, with the same calculation as "My Projects" (totals only). */
+function FundingPanel({ project, t, locale }: { project: ProjectDetail; t: Dictionary; locale: Locale }) {
+  const f = funding(project.requested_amount, project.recorded_support);
+  const rows = [
+    { key: "requested", label: t.projects.funding.requested, value: f.requested, tone: "text-ink" },
+    { key: "raised", label: t.projects.funding.raised, value: f.recorded, tone: "text-[#029988]" },
+    { key: "remaining", label: t.projects.funding.remaining, value: f.remaining, tone: "text-[#24958c]" },
+  ];
+  return (
+    <section className="rounded-[1.5rem] bg-white p-6 shadow-soft ring-1 ring-line-soft" aria-labelledby="funding-heading" data-testid="detail-funding">
+      <h2 id="funding-heading" className="flex items-center gap-2 text-base font-semibold text-ink">
+        <Coins className="size-4 text-teal" aria-hidden />
+        {t.project.funding.title}
+      </h2>
+      <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
+        {rows.map((r) => (
+          <div key={r.key} className="rounded-xl bg-canvas px-2 py-2.5">
+            <dt className="text-xs text-muted">{r.label}</dt>
+            <dd className={`mt-0.5 text-[0.9375rem] font-bold tabular-nums ${r.tone}`} data-testid={`detail-funding-${r.key}`}>
+              {formatNumber(r.value, locale)} <span className="text-xs font-semibold text-muted">{t.submit.currency}</span>
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <div className="mt-4 flex items-center gap-3">
+        <FundingBar funding={f} label={t.projects.funding.label} />
+        <span className="shrink-0 text-sm font-semibold tabular-nums text-[#5b6070]">
+          {fmt(t.projects.funding.progress, { n: formatNumber(f.percent, locale) })}
+        </span>
+      </div>
+      <p className="mt-3 text-xs leading-relaxed text-muted">{t.project.funding.note}</p>
+    </section>
   );
 }

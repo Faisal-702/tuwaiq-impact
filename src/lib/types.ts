@@ -52,6 +52,8 @@ export type ProjectCardData = {
   summary: string | null;
   /** Amount requested in SAR; null when not given. */
   requested_amount: number | null;
+  /** Support recorded manually by the project's students (SAR; reversed entries excluded). */
+  recorded_support: number;
   /** Project field key from the submission form (see PROJECT_FIELDS). */
   field: string | null;
   field_other: string | null;

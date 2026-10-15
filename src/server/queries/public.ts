@@ -33,6 +33,8 @@ type CardRow = Omit<ProjectCardData, "cover"> & {
 const CARD_COLUMNS = sql`
   p.id, p.slug, p.title, p.description, p.grade, p.points, p.view_count, p.is_featured, p.award,
   p.published_at, p.summary, p.requested_amount::float8 as requested_amount, p.field, p.field_other,
+  coalesce((select sum(se.amount) from project_support_entries se
+             where se.project_id = p.id and se.reversed_at is null), 0)::float8 as recorded_support,
   json_build_object('id', c.id, 'slug', c.slug, 'name_en', c.name_en, 'name_ar', c.name_ar,
                     'icon', c.icon, 'accent', c.accent) as category,
   coalesce((
@@ -71,6 +73,7 @@ function toCard(row: CardRow): ProjectCardData {
     students: row.students,
     summary: row.summary,
     requested_amount: row.requested_amount,
+    recorded_support: row.recorded_support ?? 0,
     field: row.field,
     field_other: row.field_other,
     cover: coverPath

@@ -1,8 +1,10 @@
-import { Banknote, GraduationCap, Star, UsersRound } from "lucide-react";
+import { GraduationCap, Star, UsersRound } from "lucide-react";
+import { FundingBar } from "@/components/my-projects/funding-bar";
 import { CategoryChip } from "@/components/ui/chip";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
-import { formatNumber, gradeLabel, localName } from "@/i18n/format";
+import { fmt, formatNumber, gradeLabel, localName } from "@/i18n/format";
+import { funding, type Funding } from "@/lib/funding";
 import { fieldLabel } from "@/lib/submission";
 import type { ProjectCardData } from "@/lib/types";
 import { excerpt } from "@/lib/utils";
@@ -16,9 +18,9 @@ function studentLine(project: ProjectCardData, locale: Locale) {
 
 /**
  * Card on the Explore Projects page. It shows only public information (cover,
- * name, field, students, grade, the student's own summary and the requested
- * amount) and is deliberately not a link: there is no detail, support or
- * donation action here.
+ * name, field, students, grade, the student's own summary and the funding
+ * status: requested, recorded and remaining amounts) and is deliberately not
+ * a link: there is no detail, support or donation action here.
  */
 export function ExploreProjectCard({ project, t, locale }: { project: ProjectCardData; t: Dictionary; locale: Locale }) {
   const field = fieldLabel(project.field, project.field_other, locale);
@@ -89,19 +91,53 @@ export function ExploreProjectCard({ project, t, locale }: { project: ProjectCar
         ) : null}
 
         {project.requested_amount !== null ? (
-          <div className="mt-auto pt-4">
-            <div className="flex items-center justify-between gap-3 border-t border-line-soft pt-3.5">
-              <span className="inline-flex items-center gap-1.5 text-sm text-muted">
-                <Banknote className="size-4 text-teal-deep" aria-hidden />
-                {t.projects.requestedAmount}
-              </span>
-              <span className="text-base font-bold text-ink" data-testid="card-amount">
-                {formatNumber(project.requested_amount, locale)} <span className="text-sm font-semibold text-muted">{t.submit.currency}</span>
-              </span>
-            </div>
-          </div>
+          <FundingIndicator funding={funding(project.requested_amount, project.recorded_support)} t={t} locale={locale} />
         ) : null}
       </div>
     </article>
+  );
+}
+
+/**
+ * Compact funding status: same figures and calculation as "My Projects".
+ * Only non-sensitive totals (no notes, no names of who gave support).
+ */
+function FundingIndicator({ funding: f, t, locale }: { funding: Funding; t: Dictionary; locale: Locale }) {
+  const amount = (n: number) => (
+    <>
+      {formatNumber(n, locale)} <span className="text-[0.6875rem] font-semibold text-muted">{t.submit.currency}</span>
+    </>
+  );
+  return (
+    <div className="mt-auto pt-4" data-testid="card-funding" data-percent={f.percent}>
+      <div className="border-t border-line-soft pt-3.5">
+        <dl className="grid grid-cols-3 gap-2 text-center">
+          <div>
+            <dt className="text-[0.6875rem] text-muted">{t.projects.funding.requested}</dt>
+            <dd className="mt-0.5 text-[0.875rem] font-bold tabular-nums text-ink" data-testid="card-amount">
+              {amount(f.requested)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[0.6875rem] text-muted">{t.projects.funding.raised}</dt>
+            <dd className="mt-0.5 text-[0.875rem] font-bold tabular-nums text-[#029988]" data-testid="card-raised">
+              {amount(f.recorded)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[0.6875rem] text-muted">{t.projects.funding.remaining}</dt>
+            <dd className="mt-0.5 text-[0.875rem] font-bold tabular-nums text-[#24958c]" data-testid="card-remaining">
+              {amount(f.remaining)}
+            </dd>
+          </div>
+        </dl>
+        <div className="mt-3 flex items-center gap-2.5">
+          <FundingBar funding={f} size="sm" label={t.projects.funding.label} />
+          <span className="shrink-0 text-xs font-semibold tabular-nums text-[#5b6070]" data-testid="card-percent">
+            {fmt(t.projects.funding.progress, { n: formatNumber(f.percent, locale) })}
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }

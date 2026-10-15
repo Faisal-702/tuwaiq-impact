@@ -1,11 +1,14 @@
 import { ShieldAlert } from "lucide-react";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { SubmissionWizard } from "@/components/submission/submission-wizard";
 import { buttonClasses } from "@/components/ui/button";
 import Link from "@/components/ui/link";
 import { getI18n } from "@/i18n/server";
-import { ANSWER_KEYS } from "@/lib/submission";
+import type { ProfileValues } from "@/lib/profile";
+import { ANSWER_KEYS, PERSONAL_FIELDS } from "@/lib/submission";
 import { requireViewer } from "@/server/auth";
+import { getStudentProfile, profileToValues } from "@/server/profiles";
 import { loadDraftView } from "@/server/submissions";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -13,11 +16,15 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t.submit.metaTitle };
 }
 
-/** Answers the platform pre-fills from the student's record. */
-const PREFILLED = new Set(["studentName", "grade", "section"]);
+/** Personal details are not part of the form (they come from the profile). */
+const PERSONAL = new Set<string>(PERSONAL_FIELDS);
 
 export default async function AddProjectPage() {
   const [viewer, { t }] = await Promise.all([requireViewer(), getI18n()]);
+  // A new project needs a complete profile: complete it first (checked again
+  // by every server action and by the database).
+  const profile = viewer.kind === "student" ? await getStudentProfile(viewer.student.studentId) : null;
+  if (viewer.kind === "student" && !profile?.is_complete) redirect("/profile?required=project");
 
   return (
     <div className="pb-16">
@@ -47,7 +54,7 @@ export default async function AddProjectPage() {
 
       <div className="container-page">
         {viewer.kind === "student" ? (
-          <StudentForm studentId={viewer.student.studentId} />
+          <StudentForm studentId={viewer.student.studentId} profile={profileToValues(profile)} />
         ) : (
           <div className="mx-auto max-w-xl rounded-[1.5rem] bg-white p-8 text-center shadow-soft ring-1 ring-line-soft" data-testid="admin-notice">
             <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-lavender-soft text-purple">
@@ -65,10 +72,10 @@ export default async function AddProjectPage() {
   );
 }
 
-async function StudentForm({ studentId }: { studentId: string }) {
+async function StudentForm({ studentId, profile }: { studentId: string; profile: ProfileValues }) {
   const { view, stored } = await loadDraftView(studentId);
   const restored =
     stored &&
-    (ANSWER_KEYS.some((k) => !PREFILLED.has(k) && view.answers[k].trim() !== "") || Boolean(view.cover) || view.evidence.length > 0);
-  return <SubmissionWizard initial={view} restored={restored} />;
+    (ANSWER_KEYS.some((k) => !PERSONAL.has(k) && view.answers[k].trim() !== "") || Boolean(view.cover) || view.evidence.length > 0);
+  return <SubmissionWizard initial={view} restored={restored} profile={profile} />;
 }

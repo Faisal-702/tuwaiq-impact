@@ -109,7 +109,7 @@ No variable is prefixed with `NEXT_PUBLIC_`, so none of them reach browser code.
 
 ### Data model (`supabase/migrations`)
 
-`categories`, `students`, `projects` (with the public `summary`, `requested_amount`, `field` and `field_other` from submissions), `project_students` (group projects), `project_media` (images, video, documents, links), `project_views` (anonymous, deduplicated per visitor per day), `admin_sessions`, `activity_logs`, `settings`, `suggestions` (student suggestions: name, grade 10/11/12, text up to 500 characters), `student_access_codes` (one 8-digit code per student), `student_sessions`, `student_login_attempts`, `project_submissions` (student questionnaires and drafts, private), `partner_applications` (partnership requests from the public form, private).
+`categories`, `students`, `projects` (with the public `summary`, `requested_amount`, `field` and `field_other` from submissions), `project_students` (group projects), `project_media` (images, video, documents, links), `project_views` (anonymous, deduplicated per visitor per day), `admin_sessions`, `activity_logs`, `settings`, `suggestions` (student suggestions: name, grade 10/11/12, text up to 500 characters), `student_access_codes` (one 8-digit code per student), `student_sessions`, `student_login_attempts`, `project_submissions` (student questionnaires, drafts and pending edits, private), `partner_applications` (partnership requests from the public form, private), `student_profiles` (a student's saved personal details, private), `project_support_entries` (manually recorded support, with reversals), `student_project_activity` (a student's own history). `projects.supervisors` holds every supervisor / teacher a student entered, in order (private: never read by public pages).
 - Students have an optional `section` (الشعبة: 1, 2 or 3; empty = not set). **Students → Add students in bulk** creates many students at once (one name per line, same grade and section for all) in a single transaction: blank lines are ignored, repeated lines count once, and names already in that grade and section are skipped.
 
 - Projects use **soft delete** (`deleted_at`) → **Trash** → restore, or delete permanently (which also removes the stored media).
@@ -117,13 +117,13 @@ No variable is prefixed with `NEXT_PUBLIC_`, so none of them reach browser code.
 
 ### Project submissions (إضافة مشروع)
 
-Signed-in students add their own projects at `/add-project` (the homepage's primary button). The form has four sections — student details, project details, classification & budget, attachments & acknowledgment — split into short screens (at most five questions each).
+Signed-in students add their own projects at `/add-project` (the homepage's primary button). It needs a complete **student profile** (see *Student profile* below). The form has three sections — project details, classification & budget, attachments & acknowledgment — split into short screens (at most five questions each). Personal details are not asked: they come from the profile.
 
 - **Drafts.** Answers autosave a few seconds after typing, on every step change, and on **Save as draft**. One open draft per student, tied to the student session (never to a submitted ID). **Cancel** deletes the draft and its files. Opening the page never writes anything.
-- **Validation** runs in the browser for each screen and again on the server at submit: Saudi national ID (check digit), Saudi mobile number, email, grade 10/11/12, section 1–3, amounts in SAR (no negatives, up to 2 decimals), and the 300-character **project summary** (also a database constraint).
-- **Submitting** publishes the project immediately: title, summary, project field, grade, requested amount, cover image and the student link. The project field maps to one of the existing categories, so category chips keep working. Administrators hide a project with the existing **Move to drafts** / Trash actions. Points start at 0.
+- **Validation** runs in the browser for each screen and again on the server at submit: required answers, amounts in SAR (no negatives, up to 2 decimals), and the 300-character **project summary** (also a database constraint).
+- **Submitting** publishes the project immediately: title, summary, project field, grade (from the profile), requested amount, cover image and the student link. The student's profile details are copied into the stored questionnaire at that moment, so administrators see who submitted it. The project field maps to one of the existing categories, so category chips keep working. Administrators hide a project with the existing **Move to drafts** / Trash actions. Points start at 0.
 - **Privacy.** Every answer, including national ID, mobile number, email, supervisor and supporting files, is kept in `project_submissions` (RLS on, grants revoked). Public queries never read that table. Administrators see the full form under **Edit project → Submission form**. Supporting files live in a private bucket (`project-submissions`; locally `.data/private`). They are downloaded through `/api/admin/submission-files`, which checks the admin session on every request.
-- **Explore Projects** cards show only the cover, title, project field, students, grade, the exact summary and the requested amount. They are not links and have no support or donation actions. Search also matches the summary and field; the filters dialog has a **Project field** filter.
+- **Explore Projects** cards show only the cover, title, project field, students, grade, the exact summary and the funding indicator (requested, recorded, remaining and a progress bar; see *My Projects* below). They are not links and have no payment or donation actions. Search also matches the summary and field; the filters dialog has a **Project field** filter.
 
 ### Landing page and partners (الشركاء)
 
@@ -146,6 +146,79 @@ Signed-in students add their own projects at `/add-project` (the homepage's prim
 - `supabase/migrations/20261015000000_partner_applications_details.sql` adds the three "Other" text columns and the approved list of fields of interest. It keeps the first list's values allowed and adds the new "other" rule as `NOT VALID`, so rows stored earlier stay valid.
 
 Both are additive and idempotent, and neither touches other tables or existing data. Review them, then apply them yourself: `DATABASE_URL=… npm run db:migrate` (applies only migrations not yet recorded in `_ti_migrations`), or paste the files, in order, into the Supabase SQL editor. Until they are applied, submitting the form shows a generic error and the admin Partners page fails to load; every other page keeps working.
+
+### My Projects (مشاريعي)
+
+Signed-in students manage their own projects at `/my-projects`, built after the approved reference. The account menu (top corner) shows the student's name, **مشاريعي** and **تسجيل الخروج**; the mobile menu has the same link.
+
+- **Ownership.** A student owns a project when their submitted questionnaire (`project_submissions`, written with the student session's id) points at it and the project is not in the Trash. Ownership is never inferred from names. Projects that only an administrator linked to a student (Admin → Edit project → Students) have no questionnaire, so they stay admin-managed and are not listed here.
+- **Page.** It has the header with **إضافة مشروع جديد** (the existing form) and four statistics (projects, total remaining, distinct supervisors, last change). It has search, a field filter, a project-type filter (from the questionnaire) and sorting. Each project card shows the cover, title, field, summary, supervisors, the funding figures and bar, and the actions **عرض التفاصيل**, **تعديل المشروع** and **إضافة رصيد**. The sidebar shows the support summary (donut), the latest activity and notices taken from the student's data (pending edits, a hidden project, a fully supported project, a project not updated for 60 days). Every figure comes from the database; nothing is invented.
+- **Editing** reuses the project form, pre-filled with the current published values, supervisors, amount, cover and files. Changes autosave to a separate *edit draft* (`status = 'editing'`, one per student and project), so the public project does not change until **Save changes**. Saving updates the same project row (same id and link), keeps the support history, and records which fields changed. The requested amount can not go below the support already recorded. **Cancel** discards the edit draft only. There is no approval step: projects publish at once, as before.
+- **Add support (إضافة رصيد)** records support the student received *outside* the platform. It is not a payment and no money moves. Rules:
+  - amounts are SAR, more than 0, at most 2 decimals, and at most the remaining amount
+  - each entry is checked and summed under a row lock on the project, so parallel requests can never go past the target
+  - the dialog's token makes a double click or a retried request count once
+  - a mistaken entry is **reversed** with a reason, not deleted: it stays in the history, struck through, and every reversal is logged
+  - administrators see all entries, reversals included, under **Edit project → Recorded support**
+- **Funding figures** use one helper (`src/lib/funding.ts`) everywhere: My Projects, Explore Projects cards and the project page.
+  - *remaining* = max(0, requested − recorded)
+  - *percent* = min(100, recorded ÷ requested × 100)
+  - *recorded* = the sum of entries that were not reversed
+- **Profile.** Personal details are kept on the separate profile page (see *Student profile* below). While the profile is incomplete, the notices show **أكمل ملفك الشخصي** first.
+- **Several supervisors.** The question reads **اسم المشرف / المعلم**; **+ إضافة مشرف / معلم آخر** adds more inputs (each removable), up to 20. They are stored in order in `projects.supervisors` and shown on the student's own cards and edit form, and to administrators in the submission form. Like before, they stay **private**: public pages show only the supervisor an administrator sets in the project editor. Older projects with one supervisor keep working.
+
+### Student profile (الملف الشخصي)
+
+Each student keeps their personal details once, on **`/profile`** (account menu → **الملف الشخصي**, also in the mobile menu): full name, national ID / Iqama, mobile number, email, grade and section. All six are required.
+
+- **Status.** The page shows whether the profile is **مكتمل** (complete) or **غير مكتمل** (incomplete), how many fields are done, and which required fields are missing. Completeness is computed by the database (`student_profiles.is_complete`, a generated column), so every part of the platform uses the same rule.
+- **Incomplete profile → no new project.** `/add-project`, the homepage button and My Projects' **إضافة مشروع جديد** all lead to `/profile?required=project`. That page explains **يجب استكمال بياناتك الشخصية أولًا**. After a successful save it continues to the project form. The rule is enforced at three levels:
+  - **page:** the add-project page redirects before showing the form
+  - **server:** every action that starts or submits a new project (saving the draft, uploads, submitting) checks the profile and returns `profile_incomplete`; the form then sends the student to the profile
+  - **database:** a trigger on `project_submissions` refuses a new draft, or a draft turning into a submitted project, for a student whose profile is incomplete
+- **Complete profile.** The project form has no personal questions. It shows the profile details (**تعديل الملف الشخصي** leads back) and, on the review screen, the details that will be linked.
+- **Linked to the projects.** Every project a student submits is tied to their account (`project_submissions.student_id`, the profile's key). The profile details at that moment are stored with it, and the project's grade comes from the profile.
+- **Saved in the database** (not in the browser): signing in on another device shows the same profile.
+- **Validation** runs in the browser and again on the server: Saudi national ID with its check digit (Arabic-Indic digits accepted), Saudi mobile in any common form (stored as `05XXXXXXXX`), email (stored in lower case), grade 10/11/12, section 1–3. The table's own checks reject malformed values too.
+- **Privacy.** The profile is read and saved only for the signed-in student (the session decides, never a value sent by the browser). It never appears on public pages and is never written to logs. Administrators see the details stored with each submitted project.
+- **Existing data.** Existing projects, submissions and drafts are kept. Editing an existing project is not blocked by an incomplete profile, and it keeps the details stored with that project. Projects created by administrators are not affected. Students who already submitted a project get a profile filled from their own latest submission; only valid values are copied, and only into empty fields.
+
+### Database migrations (My Projects and Student profile)
+
+These features need two new migrations, applied **in this order**:
+
+| File | What it does |
+|---|---|
+| `supabase/migrations/20261016000000_student_projects.sql` | Creates `student_profiles`, `project_support_entries` and `student_project_activity` (RLS on, public grants revoked). Adds the nullable, private `projects.supervisors`, filled from each project's existing supervisor only where it is empty (public pages never read it). Widens the `project_submissions` status check to also allow `editing`, and adds two indexes. |
+| `supabase/migrations/20261017000000_student_profile_required.sql` | Adds `student_profiles.is_complete` (computed). Creates profiles for students who already submitted a project, from their own latest submission (valid values only, empty fields only). Adds the trigger that refuses a new project for an incomplete profile. |
+
+Both are additive and idempotent (safe to run twice). They delete nothing and change no existing value: they only fill new, empty columns and create profile rows.
+
+> **Do not run `npm run db:migrate` against production.** Some earlier migrations (the partner ones) were applied by hand, so `_ti_migrations` may not list them, and the runner would re-run old files (the first one fails on its enum types). Apply these files on their own instead.
+
+1. **Check the prerequisites** in the Supabase SQL editor. Every row should read `true`; if one is `false`, apply the migration named next to it first, on its own:
+
+   ```sql
+   select 'projects table (20261001000000)' as needs, to_regclass('public.projects') is not null as ok
+   union all select 'project_submissions (20261011000000)', to_regclass('public.project_submissions') is not null
+   union all select 'projects.summary / requested_amount (20261011000000)', exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'projects' and column_name = 'requested_amount')
+   union all select 'partner_applications (20261014000000)', to_regclass('public.partner_applications') is not null
+   union all select 'partner "other" columns (20261015000000)', exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'partner_applications' and column_name = 'support_other')
+   union all select 'not yet applied: student_profiles absent (20261016000000)', to_regclass('public.student_profiles') is null
+   union all select 'not yet applied: is_complete absent (20261017000000)', not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'student_profiles' and column_name = 'is_complete');
+   ```
+
+   The partner rows only confirm the database is up to date; these migrations do not depend on them. A "not yet applied" row reads `false` when that migration was already applied, which is harmless because the files are idempotent.
+2. **Apply** `20261016000000_student_projects.sql`: paste the whole file into the SQL editor and run it once.
+3. **Apply** `20261017000000_student_profile_required.sql` the same way. It needs the first one.
+4. **Optionally record them** so the migration runner knows about them:
+   ```sql
+   insert into public._ti_migrations (name) values
+     ('20261016000000_student_projects.sql'), ('20261017000000_student_profile_required.sql')
+   on conflict do nothing;
+   ```
+
+Apply them **before** deploying these branches. Without them, these pages fail to load or save, because they read the new tables and columns: `/my-projects`, the edit pages, **إضافة رصيد**, Explore Projects, the project pages, the profile page and the project form.
 
 ### Homepage statistics
 
@@ -266,6 +339,50 @@ It removes the project and submissions it created. Set `QA_SHOTS=<dir>` to save 
 - no sideways scrolling at mobile, tablet and desktop widths
 
 Its test rows are named "QA Partner …" and are removed at the start and the end.
+
+`npm run test:my-projects` (same variables; needs `DATABASE_URL`) checks My Projects end to end with two demo students:
+- the account menu (name, مشاريعي, sign out) on desktop and mobile; the empty state
+- the profile completed once (adding the first project asks for it), the same profile on another device, corrections kept. Another student never sees it.
+- several supervisors added and removed, stored in order and kept off public pages; publishing with no approval step
+- the list, totals, search, filters and sorting; another student's projects never listed or editable (404)
+- **إضافة رصيد**:
+  - invalid, zero, negative and over-target amounts refused
+  - 30 SAR on 500 gives 470 remaining and 6%; then 70 more gives 100, 400 and 20%
+  - a double click is stored once, and parallel requests never pass the target
+  - another student can not add support
+  - a reversal keeps the audit trail
+  - the figures persist across sessions
+- the same figures on Explore Projects and the project page
+- editing:
+  - the form is pre-filled
+  - the amount can not go below the recorded support
+  - saving keeps the same project, its support history and a single cover
+  - a legacy single-supervisor project still edits
+- the admin's support entries and supervisors; admin delete still works
+- signed-out redirects, English (LTR), mobile and tablet without sideways scrolling, no browser errors
+
+Its rows are named "QA MyProj …" and are removed at the start and the end (`KEEP_QA_DATA=1` keeps them for a look). Set `QA_SHOTS=<dir>` to save screenshots.
+
+`npm run test:student-profile` (same variables; needs `DATABASE_URL`) checks the student profile end to end with two demo students:
+- the account menu order (name, الملف الشخصي, مشاريعي, تسجيل الخروج) on desktop and mobile
+- an incomplete profile:
+  - shows the status and every missing field
+  - `/add-project`, the homepage button and My Projects lead to the profile with the message, and no draft is created
+- every field required and validated, with accessible errors and focus on the first one; values are normalised when saved
+- enforcement:
+  - the server refuses an invalid profile sent directly
+  - the server refuses to save a new draft while the profile is incomplete
+  - the server refuses to submit when the profile became incomplete
+  - the database refuses a new draft or submission for an incomplete profile
+- a complete profile:
+  - the form has no personal questions
+  - the submitted project is linked to the student, carries the profile details and takes its grade from the profile
+  - the details never appear on the public project page
+- the same profile on another device; another student never sees it
+- editing an existing project still works with an incomplete profile
+- signed-out redirect, administrators' notice, English (LTR), mobile and tablet without sideways scrolling, no browser errors
+
+Its projects are named "QA Profile …"; it removes them and both students' profiles at the start and the end.
 
 `npm run test:language-switch` (same variables) checks switching between English and Arabic on the entry page, student pages and admin pages:
 - text, direction, `lang` and the tab title switch in place, without reloading and without a half-switched state (also on a slow server, where the loading indicator shows)
