@@ -43,6 +43,9 @@ create trigger student_profiles_touch before update on public.student_profiles
 -- ---------------------------------------------------------------------------
 -- 2. Several supervisors / teachers per project
 -- ---------------------------------------------------------------------------
+-- Private, like the questionnaire it comes from: shown only to the project's
+-- own student (My Projects, editing) and to administrators. Public pages keep
+-- showing only projects.supervisor, which administrators set themselves.
 
 alter table public.projects add column if not exists supervisors text[];
 

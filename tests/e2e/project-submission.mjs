@@ -371,8 +371,9 @@ await check("Explore Projects lists the card with only public information", asyn
   assert((await card.locator("img").count()) === 1, "cover image");
   assert((await card.locator("a, button").count()) === 0, "card has no links or buttons");
   const pageText = await page.locator("main").innerText();
-  for (const word of ["ادعم المشروع", "عرض المشروع", "تبرع", "المتبقي", "تم جمع"]) assert(!pageText.includes(word), `unexpected "${word}"`);
-  assert((await page.locator('main [role="progressbar"], main progress').count()) === 0, "no progress bars");
+  for (const word of ["ادعم المشروع", "عرض المشروع", "تبرع"]) assert(!pageText.includes(word), `unexpected "${word}"`);
+  // The funding indicator (added with My Projects) starts at 0 recorded support.
+  assert((await card.getByTestId("card-funding").getAttribute("data-percent")) === "0", "funding starts at 0%");
 });
 
 await check("no private answer appears in public HTML or payloads", async () => {

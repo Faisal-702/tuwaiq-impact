@@ -140,8 +140,6 @@ export async function saveProject(
           summary = ${data.summary ?? null}, requested_amount = ${amount},
           grade = ${data.grade}, class_name = ${data.className ?? null}, academic_year = ${data.academicYear ?? null},
           supervisor = ${data.supervisor ?? null}, award = ${data.award ?? null}, points = ${data.points},
-          -- The editor holds the first supervisor; any further ones (added by the student) are kept.
-          supervisors = nullif(array_remove(array[${data.supervisor ?? null}::text] || coalesce(supervisors[2:], '{}'::text[]), null), '{}'::text[]),
           status = ${publish ? "published" : "draft"}, is_featured = ${featured},
           published_at = ${publish ? sql`coalesce(published_at, now())` : sql`published_at`}
         where id = ${projectId}`;
@@ -149,10 +147,9 @@ export async function saveProject(
       slug = await uniqueSlug("projects", data.title, "project");
       const [row] = await tx<{ id: string }[]>`
         insert into projects (slug, title, description, summary, requested_amount, category_id, grade, class_name,
-                              academic_year, supervisor, supervisors, award, points, status, is_featured, published_at)
+                              academic_year, supervisor, award, points, status, is_featured, published_at)
         values (${slug}, ${data.title}, ${data.description ?? null}, ${data.summary ?? null}, ${amount}, ${data.categoryId}, ${data.grade},
                 ${data.className ?? null}, ${data.academicYear ?? null}, ${data.supervisor ?? null},
-                ${data.supervisor ? [data.supervisor] : null},
                 ${data.award ?? null}, ${data.points}, ${publish ? "published" : "draft"}, ${featured},
                 ${publish ? new Date() : null})
         returning id`;

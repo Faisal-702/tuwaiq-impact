@@ -431,10 +431,10 @@ export async function submitProject(input: { acknowledged: boolean }): Promise<S
       if (!locked) throw new Error("already_submitted");
       const [project] = await tx<{ id: string }[]>`
         insert into projects (slug, title, description, summary, category_id, grade, academic_year, points,
-                              status, published_at, requested_amount, field, field_other, supervisor, supervisors)
+                              status, published_at, requested_amount, field, field_other, supervisors)
         values (${slug}, ${title}, ${summary}, ${summary}, ${categoryId}, ${Number(answers.grade)}, ${academicYear}, 0,
                 'published', now(), ${parseAmount(answers.requestedAmount)}, ${field.key},
-                ${field.key === "other" ? normalized.fieldOther : null}, ${supervisors[0]}, ${supervisors})
+                ${field.key === "other" ? normalized.fieldOther : null}, ${supervisors})
         returning id`;
       const [media] = await tx<{ id: string }[]>`
         insert into project_media (project_id, kind, position, storage_path, preview_path, thumb_path,
@@ -548,7 +548,7 @@ export async function saveProjectEdit(input: { projectId: string; acknowledged: 
            set title = ${normalized.title}, description = ${normalized.summary}, summary = ${normalized.summary},
                category_id = ${categoryId}, grade = ${Number(answers.grade)}, requested_amount = ${requested},
                field = ${field.key}, field_other = ${field.key === "other" ? normalized.fieldOther : null},
-               supervisor = ${supervisors[0]}, supervisors = ${supervisors}, cover_media_id = ${coverMediaId}
+               supervisors = ${supervisors}, cover_media_id = ${coverMediaId}
          where id = ${projectId}`;
       await tx`
         update project_submissions set answers = ${sql.json(normalized)}, evidence = ${sql.json(evidence)}

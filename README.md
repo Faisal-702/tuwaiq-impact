@@ -109,7 +109,7 @@ No variable is prefixed with `NEXT_PUBLIC_`, so none of them reach browser code.
 
 ### Data model (`supabase/migrations`)
 
-`categories`, `students`, `projects` (with the public `summary`, `requested_amount`, `field` and `field_other` from submissions), `project_students` (group projects), `project_media` (images, video, documents, links), `project_views` (anonymous, deduplicated per visitor per day), `admin_sessions`, `activity_logs`, `settings`, `suggestions` (student suggestions: name, grade 10/11/12, text up to 500 characters), `student_access_codes` (one 8-digit code per student), `student_sessions`, `student_login_attempts`, `project_submissions` (student questionnaires, drafts and pending edits, private), `partner_applications` (partnership requests from the public form, private), `student_profiles` (a student's saved personal details, private), `project_support_entries` (manually recorded support, with reversals), `student_project_activity` (a student's own history). `projects.supervisors` holds every supervisor / teacher in order.
+`categories`, `students`, `projects` (with the public `summary`, `requested_amount`, `field` and `field_other` from submissions), `project_students` (group projects), `project_media` (images, video, documents, links), `project_views` (anonymous, deduplicated per visitor per day), `admin_sessions`, `activity_logs`, `settings`, `suggestions` (student suggestions: name, grade 10/11/12, text up to 500 characters), `student_access_codes` (one 8-digit code per student), `student_sessions`, `student_login_attempts`, `project_submissions` (student questionnaires, drafts and pending edits, private), `partner_applications` (partnership requests from the public form, private), `student_profiles` (a student's saved personal details, private), `project_support_entries` (manually recorded support, with reversals), `student_project_activity` (a student's own history). `projects.supervisors` holds every supervisor / teacher a student entered, in order (private: never read by public pages).
 - Students have an optional `section` (الشعبة: 1, 2 or 3; empty = not set). **Students → Add students in bulk** creates many students at once (one name per line, same grade and section for all) in a single transaction: blank lines are ignored, repeated lines count once, and names already in that grade and section are skipped.
 
 - Projects use **soft delete** (`deleted_at`) → **Trash** → restore, or delete permanently (which also removes the stored media).
@@ -165,11 +165,11 @@ Signed-in students manage their own projects at `/my-projects`, built after the 
   - *percent* = min(100, recorded ÷ requested × 100)
   - *recorded* = the sum of entries that were not reversed
 - **Saved profile.** The student-details step (name, national ID, mobile, email, grade, section) is saved to `student_profiles` for the signed-in student and pre-fills the next project, on any device. Corrections made in a later project are kept. These details are private: they never appear on public pages and are not written to logs.
-- **Several supervisors.** The question reads **اسم المشرف / المعلم**; **+ إضافة مشرف / معلم آخر** adds more inputs (each removable), up to 20. They are stored in order in `projects.supervisors` and shown on the cards and project page. Older projects with one supervisor keep working; the admin editor still edits the first one and keeps the rest.
+- **Several supervisors.** The question reads **اسم المشرف / المعلم**; **+ إضافة مشرف / معلم آخر** adds more inputs (each removable), up to 20. They are stored in order in `projects.supervisors` and shown on the student's own cards and edit form, and to administrators in the submission form. Like before, they stay **private**: public pages show only the supervisor an administrator sets in the project editor. Older projects with one supervisor keep working.
 
 **Database migration.** The feature needs one new migration, `supabase/migrations/20261016000000_student_projects.sql`. It is additive and idempotent:
 - it creates `student_profiles`, `project_support_entries` and `student_project_activity` (RLS on, public grants revoked)
-- it adds the nullable `projects.supervisors`, filled from each project's existing supervisor only where it is empty
+- it adds the nullable, private `projects.supervisors`, filled from each project's existing supervisor only where it is empty (public pages never read it)
 - it widens the `project_submissions` status check to also allow `editing`, and adds two indexes
 
 It deletes nothing and changes no existing value except filling the new column.
@@ -316,7 +316,7 @@ Its test rows are named "QA Partner …" and are removed at the start and the en
 `npm run test:my-projects` (same variables; needs `DATABASE_URL`) checks My Projects end to end with two demo students:
 - the account menu (name, مشاريعي, sign out) on desktop and mobile; the empty state
 - the profile entered once, pre-filled for the next project and in a new session (another device), and corrections kept. Another student never sees it.
-- several supervisors added and removed, stored in order; publishing with no approval step
+- several supervisors added and removed, stored in order and kept off public pages; publishing with no approval step
 - the list, totals, search, filters and sorting; another student's projects never listed or editable (404)
 - **إضافة رصيد**:
   - invalid, zero, negative and over-target amounts refused

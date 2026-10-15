@@ -285,7 +285,6 @@ type DetailRow = CardRow & {
   class_name: string | null;
   academic_year: string | null;
   supervisor: string | null;
-  supervisors: string[] | null;
   status: "draft" | "published";
   cover_media_id: string | null;
   category_id: string;
@@ -306,7 +305,7 @@ export function mapMedia(row: Omit<ProjectMedia, "original_url" | "preview_url" 
 
 async function loadDetail(where: ReturnType<typeof sql>): Promise<(ProjectDetail & { category_id: string }) | null> {
   const [row] = await sql<DetailRow[]>`
-    select ${CARD_COLUMNS}, p.class_name, p.academic_year, p.supervisor, p.supervisors, p.status, p.cover_media_id,
+    select ${CARD_COLUMNS}, p.class_name, p.academic_year, p.supervisor, p.status, p.cover_media_id,
            p.category_id, p.created_at, p.updated_at
       from projects p
       join categories c on c.id = p.category_id
@@ -333,7 +332,6 @@ async function loadDetail(where: ReturnType<typeof sql>): Promise<(ProjectDetail
     class_name: row.class_name,
     academic_year: row.academic_year,
     supervisor: row.supervisor,
-    supervisors: (row.supervisors?.length ? row.supervisors : row.supervisor ? [row.supervisor] : []).filter((x) => x && x.trim()),
     status: row.status,
     cover_media_id: row.cover_media_id,
     category_id: row.category_id,

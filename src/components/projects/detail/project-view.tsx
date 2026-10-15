@@ -92,22 +92,7 @@ export function ProjectView({
     ...(project.class_name ? [{ label: t.project.className, value: <span dir="auto">{project.class_name}</span> }] : []),
     { label: t.project.category, value: category },
     ...(project.academic_year ? [{ label: t.project.academicYear, value: <span dir="auto">{project.academic_year}</span> }] : []),
-    ...(project.supervisors.length
-      ? [
-          {
-            label: t.project.supervisor,
-            value: (
-              <ul className="space-y-1" data-testid="detail-supervisors">
-                {project.supervisors.map((name) => (
-                  <li key={name} dir="auto">
-                    {name}
-                  </li>
-                ))}
-              </ul>
-            ),
-          },
-        ]
-      : []),
+    ...(project.supervisor ? [{ label: t.project.supervisor, value: <span dir="auto">{project.supervisor}</span> }] : []),
     ...(project.published_at ? [{ label: t.project.published, value: formatDate(project.published_at, locale) }] : []),
     { label: t.project.points, value: formatNumber(project.points, locale) },
   ];

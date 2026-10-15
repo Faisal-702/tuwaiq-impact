@@ -225,18 +225,19 @@ await check("first project: personal details entered once; supervisor label; sev
 });
 
 let p1;
-await check("published at once (no approval); supervisors stored in order", async () => {
+await check("published at once (no approval); supervisors stored in order and kept private", async () => {
   p1 = await projectId(P1.title);
   const [row] = await sql`select status, supervisors, supervisor, requested_amount::float8 as amount from projects where id = ${p1}`;
   assert(row.status === "published", `status ${row.status}`);
-  assert(JSON.stringify(row.supervisors) === JSON.stringify([SUP1, SUP2]) && row.supervisor === SUP1, JSON.stringify(row));
+  assert(JSON.stringify(row.supervisors) === JSON.stringify([SUP1, SUP2]) && row.supervisor === null, JSON.stringify(row));
   assert(row.amount === 500, "amount");
   const [profile] = await sql`select full_name, national_id, phone, email, grade, section from student_profiles where student_id = (select id from students where name_en = ${OWNER})`;
   assert(profile && profile.national_id === PROFILE.nationalId && profile.phone === PROFILE.phone && profile.email === PROFILE.email && profile.grade === 11 && profile.section === 2, JSON.stringify(profile));
   const res = await page.goto(BASE + `/projects/${(await sql`select slug from projects where id = ${p1}`)[0].slug}`);
   assert(res.status() === 200, "public page");
-  const supers = await page.getByTestId("detail-supervisors").innerText();
-  assert(supers.includes(SUP1) && supers.includes(SUP2), "public page lists the supervisors");
+  // As before this feature, a supervisor entered by the student stays private.
+  const html = await page.content();
+  assert(!html.includes(SUP1) && !html.includes(SUP2), "supervisor shown on the public page");
 });
 
 await check("second project: personal details pre-filled from the saved profile", async () => {

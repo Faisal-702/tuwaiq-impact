@@ -83,8 +83,6 @@ export type ProjectDetail = ProjectCardData & {
   class_name: string | null;
   academic_year: string | null;
   supervisor: string | null;
-  /** All supervisors / teachers (falls back to the single supervisor of older projects). */
-  supervisors: string[];
   status: ProjectStatus;
   cover_media_id: string | null;
   created_at: string;
