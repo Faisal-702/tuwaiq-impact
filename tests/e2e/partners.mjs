@@ -119,15 +119,23 @@ await check("visitor opening the site sees the public landing page (no redirect 
   assert(res.status() === 200 && path(page) === "/", `landed on ${page.url()}`);
   const hero = page.getByTestId("landing-hero");
   const text = (await hero.innerText()).replace(/\s+/g, " ");
-  for (const s of ["منصة", "أثر", "توثّق أفكار طلابنا..", "لتصنع بها فرصًا أكبر", "منصة أثر تساعد طلاب المدارس على توثيق مشاريعهم وأفكارهم، وإبراز إنجازاتهم، وربطهم بالفرص والدعم من الجهات التعليمية والقطاعين الحكومي والخاص."]) {
+  for (const s of ["نُوثِّق أفكار طلابنا...", "لتصنع فرصًا أكبر", "منصة أثر تساعد طلاب المدارس على توثيق مشاريعهم وأفكارهم، وإبراز إنجازاتهم، وربطهم بالفرص والدعم من الجهات التعليمية والقطاعين الحكومي والخاص."]) {
     assert(text.includes(s), `hero is missing "${s}"`);
   }
   assert((await page.locator("h1").count()) === 1, "one h1");
+  // The أثـ — ـر wordmark: drawn (SVG paths), read as the correctly spelled word.
+  const mark = hero.getByRole("img", { name: "أثر", exact: true });
+  await mark.waitFor();
+  assert((await mark.evaluate((el) => el.tagName.toLowerCase())) === "svg" && (await mark.locator("path").count()) === 6, "wordmark drawn as paths");
+  // Header: the official MoE logo and the school's name as text; no Tuwaiq Academy logo.
   const logos = await page.evaluate(() =>
     [...document.querySelectorAll('[data-testid="landing-header"] img')].map((i) => ({ alt: i.alt, ok: i.naturalWidth > 0, src: i.currentSrc })),
   );
-  assert(logos.some((l) => l.alt === "وزارة التعليم" && l.ok && /moe-logo/.test(l.src)), "MoE logo");
-  assert(logos.some((l) => l.alt === "أكاديمية طويق" && l.ok && /tuwaiq-academy-logo/.test(l.src)), "Tuwaiq logo");
+  assert(logos.length === 1 && logos[0].alt === "وزارة التعليم" && logos[0].ok && /moe-logo/.test(logos[0].src), JSON.stringify(logos));
+  assert((await page.getByTestId("landing-school").innerText()).trim() === "ثانوية الموهوبين التقنية", "school name text");
+  assert((await page.getByTestId("landing-brand").locator("svg").count()) === 0, "no icon beside the school name");
+  // Cairo is the landing page's Arabic typeface.
+  assert(/Cairo/.test(await page.locator("h1").evaluate((el) => getComputedStyle(el).fontFamily)), "Cairo font");
   await context.close();
 });
 
@@ -195,9 +203,9 @@ await check("landing page switches AR ⇄ EN immediately, in place", async () =>
     marker: window.__marker === true,
     title: document.title,
   }));
-  assert(s.dir === "ltr" && s.h1.includes("Documenting our students") && s.marker && s.title.startsWith("Athar Platform"), JSON.stringify(s));
+  assert(s.dir === "ltr" && s.h1.includes("We document our students") && s.marker && s.title.startsWith("Athar Platform"), JSON.stringify(s));
   await page.locator('[role="group"] button').filter({ hasText: "العربية" }).first().click();
-  await page.waitForFunction(() => document.documentElement.lang === "ar" && document.querySelector("h1")?.innerText.includes("توثّق"), null, { timeout: 8000 });
+  await page.waitForFunction(() => document.documentElement.lang === "ar" && document.querySelector("h1")?.innerText.includes("نُوثِّق"), null, { timeout: 8000 });
   await context.close();
 });
 

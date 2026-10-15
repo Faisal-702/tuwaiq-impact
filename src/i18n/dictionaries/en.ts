@@ -557,7 +557,7 @@ const en = {
     },
     heroPlatform: "Platform",
     heroName: "Athar",
-    heroTitle1: "Documenting our students’ ideas…",
+    heroTitle1: "We document our students’ ideas…",
     heroTitle2: "to create bigger opportunities",
     heroBody: "Athar Platform helps school students document their projects and ideas, showcase their achievements, and connect with opportunities and support from educational institutions and the public and private sectors.",
     ctaLogin: "Sign in",
@@ -571,11 +571,11 @@ const en = {
     why: {
       empower: {
         title: "Empowering students",
-        body: "A national platform that nurtures a culture of innovation and gives every student a chance to showcase their project.",
+        body: "A platform that nurtures a culture of innovation and gives every student a chance to showcase their project.",
       },
       rights: {
         title: "Preserving intellectual credit",
-        body: "Every idea and project is documented under its authors’ names with its submission date, keeping a clear record of who created it.",
+        body: "Every idea and project is documented under its authors’ names and upload date, in a clear record that helps keep the credit with the student.",
       },
       showcase: {
         title: "Professional project showcase",

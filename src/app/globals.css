@@ -4,6 +4,8 @@
 @import "@fontsource/ibm-plex-sans-arabic/500.css";
 @import "@fontsource/ibm-plex-sans-arabic/600.css";
 @import "@fontsource/ibm-plex-sans-arabic/700.css";
+/* Cairo: the public landing page and its header (and the أثر wordmark). */
+@import "@fontsource-variable/cairo/wght.css";
 
 /* ---------------------------------------------------------------------------
    Athar Platform design tokens (light mode only)
@@ -167,6 +169,16 @@
   }
   html[dir="ltr"] .text-gradient-athar {
     background-image: linear-gradient(90deg, #3f23a3 0%, #343da3 38%, #057976 100%);
+  }
+
+  /* Public landing page typography: Cairo for Arabic (and the Arabic page);
+     English keeps Inter for Latin text, with Cairo for any Arabic in it. */
+  .font-landing {
+    font-family: "Cairo Variable", "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: normal;
+  }
+  html[dir="ltr"] .font-landing {
+    font-family: "Inter Variable", "Cairo Variable", ui-sans-serif, system-ui, sans-serif;
   }
 
   .hairline-gradient {
