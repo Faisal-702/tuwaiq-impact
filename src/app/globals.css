@@ -450,3 +450,153 @@
     break-after: avoid;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Public landing page on large screens (≥1280px), proportional to the
+   approved reference (docs/references/landing-reference-athar.webp, a
+   1672px-wide screenshot). --lu is one reference pixel (100vw / 1672,
+   capped at 1.2px), and the header, hero, artwork and "Why" section are
+   sized in it, so their proportions match the reference at every desktop
+   width (1366, 1440, 1672, 1920…), instead of the artwork growing with the
+   window while the text keeps a fixed size. Mobile and tablet layouts are
+   the utility classes in the components. These rules are unlayered, so on
+   large screens they take precedence over those utilities.
+   --------------------------------------------------------------------------- */
+@media (min-width: 1280px) {
+  :root {
+    --lu: min(calc(100vw / 1672), 1.2px);
+  }
+
+  .lp-container {
+    width: 100%;
+    max-width: calc(1672 * var(--lu));
+    margin-inline: auto;
+    padding-inline: calc(96 * var(--lu));
+  }
+
+  /* Header: Ministry logo, divider, school name | sign in, partners, language. */
+  .lp-header-bar {
+    max-width: calc(1672 * var(--lu));
+    padding-block: calc(37 * var(--lu));
+    padding-inline: calc(79 * var(--lu)) calc(162 * var(--lu));
+    column-gap: calc(19 * var(--lu));
+  }
+  .lp-brand { column-gap: calc(33 * var(--lu)); }
+  .lp-brand img { height: calc(74 * var(--lu)); } /* width follows: the logo keeps its proportions */
+  .lp-brand-divider { height: calc(50 * var(--lu)); }
+  .lp-school { font-size: calc(22.4 * var(--lu)); }
+  .lp-nav { column-gap: calc(17 * var(--lu)); }
+  .lp-nav-btn {
+    height: calc(46 * var(--lu));
+    padding-inline: 0;
+    font-size: calc(17.5 * var(--lu));
+    column-gap: calc(8 * var(--lu));
+  }
+  .lp-nav-btn svg { width: calc(20 * var(--lu)); height: calc(20 * var(--lu)); }
+  .lp-nav-login { width: calc(131 * var(--lu)); }
+  .lp-nav-partners { width: calc(106 * var(--lu)); }
+  .lp-nav-divider { height: calc(46 * var(--lu)); margin-inline: calc(4 * var(--lu)) 0; }
+  .lp-lang [role="group"] { padding: calc(4 * var(--lu)); }
+  .lp-lang [role="group"] button {
+    padding: calc(7 * var(--lu)) calc(18 * var(--lu));
+    font-size: calc(16 * var(--lu));
+  }
+
+  /* Hero. The artwork is shown at the reference's scale (the students at the
+     same size and place) and anchored to the bottom of the hero. The current
+     artwork is shorter than the reference's, so its top edge fades into a
+     band of its own edge colours behind the header. With the full-height
+     original, .lp-hero-art can simply cover the whole hero. */
+  .lp-hero { min-height: calc(655 * var(--lu)); }
+  /* The artwork's own top-edge colours, from the top of the hero to just
+     under the artwork's opaque part (so there is never a visible seam, even
+     when longer English text makes the hero taller). */
+  .lp-hero-band {
+    top: 0;
+    bottom: calc((594 - 40) * var(--lu));
+    background: linear-gradient(90deg, #b2ccf1 0%, #c4c7ef 10%, #e3eafb 20%, #edf2fd 32%, #f3f7fe 55%, #fbfcfe 80%, #fefefe 100%);
+  }
+  .lp-hero-art {
+    height: calc(594 * var(--lu));
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 calc(36 * var(--lu)));
+    mask-image: linear-gradient(to bottom, transparent 0, #000 calc(36 * var(--lu)));
+  }
+  .lp-hero-text {
+    width: calc(480 * var(--lu));
+    max-width: none;
+    padding-top: calc(36 * var(--lu));
+    padding-bottom: calc(24 * var(--lu));
+  }
+  html[dir="ltr"] .lp-hero-text { width: calc(540 * var(--lu)); }
+  .lp-wordmark { height: calc(112 * var(--lu)); }
+  .lp-headline {
+    margin-top: calc(17 * var(--lu));
+    font-size: calc(42 * var(--lu));
+    line-height: 1.43;
+  }
+  html[dir="ltr"] .lp-headline { font-size: calc(36 * var(--lu)); line-height: 1.25; }
+  .lp-lede {
+    margin-top: calc(9 * var(--lu));
+    font-size: max(15px, calc(18.2 * var(--lu)));
+    line-height: 1.68;
+  }
+  .lp-actions {
+    margin-top: calc(35 * var(--lu));
+    column-gap: calc(16 * var(--lu));
+  }
+  .lp-cta {
+    height: calc(55 * var(--lu));
+    min-width: 0;
+    padding-inline: 0;
+    font-size: calc(19 * var(--lu));
+    border-radius: calc(10 * var(--lu));
+    column-gap: calc(10 * var(--lu));
+  }
+  .lp-cta svg { width: calc(22 * var(--lu)); height: calc(22 * var(--lu)); }
+  .lp-cta-login { width: calc(198 * var(--lu)); }
+  .lp-cta-partner { width: calc(208 * var(--lu)); }
+
+  /* "Why Athar Platform?" and its four cards. */
+  .lp-why {
+    padding-top: calc(22 * var(--lu));
+    padding-bottom: calc(40 * var(--lu));
+  }
+  .lp-why-head {
+    min-height: calc(45 * var(--lu));
+    column-gap: calc(24 * var(--lu));
+  }
+  .lp-why-title {
+    font-size: calc(36 * var(--lu));
+    column-gap: calc(16 * var(--lu));
+  }
+  .lp-why-title > span { width: calc(47 * var(--lu)); }
+  .lp-why-intro {
+    max-width: calc(560 * var(--lu));
+    font-size: max(13.5px, calc(14.6 * var(--lu)));
+  }
+  .lp-cards {
+    margin-top: calc(19 * var(--lu));
+    gap: calc(19 * var(--lu));
+  }
+  .lp-card {
+    min-height: calc(178 * var(--lu));
+    padding: calc(16 * var(--lu)) calc(13 * var(--lu));
+    border-radius: calc(16 * var(--lu));
+  }
+  .lp-card-tile {
+    width: calc(56 * var(--lu));
+    height: calc(56 * var(--lu));
+    border-radius: calc(13 * var(--lu));
+  }
+  .lp-card-tile svg { width: calc(26 * var(--lu)); height: calc(26 * var(--lu)); }
+  .lp-card-title {
+    margin-top: calc(6 * var(--lu));
+    font-size: calc(18.5 * var(--lu));
+    line-height: 1.375;
+  }
+  .lp-card-body {
+    margin-top: calc(8 * var(--lu));
+    font-size: max(13.5px, calc(14.6 * var(--lu)));
+    line-height: 1.66;
+  }
+}
