@@ -502,24 +502,36 @@
     font-size: calc(16 * var(--lu));
   }
 
-  /* Hero. The artwork is shown at the reference's scale (the students at the
-     same size and place) and anchored to the bottom of the hero. The current
-     artwork is shorter than the reference's, so its top edge fades into a
-     band of its own edge colours behind the header. With the full-height
-     original, .lp-hero-art can simply cover the whole hero. */
+  /* Hero. The approved artwork (1672×941) is shown at the reference's
+     framing: 0.8× its size in reference px, from the hero's start edge and
+     slightly above it, so the students sit exactly where the reference has
+     them and the photo is never enlarged on 1× screens (at most 1606px
+     wide, at the largest unit). Its right
+     part fades out (a mask: the file itself is untouched) into the light
+     area behind the text; a light wash keeps the sky behind the header soft. */
   .lp-hero { min-height: calc(655 * var(--lu)); }
-  /* The artwork's own top-edge colours, from the top of the hero to just
-     under the artwork's opaque part (so there is never a visible seam, even
-     when longer English text makes the hero taller). */
-  .lp-hero-band {
-    top: 0;
-    bottom: calc((594 - 40) * var(--lu));
-    background: linear-gradient(90deg, #b2ccf1 0%, #c4c7ef 10%, #e3eafb 20%, #edf2fd 32%, #f3f7fe 55%, #fbfcfe 80%, #fefefe 100%);
-  }
   .lp-hero-art {
-    height: calc(594 * var(--lu));
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 calc(36 * var(--lu)));
-    mask-image: linear-gradient(to bottom, transparent 0, #000 calc(36 * var(--lu)));
+    left: 0;
+    top: calc(-25 * var(--lu));
+    width: calc(1338 * var(--lu));
+    height: calc(753 * var(--lu));
+    -webkit-mask-image: linear-gradient(to right, #000 68%, rgb(0 0 0 / 0.5) 79%, transparent 89%);
+    mask-image: linear-gradient(to right, #000 68%, rgb(0 0 0 / 0.5) 79%, transparent 89%);
+  }
+  .lp-hero-wash {
+    background: linear-gradient(to bottom, rgb(255 255 255 / 0.3) 0, rgb(255 255 255 / 0.18) calc(190 * var(--lu)), transparent calc(330 * var(--lu)));
+  }
+  /* English mirrors the page but not the photo: the school's logo and name
+     sit over its top-left corner and the (wider) text starts earlier, so a
+     soft light corner goes behind the brand and the photo fades out sooner. */
+  html[dir="ltr"] .lp-hero-art {
+    -webkit-mask-image: linear-gradient(to right, #000 60%, rgb(0 0 0 / 0.5) 72%, transparent 84%);
+    mask-image: linear-gradient(to right, #000 60%, rgb(0 0 0 / 0.5) 72%, transparent 84%);
+  }
+  html[dir="ltr"] .lp-hero-wash {
+    background:
+      radial-gradient(calc(820 * var(--lu)) calc(250 * var(--lu)) at 0 0, rgb(255 255 255 / 0.85), rgb(255 255 255 / 0.55) 55%, transparent),
+      linear-gradient(to bottom, rgb(255 255 255 / 0.3) 0, rgb(255 255 255 / 0.18) calc(190 * var(--lu)), transparent calc(330 * var(--lu)));
   }
   .lp-hero-text {
     width: calc(480 * var(--lu));

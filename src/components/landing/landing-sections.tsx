@@ -14,12 +14,13 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Image from "next/image";
+import { preload } from "react-dom";
 import Link from "@/components/ui/link";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { fmt, formatNumber } from "@/i18n/format";
 import { cn } from "@/lib/utils";
-import heroArt from "../../../public/images/landing/landing-hero.webp";
+import heroArt from "../../../public/images/landing/athar-hero-approved.webp";
 import howArt from "../../../public/images/landing/landing-how.webp";
 import skylineArt from "../../../public/images/landing/landing-skyline.webp";
 import { AtharWordmark } from "@/components/brand/athar-wordmark";
@@ -39,15 +40,20 @@ import { LandingHeader } from "./landing-header";
 
 export function LandingHero({ t, locale }: { t: Dictionary; locale: Locale }) {
   const l = t.landing;
+  // The large-screen artwork is the page's main image: fetch it early, but only where it is shown
+  // (phones load the smaller card image below instead).
+  preload(heroArt.src, { as: "image", fetchPriority: "high", media: "(min-width: 1280px)" });
   return (
     <section className="lp-hero relative isolate overflow-hidden bg-[#fbfbfe] font-landing" data-testid="landing-hero">
-      {/* Large screens: the approved artwork behind the hero, at the reference's scale; the text on its light side.
-          Served as the original file (unoptimized): re-encoding an already compressed image only loses detail. */}
+      {/* Large screens: the approved artwork behind the hero, at the reference's framing; the text on its light side.
+          Served as the original file (unoptimized): it is never shown wider than its own width on 1× screens,
+          and re-encoding an already compressed image only loses detail. "lazy" keeps hidden copies (small screens)
+          from loading at all; on large screens the preload above has already fetched it. */}
       <div className="pointer-events-none absolute inset-0 -z-10 hidden xl:block">
-        <div className="lp-hero-band absolute inset-x-0" />
-        <div className="lp-hero-art absolute inset-x-0 bottom-0 h-full" data-testid="landing-hero-art">
-          <Image src={heroArt} alt={l.heroImageAlt} fill preload unoptimized className="object-cover object-[32%_100%]" />
+        <div className="lp-hero-art absolute" data-testid="landing-hero-art">
+          <Image src={heroArt} alt={l.heroImageAlt} fill unoptimized loading="lazy" className="object-cover" />
         </div>
+        <div className="lp-hero-wash absolute inset-0" />
         {/* A soft white veil behind the text (always on the right, where the artwork is light). */}
         <div className="absolute inset-y-0 right-[3%] w-[44%] bg-gradient-to-l from-white/55 via-white/30 to-transparent" />
       </div>
@@ -86,10 +92,11 @@ export function LandingHero({ t, locale }: { t: Dictionary; locale: Locale }) {
         </div>
       </div>
 
-      {/* Smaller screens: the artwork under the text (both students in frame), unrecompressed. */}
+      {/* Smaller screens: the artwork under the text (both students, the robot and the laptop in frame), resized
+          for the screen by the image optimizer (always downscaled from the original, at high quality). */}
       <div className="container-page max-w-[96rem] pb-10 xl:hidden">
         <div className="relative aspect-[2/1] overflow-hidden rounded-2xl ring-1 ring-line-soft sm:aspect-[2.6/1]">
-          <Image src={heroArt} alt={l.heroImageAlt} fill unoptimized className="object-cover object-[22%_50%]" />
+          <Image src={heroArt} alt={l.heroImageAlt} fill quality={90} sizes="(min-width: 96rem) 96rem, 100vw" className="object-cover object-[50%_70%] sm:object-[50%_75%]" />
         </div>
       </div>
     </section>

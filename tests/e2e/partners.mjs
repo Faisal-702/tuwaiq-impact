@@ -136,6 +136,10 @@ await check("visitor opening the site sees the public landing page (no redirect 
   assert((await page.getByTestId("landing-brand").locator("svg").count()) === 0, "no icon beside the school name");
   // Cairo is the landing page's Arabic typeface.
   assert(/Cairo/.test(await page.locator("h1").evaluate((el) => getComputedStyle(el).fontFamily)), "Cairo font");
+  // The hero shows the approved artwork, loaded (whichever copy the screen size shows).
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll('[data-testid="landing-hero"] img')].some((i) => i.offsetParent !== null && /athar-hero-approved/.test(i.currentSrc) && i.complete && i.naturalWidth > 0),
+  );
   await context.close();
 });
 
