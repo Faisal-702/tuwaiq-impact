@@ -4,6 +4,8 @@
 @import "@fontsource/ibm-plex-sans-arabic/500.css";
 @import "@fontsource/ibm-plex-sans-arabic/600.css";
 @import "@fontsource/ibm-plex-sans-arabic/700.css";
+/* Cairo: the public landing page and its header (and the أثر wordmark). */
+@import "./fonts/cairo/cairo.css";
 
 /* ---------------------------------------------------------------------------
    Athar Platform design tokens (light mode only)
@@ -167,6 +169,16 @@
   }
   html[dir="ltr"] .text-gradient-athar {
     background-image: linear-gradient(90deg, #3f23a3 0%, #343da3 38%, #057976 100%);
+  }
+
+  /* Public landing page typography: Cairo for Arabic (and the Arabic page);
+     English keeps Inter for Latin text, with Cairo for any Arabic in it. */
+  .font-landing {
+    font-family: "Cairo Variable", "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: normal;
+  }
+  html[dir="ltr"] .font-landing {
+    font-family: "Inter Variable", "Cairo Variable", ui-sans-serif, system-ui, sans-serif;
   }
 
   .hairline-gradient {
@@ -436,5 +448,167 @@
   }
   #print-root h2 {
     break-after: avoid;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Public landing page on large screens (≥1280px), proportional to the
+   approved reference (docs/references/landing-reference-athar.webp, a
+   1672px-wide screenshot). --lu is one reference pixel (100vw / 1672,
+   capped at 1.2px), and the header, hero, artwork and "Why" section are
+   sized in it, so their proportions match the reference at every desktop
+   width (1366, 1440, 1672, 1920…), instead of the artwork growing with the
+   window while the text keeps a fixed size. Mobile and tablet layouts are
+   the utility classes in the components. These rules are unlayered, so on
+   large screens they take precedence over those utilities.
+   --------------------------------------------------------------------------- */
+@media (min-width: 1280px) {
+  :root {
+    --lu: min(calc(100vw / 1672), 1.2px);
+  }
+
+  .lp-container {
+    width: 100%;
+    max-width: calc(1672 * var(--lu));
+    margin-inline: auto;
+    padding-inline: calc(96 * var(--lu));
+  }
+
+  /* Header: Ministry logo, divider, school name | sign in, partners, language. */
+  .lp-header-bar {
+    max-width: calc(1672 * var(--lu));
+    padding-block: calc(37 * var(--lu));
+    padding-inline: calc(79 * var(--lu)) calc(162 * var(--lu));
+    column-gap: calc(19 * var(--lu));
+  }
+  .lp-brand { column-gap: calc(33 * var(--lu)); }
+  .lp-brand img { height: calc(74 * var(--lu)); } /* width follows: the logo keeps its proportions */
+  .lp-brand-divider { height: calc(50 * var(--lu)); }
+  .lp-school { font-size: calc(22.4 * var(--lu)); }
+  .lp-nav { column-gap: calc(17 * var(--lu)); }
+  .lp-nav-btn {
+    height: calc(46 * var(--lu));
+    padding-inline: 0;
+    font-size: calc(17.5 * var(--lu));
+    column-gap: calc(8 * var(--lu));
+  }
+  .lp-nav-btn svg { width: calc(20 * var(--lu)); height: calc(20 * var(--lu)); }
+  .lp-nav-login { width: calc(131 * var(--lu)); }
+  .lp-nav-partners { width: calc(106 * var(--lu)); }
+  .lp-nav-divider { height: calc(46 * var(--lu)); margin-inline: calc(4 * var(--lu)) 0; }
+  .lp-lang [role="group"] { padding: calc(4 * var(--lu)); }
+  .lp-lang [role="group"] button {
+    padding: calc(7 * var(--lu)) calc(18 * var(--lu));
+    font-size: calc(16 * var(--lu));
+  }
+
+  /* Hero. The approved artwork (1672×941) is shown at the reference's
+     framing: 0.8× its size in reference px, from the hero's start edge and
+     slightly above it, so the students sit exactly where the reference has
+     them and the photo is never enlarged on 1× screens (at most 1606px
+     wide, at the largest unit). Its right
+     part fades out (a mask: the file itself is untouched) into the light
+     area behind the text; a light wash keeps the sky behind the header soft. */
+  .lp-hero { min-height: calc(655 * var(--lu)); }
+  .lp-hero-art {
+    left: 0;
+    top: calc(-25 * var(--lu));
+    width: calc(1338 * var(--lu));
+    height: calc(753 * var(--lu));
+    -webkit-mask-image: linear-gradient(to right, #000 68%, rgb(0 0 0 / 0.5) 79%, transparent 89%);
+    mask-image: linear-gradient(to right, #000 68%, rgb(0 0 0 / 0.5) 79%, transparent 89%);
+  }
+  .lp-hero-wash {
+    background: linear-gradient(to bottom, rgb(255 255 255 / 0.3) 0, rgb(255 255 255 / 0.18) calc(190 * var(--lu)), transparent calc(330 * var(--lu)));
+  }
+  /* English mirrors the page but not the photo: the school's logo and name
+     sit over its top-left corner and the (wider) text starts earlier, so a
+     soft light corner goes behind the brand and the photo fades out sooner. */
+  html[dir="ltr"] .lp-hero-art {
+    -webkit-mask-image: linear-gradient(to right, #000 60%, rgb(0 0 0 / 0.5) 72%, transparent 84%);
+    mask-image: linear-gradient(to right, #000 60%, rgb(0 0 0 / 0.5) 72%, transparent 84%);
+  }
+  html[dir="ltr"] .lp-hero-wash {
+    background:
+      radial-gradient(calc(820 * var(--lu)) calc(250 * var(--lu)) at 0 0, rgb(255 255 255 / 0.85), rgb(255 255 255 / 0.55) 55%, transparent),
+      linear-gradient(to bottom, rgb(255 255 255 / 0.3) 0, rgb(255 255 255 / 0.18) calc(190 * var(--lu)), transparent calc(330 * var(--lu)));
+  }
+  .lp-hero-text {
+    width: calc(480 * var(--lu));
+    max-width: none;
+    padding-top: calc(36 * var(--lu));
+    padding-bottom: calc(24 * var(--lu));
+  }
+  html[dir="ltr"] .lp-hero-text { width: calc(540 * var(--lu)); }
+  .lp-wordmark { height: calc(112 * var(--lu)); }
+  .lp-headline {
+    margin-top: calc(17 * var(--lu));
+    font-size: calc(42 * var(--lu));
+    line-height: 1.43;
+  }
+  html[dir="ltr"] .lp-headline { font-size: calc(36 * var(--lu)); line-height: 1.25; }
+  .lp-lede {
+    margin-top: calc(9 * var(--lu));
+    font-size: max(15px, calc(18.2 * var(--lu)));
+    line-height: 1.68;
+  }
+  .lp-actions {
+    margin-top: calc(35 * var(--lu));
+    column-gap: calc(16 * var(--lu));
+  }
+  .lp-cta {
+    height: calc(55 * var(--lu));
+    min-width: 0;
+    padding-inline: 0;
+    font-size: calc(19 * var(--lu));
+    border-radius: calc(10 * var(--lu));
+    column-gap: calc(10 * var(--lu));
+  }
+  .lp-cta svg { width: calc(22 * var(--lu)); height: calc(22 * var(--lu)); }
+  .lp-cta-login { width: calc(198 * var(--lu)); }
+  .lp-cta-partner { width: calc(208 * var(--lu)); }
+
+  /* "Why Athar Platform?" and its four cards. */
+  .lp-why {
+    padding-top: calc(22 * var(--lu));
+    padding-bottom: calc(40 * var(--lu));
+  }
+  .lp-why-head {
+    min-height: calc(45 * var(--lu));
+    column-gap: calc(24 * var(--lu));
+  }
+  .lp-why-title {
+    font-size: calc(36 * var(--lu));
+    column-gap: calc(16 * var(--lu));
+  }
+  .lp-why-title > span { width: calc(47 * var(--lu)); }
+  .lp-why-intro {
+    max-width: calc(560 * var(--lu));
+    font-size: max(13.5px, calc(14.6 * var(--lu)));
+  }
+  .lp-cards {
+    margin-top: calc(19 * var(--lu));
+    gap: calc(19 * var(--lu));
+  }
+  .lp-card {
+    min-height: calc(178 * var(--lu));
+    padding: calc(16 * var(--lu)) calc(13 * var(--lu));
+    border-radius: calc(16 * var(--lu));
+  }
+  .lp-card-tile {
+    width: calc(56 * var(--lu));
+    height: calc(56 * var(--lu));
+    border-radius: calc(13 * var(--lu));
+  }
+  .lp-card-tile svg { width: calc(26 * var(--lu)); height: calc(26 * var(--lu)); }
+  .lp-card-title {
+    margin-top: calc(6 * var(--lu));
+    font-size: calc(18.5 * var(--lu));
+    line-height: 1.375;
+  }
+  .lp-card-body {
+    margin-top: calc(8 * var(--lu));
+    font-size: max(13.5px, calc(14.6 * var(--lu)));
+    line-height: 1.66;
   }
 }

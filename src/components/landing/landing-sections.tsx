@@ -14,14 +14,16 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Image from "next/image";
+import { preload } from "react-dom";
 import Link from "@/components/ui/link";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { fmt, formatNumber } from "@/i18n/format";
 import { cn } from "@/lib/utils";
-import heroArt from "../../../public/images/landing/landing-hero.webp";
+import heroArt from "../../../public/images/landing/athar-hero-approved.webp";
 import howArt from "../../../public/images/landing/landing-how.webp";
 import skylineArt from "../../../public/images/landing/landing-skyline.webp";
+import { AtharWordmark } from "@/components/brand/athar-wordmark";
 import { Mosaic } from "./decor";
 import { LandingHeader } from "./landing-header";
 
@@ -38,61 +40,63 @@ import { LandingHeader } from "./landing-header";
 
 export function LandingHero({ t, locale }: { t: Dictionary; locale: Locale }) {
   const l = t.landing;
+  // The large-screen artwork is the page's main image: fetch it early, but only where it is shown
+  // (phones load the smaller card image below instead).
+  preload(heroArt.src, { as: "image", fetchPriority: "high", media: "(min-width: 1280px)" });
   return (
-    <section className="relative isolate overflow-hidden bg-[#fbfbfe] xl:min-h-[max(29.5rem,32.94vw)]" data-testid="landing-hero">
-      {/* Large screens: the approved artwork fills the hero, the text sits on its light side. */}
+    <section className="lp-hero relative isolate overflow-hidden bg-[#fbfbfe] font-landing" data-testid="landing-hero">
+      {/* Large screens: the approved artwork behind the hero, at the reference's framing; the text on its light side.
+          Served as the original file (unoptimized): it is never shown wider than its own width on 1× screens,
+          and re-encoding an already compressed image only loses detail. "lazy" keeps hidden copies (small screens)
+          from loading at all; on large screens the preload above has already fetched it. */}
       <div className="pointer-events-none absolute inset-0 -z-10 hidden xl:block">
-        <Image src={heroArt} alt={l.heroImageAlt} fill preload sizes="100vw" className="object-cover object-[32%_50%]" />
-        <div className="absolute inset-y-0 right-0 w-[48%] bg-gradient-to-l from-white/70 via-white/35 to-transparent" />
+        <div className="lp-hero-art absolute" data-testid="landing-hero-art">
+          <Image src={heroArt} alt={l.heroImageAlt} fill unoptimized loading="lazy" className="object-cover" />
+        </div>
+        <div className="lp-hero-wash absolute inset-0" />
+        {/* A soft white veil behind the text (always on the right, where the artwork is light). */}
+        <div className="absolute inset-y-0 right-[3%] w-[44%] bg-gradient-to-l from-white/55 via-white/30 to-transparent" />
       </div>
 
       <LandingHeader t={t} />
 
-      <div className="container-page flex xl:ltr:justify-end">
-        <div className="w-full pb-10 pt-3 sm:pt-6 sm:max-w-xl xl:w-[24rem] xl:pb-8 xl:pt-0">
+      <div className="lp-container container-page flex max-w-[96rem] xl:ltr:justify-end">
+        <div className="lp-hero-text w-full pb-10 pt-2 sm:max-w-xl sm:pt-4" data-testid="landing-hero-text">
           <p className="flex flex-col items-start leading-none" data-testid="landing-name">
-            {locale === "ar" ? (
-              <>
-                <span className="text-[1.625rem] font-medium text-[#5d6076]">{l.heroPlatform}</span>
-                <span className="mt-0.5 text-[5.25rem] font-bold leading-[1.1] text-gradient-athar sm:text-[5.75rem]">أثـــر</span>
-              </>
-            ) : (
-              <>
-                <span className="text-[4.25rem] font-bold leading-[1.1] tracking-tight text-gradient-athar sm:text-[4.75rem]">{l.heroName}</span>
-                <span className="mt-1 text-[1.625rem] font-medium text-[#5d6076]">{l.heroPlatform}</span>
-              </>
-            )}
+            <AtharWordmark className="lp-wordmark h-[4.75rem] sm:h-[5.75rem]" />
+            {locale === "en" ? <span className="mt-1 block text-[1.375rem] font-semibold text-[#5d6076]">{t.brand.name}</span> : null}
           </p>
-          <h1 className="mt-1 text-[1.875rem] font-bold leading-[1.45] text-navy sm:text-[2.125rem]">
+          <h1 className="lp-headline mt-2 text-[1.875rem] font-bold leading-[1.35] text-[#0f1747] sm:text-[2.25rem]">
             <span className="block">{l.heroTitle1}</span>
             <span className="block">{l.heroTitle2}</span>
           </h1>
-          <p className="mt-2 text-[0.9375rem] leading-[1.7] text-copy">{l.heroBody}</p>
-          <div className="mt-5 flex flex-wrap gap-2.5">
+          <p className="lp-lede mt-3 text-base leading-[1.75] text-[#575c74]">{l.heroBody}</p>
+          <div className="lp-actions mt-5 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
             <Link
               href="/welcome"
-              className="inline-flex h-11 min-w-[9.5rem] items-center justify-center gap-2.5 rounded-lg bg-indigo px-7 text-base font-semibold text-white shadow-[0_14px_28px_-16px_rgb(66_31_190/0.95)] transition hover:bg-[#3418a6]"
+              className="lp-cta lp-cta-login inline-flex h-12 items-center justify-center gap-2.5 rounded-[0.625rem] bg-[#3a14c8] px-6 text-base font-bold text-white shadow-[0_16px_30px_-16px_rgb(58_20_200/0.95)] transition hover:bg-[#2f0fae] sm:min-w-[11rem]"
               data-testid="hero-login"
             >
-              <UserRound className="size-5" aria-hidden />
+              <UserRound className="size-5" strokeWidth={1.9} aria-hidden />
               {l.ctaLogin}
             </Link>
             <Link
               href="/partners"
-              className="inline-flex h-11 min-w-[10rem] items-center justify-center gap-2.5 rounded-lg bg-white/90 px-6 text-base font-semibold text-indigo-ink ring-1 ring-inset ring-[#8d81bc] transition hover:bg-lavender-soft"
+              className="lp-cta lp-cta-partner inline-flex h-12 items-center justify-center gap-2.5 rounded-[0.625rem] bg-white/95 px-6 text-base font-bold text-[#2a1590] ring-1 ring-inset ring-[#a79fd6] transition hover:bg-lavender-soft sm:min-w-[11rem]"
               data-testid="hero-partner"
             >
-              <Handshake className="size-5 text-indigo" aria-hidden />
+              <Handshake className="size-5 text-[#3a14c8]" strokeWidth={1.9} aria-hidden />
               {l.ctaPartner}
             </Link>
           </div>
         </div>
       </div>
 
-      {/* Small screens: the artwork under the text. */}
-      <div className="container-page pb-10 xl:hidden">
-        <div className="relative aspect-[16/9] overflow-hidden rounded-2xl ring-1 ring-line-soft">
-          <Image src={heroArt} alt={l.heroImageAlt} fill sizes="(min-width: 640px) 90vw, 100vw" className="object-cover object-[12%_50%]" />
+      {/* Smaller screens: the artwork under the text (both students, the robot and the laptop in frame), resized
+          for the screen by the image optimizer (always downscaled from the original, at high quality). */}
+      <div className="container-page max-w-[96rem] pb-10 xl:hidden">
+        <div className="relative aspect-[2/1] overflow-hidden rounded-2xl ring-1 ring-line-soft sm:aspect-[2.6/1]">
+          <Image src={heroArt} alt={l.heroImageAlt} fill quality={90} sizes="(min-width: 96rem) 96rem, 100vw" className="object-cover object-[50%_70%] sm:object-[50%_75%]" />
         </div>
       </div>
     </section>
@@ -104,41 +108,43 @@ export function LandingHero({ t, locale }: { t: Dictionary; locale: Locale }) {
 /* ------------------------------------------------------------------------- */
 
 const WHY: { key: keyof Dictionary["landing"]["why"]; icon: LucideIcon; card: string; tile: string; tone: string; title: string; filled?: boolean }[] = [
-  { key: "empower", icon: GraduationCap, card: "from-[#f7f3fe] to-white", tile: "bg-[#e3dbff]", tone: "text-[#4118c5]", title: "text-[#371793]", filled: true },
-  { key: "rights", icon: ShieldCheck, card: "from-[#f3fcfb] to-white", tile: "bg-[#c5f6e1]", tone: "text-[#198c7a]", title: "text-[#197b6c]" },
-  { key: "showcase", icon: UsersRound, card: "from-[#eff7fe] to-white", tile: "bg-[#cbe2ff]", tone: "text-[#062dad]", title: "text-[#062397]", filled: true },
-  { key: "opportunities", icon: ChartNoAxesColumn, card: "from-[#f8f5fd] to-white", tile: "bg-[#e5ddfd]", tone: "text-[#4118c5]", title: "text-[#3b2080]" },
+  { key: "empower", icon: GraduationCap, card: "from-[#fcfbff] to-[#fbfaff]", tile: "bg-[#ece5ff]", tone: "text-[#3d1bc6]", title: "text-[#3216b4]", filled: true },
+  { key: "rights", icon: ShieldCheck, card: "from-[#fbfffd] to-[#fcfefe]", tile: "bg-[#c4f3df]", tone: "text-[#1a7c66]", title: "text-[#16876d]" },
+  { key: "showcase", icon: UsersRound, card: "from-[#fbfdff] to-[#fbfcfe]", tile: "bg-[#d5edff]", tone: "text-[#1440b5]", title: "text-[#1638a6]", filled: true },
+  { key: "opportunities", icon: ChartNoAxesColumn, card: "from-[#fcfbfe] to-[#fbfbfe]", tile: "bg-[#e6dcfb]", tone: "text-[#4a2bc3]", title: "text-[#2a1b8c]" },
 ];
 
 export function WhySection({ t }: { t: Dictionary }) {
   const l = t.landing;
   return (
-    <section aria-labelledby="why-title" className="relative overflow-hidden bg-[#fcfbfe] pb-9 pt-5" data-testid="landing-why">
-      <Mosaic className="absolute -start-12 top-6 hidden opacity-45 md:block" flip />
-      <Mosaic className="absolute -end-12 top-24 hidden opacity-45 md:block" />
-      <div className="container-page relative">
-        <div className="flex flex-col items-center gap-2 text-center xl:relative xl:block xl:min-h-11">
-          <h2 id="why-title" className="flex items-center justify-center gap-4 text-[1.75rem] font-bold text-[#041e47]">
-            <span aria-hidden className="h-0.5 w-9 rounded-full bg-[#438e7a]" />
+    <section aria-labelledby="why-title" className="lp-why relative overflow-hidden bg-[#fcfbfe] pb-10 pt-6 font-landing" data-testid="landing-why">
+      <Mosaic className="absolute -start-12 top-20 hidden opacity-45 md:block" flip />
+      <Mosaic className="absolute -end-12 top-10 hidden opacity-45 md:block" />
+      <div className="lp-container container-page relative max-w-[96rem]">
+        {/* Large screens: the introduction on the start side, the title centred (a grid, so they never overlap). */}
+        <div className="lp-why-head flex flex-col items-center gap-2 text-center xl:grid xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] xl:items-center">
+          <h2 id="why-title" className="lp-why-title flex items-center justify-center gap-5 text-[1.75rem] font-bold leading-tight text-[#0d1a4a] sm:text-[2rem] xl:col-start-2 xl:row-start-1">
+            <span aria-hidden className="h-0.5 w-9 rounded-full bg-[#1b7a61]" />
             {l.whyTitle}
-            <span aria-hidden className="h-0.5 w-9 rounded-full bg-[#438e7a]" />
+            <span aria-hidden className="h-0.5 w-9 rounded-full bg-[#1b7a61]" />
           </h2>
-          <p className="max-w-2xl text-[0.875rem] leading-relaxed text-copy xl:absolute xl:start-0 xl:top-1/2 xl:max-w-[29rem] xl:-translate-y-1/2 xl:text-start">
-            {l.whyIntro}
-          </p>
+          <p className="lp-why-intro max-w-2xl text-[0.9375rem] leading-relaxed text-[#5b6075] xl:col-start-1 xl:row-start-1 xl:text-start">{l.whyIntro}</p>
         </div>
-        <ul className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <ul className="lp-cards mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {WHY.map(({ key, icon: Icon, card, tile, tone, title, filled }) => (
             <li
               key={key}
-              className={cn("relative rounded-2xl bg-gradient-to-b px-4 pb-4 pt-3 text-center shadow-[0_10px_30px_-18px_rgb(40_30_120/0.35)] ring-1 ring-[#ece9f6]", card)}
+              className={cn(
+                "lp-card relative flex flex-col rounded-2xl bg-gradient-to-b px-5 pb-5 pt-4 text-center shadow-[0_12px_32px_-22px_rgb(40_30_120/0.35)] ring-1 ring-[#ebe8f4]",
+                card,
+              )}
               data-why={key}
             >
-              <span aria-hidden className={cn("me-auto grid size-12 place-items-center rounded-xl", tile)}>
-                <Icon className={cn("size-6", tone)} strokeWidth={filled ? 1.6 : 2.1} fill={filled ? "currentColor" : "none"} />
+              <span aria-hidden className={cn("lp-card-tile me-auto grid size-[3.375rem] place-items-center rounded-xl", tile)}>
+                <Icon className={cn("size-[1.625rem]", tone)} strokeWidth={filled ? 1.6 : 2} fill={filled ? "currentColor" : "none"} />
               </span>
-              <h3 className={cn("mt-1.5 text-[1.0625rem] font-bold", title)}>{l.why[key].title}</h3>
-              <p className="mt-1 text-[0.8125rem] leading-relaxed text-copy">{l.why[key].body}</p>
+              <h3 className={cn("lp-card-title mt-2 text-[1.25rem] font-bold leading-snug", title)}>{l.why[key].title}</h3>
+              <p className="lp-card-body mt-2 text-[0.9375rem] leading-[1.85] text-[#5b6075]">{l.why[key].body}</p>
             </li>
           ))}
         </ul>

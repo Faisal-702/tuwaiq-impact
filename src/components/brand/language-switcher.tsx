@@ -14,8 +14,11 @@ export function LanguageSwitcher({
   variant = "pill",
 }: {
   className?: string;
-  /** "adaptive": compact on small screens, pill from the `sm` breakpoint. */
-  variant?: "pill" | "compact" | "adaptive";
+  /**
+   * "adaptive": compact on small screens, pill from the `sm` breakpoint.
+   * "landing": like "adaptive"; on large screens the landing header sizes it (`.lp-lang` in globals.css).
+   */
+  variant?: "pill" | "compact" | "adaptive" | "landing";
 }) {
   const { t, targetLocale, switching, switchLocale } = useI18n();
 
@@ -32,7 +35,8 @@ export function LanguageSwitcher({
       dir="ltr"
       className={cn(
         "inline-flex items-center rounded-full bg-white/90 p-1 ring-1 ring-line backdrop-blur",
-        variant === "pill" ? "shadow-soft" : variant === "adaptive" ? "sm:shadow-soft" : "",
+        variant === "pill" ? "shadow-soft" : variant === "adaptive" || variant === "landing" ? "sm:shadow-soft" : "",
+        variant === "landing" && "xl:ring-[#e2e0ee]",
         switching && "opacity-70",
         className,
       )}
@@ -53,9 +57,11 @@ export function LanguageSwitcher({
                 ? "px-4 py-1.5 text-sm"
                 : variant === "adaptive"
                   ? "px-3 py-1 text-[0.8125rem] sm:px-4 sm:py-1.5 sm:text-sm"
-                  : "px-3 py-1 text-[0.8125rem]",
-              o.value === "ar" && "font-[family-name:var(--font-arabic)]",
-              active ? "bg-purple-ink text-white shadow-sm" : "text-ink-soft hover:text-ink",
+                  : variant === "landing"
+                    ? "px-3 py-1 text-[0.8125rem] font-bold sm:px-4 sm:py-1.5 sm:text-sm"
+                    : "px-3 py-1 text-[0.8125rem]",
+              o.value === "ar" && (variant === "landing" ? "font-[family-name:'Cairo_Variable']" : "font-[family-name:var(--font-arabic)]"),
+              active ? (variant === "landing" ? "bg-[#2e1793] text-white shadow-sm" : "bg-purple-ink text-white shadow-sm") : "text-ink-soft hover:text-ink",
             )}
           >
             {o.label}

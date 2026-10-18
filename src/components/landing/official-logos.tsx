@@ -11,6 +11,8 @@ import tuwaiqLogo from "../../../public/brand/official/tuwaiq-academy-logo.png";
 const SIZES = {
   header: { moe: "h-8 min-[400px]:h-10 sm:h-[50px] lg:h-[58px]", tuwaiq: "h-4 min-[400px]:h-[22px] sm:h-[30px] lg:h-[34px]", divider: "h-7 sm:h-11 lg:h-12", gap: "gap-2.5 min-[400px]:gap-3 sm:gap-5 lg:gap-9", px: [76, 188] },
   banner: { moe: "h-11", tuwaiq: "h-7", divider: "h-9", gap: "gap-4", px: [60, 156] },
+  /** The landing header: the Ministry logo beside the school's name. */
+  landing: { moe: "h-9 min-[400px]:h-11 sm:h-14", tuwaiq: "h-7", divider: "h-9", gap: "gap-4", px: [104, 156] },
 } as const;
 
 export function OfficialLogos({
