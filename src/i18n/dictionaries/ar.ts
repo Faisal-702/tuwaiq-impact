@@ -75,6 +75,7 @@ const ar: Dictionary = {
   },
   entry: {
     welcomeTo: "مرحبًا بكم في",
+    backHome: "العودة للرئيسية",
     subtitle: "منصة لعرض إنجازات الطلاب ومشاريعهم وابتكاراتهم وتميّزهم.",
     adminTab: "دخول المسؤول",
     studentTab: "دخول الطالب",

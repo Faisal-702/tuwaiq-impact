@@ -8,6 +8,7 @@ import { useFormStatus } from "react-dom";
 import { adminLogin, studentLogin, type AdminLoginState, type StudentLoginState } from "@/app/welcome/actions";
 import { LanguageSwitcher } from "@/components/brand/language-switcher";
 import { PartnerLogos } from "@/components/brand/partner-logos";
+import Link from "@/components/ui/link";
 import { useI18n } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 import { LoadingAnimation } from "@/components/ui/loading-animation";
@@ -35,11 +36,21 @@ export function EntryExperience({
     <div className="relative isolate flex min-h-dvh flex-col overflow-hidden">
       <EntryScene />
 
-      <div className="absolute end-4 top-4 z-20 sm:end-8 sm:top-7">
+      {/* Top bar: the way back to the public landing page on the start side (top right in Arabic), the
+          language switch where it has always been, on the end side. */}
+      <div className="absolute inset-x-4 top-4 z-20 flex items-center justify-between gap-3 sm:inset-x-8 sm:top-7">
+        <Link
+          href="/"
+          className="inline-flex h-10 items-center gap-2 rounded-full bg-white/80 px-4 text-sm font-semibold text-[#2a1590] shadow-[0_6px_18px_-12px_rgb(42_21_144/0.55)] ring-1 ring-inset ring-[#d6d0ee] backdrop-blur transition hover:bg-white hover:text-[#3a14c8] hover:ring-[#b9b2dc] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple sm:px-5"
+          data-testid="welcome-back-home"
+        >
+          <ArrowRight className="size-4 shrink-0 ltr:rotate-180" strokeWidth={2.2} aria-hidden />
+          {t.entry.backHome}
+        </Link>
         <LanguageSwitcher />
       </div>
 
-      <main className="relative z-10 flex flex-1 flex-col items-center px-4 pb-10 pt-[4.5rem] sm:pt-14 lg:pt-[clamp(1.25rem,4.5vh,3.25rem)]">
+      <main className="relative z-10 flex flex-1 flex-col items-center px-4 pb-10 pt-[4.5rem] sm:pt-[4.75rem] min-[50rem]:pt-14 lg:pt-[clamp(1.25rem,4.5vh,3.25rem)]">
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}

@@ -63,7 +63,7 @@ export function LandingHero({ t, locale }: { t: Dictionary; locale: Locale }) {
       <div className="lp-container container-page flex max-w-[96rem] xl:ltr:justify-end">
         <div className="lp-hero-text w-full pb-10 pt-2 sm:max-w-xl sm:pt-4" data-testid="landing-hero-text">
           <p className="flex flex-col items-start leading-none" data-testid="landing-name">
-            <AtharWordmark className="lp-wordmark h-[4.75rem] sm:h-[5.75rem]" />
+            <AtharWordmark locale={locale} className="lp-wordmark h-[4.75rem] sm:h-[5.75rem]" />
             {locale === "en" ? <span className="mt-1 block text-[1.375rem] font-semibold text-[#5d6076]">{t.brand.name}</span> : null}
           </p>
           <h1 className="lp-headline mt-2 text-[1.875rem] font-bold leading-[1.35] text-[#0f1747] sm:text-[2.25rem]">

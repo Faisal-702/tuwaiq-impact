@@ -50,6 +50,7 @@ async function newPage(lang, extraCookies = []) {
 
 /** A text on the page that must be in the page's language, per language. */
 const PROBES = {
+  "/": { selector: "h1", en: "We document our students", ar: "نُوثِّق أفكار طلابنا" },
   "/welcome": { selector: "main header > p", en: "Welcome to", ar: "مرحبًا بكم في" },
   "/home": { selector: "header nav", en: "Explore Projects", ar: "استكشف المشاريع" },
   "/projects": { selector: "main h1", en: "Explore Projects", ar: "استكشف المشاريع" },
@@ -212,6 +213,113 @@ await check("slow server: never half-switched, switch shows the choice at once, 
   assert(await pressedEn, "the switch did not show the choice while waiting");
   assert(await loaderSeen, "no loading indicator during a slow switch");
   await page.unrouteAll({ behavior: "ignoreErrors" });
+  await context.close();
+});
+
+/** The landing page's wordmark as drawn: its language, accessible name, box and the headline under it. */
+const wordmark = (page) =>
+  page.evaluate(() => {
+    const svg = document.querySelector('[data-testid="landing-hero"] [data-testid="athar-wordmark"]');
+    const box = svg.getBoundingClientRect();
+    return {
+      locale: svg.dataset.locale,
+      name: svg.getAttribute("aria-label"),
+      paths: svg.querySelectorAll("path").length,
+      viewBox: svg.getAttribute("viewBox"),
+      height: Math.round(box.height),
+      width: Math.round(box.width),
+      fits: box.right <= document.documentElement.clientWidth && box.left >= 0,
+      h1Top: Math.round(document.querySelector("h1").getBoundingClientRect().top),
+    };
+  });
+
+await check("landing: the wordmark follows the language (أثـ — ـر ⇄ Atha-r) in place, after a reload and back", async () => {
+  const { context, page } = await newPage("ar");
+  await page.goto(BASE + "/");
+  await page.locator('[data-testid="athar-wordmark"]').waitFor();
+  const ar = await wordmark(page);
+  assert(ar.locale === "ar" && ar.name === "أثر" && ar.paths === 6 && ar.viewBox === "0 -984 2478 1246.9", `Arabic wordmark ${JSON.stringify(ar)}`);
+  await switchTo(page, "/", "en");
+  const en = await wordmark(page);
+  assert(en.locale === "en" && en.name === "Athar" && en.paths === 6 && en.viewBox === "0 -984 2810 1246.9", `English wordmark ${JSON.stringify(en)}`);
+  // Same height (one baseline): switching never moves the text below it.
+  assert(en.height === ar.height && en.fits, `English wordmark box ${JSON.stringify(en)} vs Arabic ${JSON.stringify(ar)}`);
+  await page.reload();
+  const reloaded = await wordmark(page);
+  assert(reloaded.locale === "en" && reloaded.h1Top === en.h1Top, `after reload ${JSON.stringify(reloaded)}`);
+  await switchTo(page, "/", "ar");
+  const back = await wordmark(page);
+  assert(back.locale === "ar" && back.viewBox === ar.viewBox && back.h1Top === ar.h1Top, `back to Arabic ${JSON.stringify(back)}`);
+  await context.close();
+});
+
+/** Clicks Back to Home on /welcome and checks it lands (and stays) on the public landing page. */
+async function backHome(page, lang) {
+  const link = page.getByTestId("welcome-back-home");
+  assert((await link.innerText()).trim() === (lang === "en" ? "Back to Home" : "العودة للرئيسية"), `label ${await link.innerText()}`);
+  assert((await link.getAttribute("href")) === "/", "not a link to the landing page");
+  await link.click();
+  await page.waitForURL((u) => u.pathname === "/");
+  await page.getByTestId("landing-hero").waitFor();
+  await page.waitForTimeout(800);
+  assert(new URL(page.url()).pathname === "/", `redirected away to ${page.url()}`);
+  assert((await page.evaluate(() => document.documentElement.lang)) === lang, "landing page in the wrong language");
+}
+
+await check("welcome: Back to Home sits in the start corner, its arrow pointing back, clear of the switch and logos", async () => {
+  for (const [lang, viewport] of [["ar", { width: 1440, height: 900 }], ["en", { width: 1440, height: 900 }], ["ar", { width: 390, height: 844 }], ["en", { width: 390, height: 844 }], ["ar", { width: 700, height: 900 }], ["en", { width: 700, height: 900 }]]) {
+    const { context, page } = await newPage(lang);
+    await page.setViewportSize(viewport);
+    await page.goto(BASE + "/welcome");
+    await page.getByTestId("welcome-back-home").waitFor();
+    const m = await page.evaluate(() => {
+      const r = (el) => el.getBoundingClientRect().toJSON();
+      const link = document.querySelector('[data-testid="welcome-back-home"]');
+      return {
+        link: r(link),
+        sw: r(document.querySelector('[role="group"][aria-label]')),
+        logos: [...document.querySelectorAll("main img")].slice(0, 2).map(r),
+        card: r(document.querySelector('section[aria-labelledby="entry-title"]')),
+        arrow: getComputedStyle(link.querySelector("svg")).rotate,
+        vw: document.documentElement.clientWidth,
+        overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      };
+    });
+    const apart = (a, b) => a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top;
+    const where = `${lang} ${viewport.width}px`;
+    if (lang === "ar") assert(m.vw - m.link.right <= 40 && m.link.top <= 40, `${where}: not in the top-right corner ${JSON.stringify(m.link)}`);
+    else assert(m.link.left <= 40 && m.link.top <= 40, `${where}: not in the top-left corner ${JSON.stringify(m.link)}`);
+    assert((lang === "en") === /180/.test(m.arrow), `${where}: arrow rotate=${m.arrow}`);
+    assert(apart(m.link, m.sw) && m.logos.every((l) => apart(m.link, l)) && apart(m.link, m.card), `${where}: overlaps ${JSON.stringify(m)}`);
+    assert(m.overflow === 0 && m.link.height >= 40, `${where}: overflow ${m.overflow}, height ${m.link.height}`);
+    await context.close();
+  }
+});
+
+await check("welcome: Back to Home goes to the landing page (from the landing page, opened directly, after switching mode, language and reloading)", async () => {
+  // From the landing page's Sign in button.
+  let { context, page } = await newPage("ar");
+  await page.goto(BASE + "/");
+  await page.getByTestId("hero-login").click();
+  await page.waitForURL((u) => u.pathname === "/welcome");
+  await backHome(page, "ar");
+  await context.close();
+  // /welcome opened directly in a new tab (nothing on the site to go back to).
+  ({ context, page } = await newPage("en"));
+  await page.goto(BASE + "/welcome");
+  await backHome(page, "en");
+  await context.close();
+  // Admin mode, then Arabic, then a reload; also when redirected here from a protected page.
+  ({ context, page } = await newPage("en"));
+  await page.goto(BASE + "/projects");
+  await page.waitForURL((u) => u.pathname === "/welcome");
+  await page.getByRole("tab", { name: "Admin Access" }).click();
+  await page.locator("#admin-email").waitFor();
+  await switchTo(page, "/welcome", "ar");
+  assert((await page.getByTestId("welcome-back-home").innerText()).trim() === "العودة للرئيسية", "label did not switch to Arabic");
+  await page.reload();
+  await page.getByRole("tab", { name: "دخول الطالب" }).click();
+  await backHome(page, "ar");
   await context.close();
 });
 
