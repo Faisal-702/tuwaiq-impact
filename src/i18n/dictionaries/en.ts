@@ -74,6 +74,7 @@ const en = {
   },
   entry: {
     welcomeTo: "Welcome to",
+    backHome: "Back to Home",
     subtitle: "A platform showcasing student achievements, projects, innovation, and excellence.",
     adminTab: "Admin Access",
     studentTab: "Student Login",
