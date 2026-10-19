@@ -202,7 +202,8 @@ await check("Search by grade", async () => {
 
 await check("Category filter chip works", async () => {
   await vp.goto(BASE + "/projects");
-  await vp.getByRole("button", { name: "Robotics" }).click();
+  // The category chips (the competition chips have their own list, which also has "Robotics").
+  await vp.getByRole("list", { name: "Categories" }).getByRole("button", { name: "Robotics" }).click();
   await vp.waitForURL(/category=robotics/);
   await vp.waitForLoadState("networkidle");
   const titles = await vp.locator("article h3").allInnerTexts();
@@ -516,7 +517,7 @@ await check("Unfeature / unpublish / publish from the project editor", async () 
   await ap.goto(projectEditUrl);
   await ap.getByRole("switch", { name: "Feature on homepage" }).click();
   await ap.getByRole("button", { name: "Save changes" }).click();
-  await ap.getByText("Project published").first().waitFor();
+  await ap.getByText("Changes saved").first().waitFor();
   await ap.reload();
   await ap.getByRole("button", { name: "Move to drafts" }).click();
   await ap.getByText("Project moved to drafts").first().waitFor();
@@ -546,6 +547,7 @@ await check("Trash: a deleted project can be restored, then deleted permanently"
 
 await check("Activity log recorded the administrative actions", async () => {
   await ap.goto(BASE + "/admin/activity");
+  await ap.locator("main").getByText(PROJ).first().waitFor();
   const text = await ap.locator("main").innerText();
   for (const label of [
     "Project published",
