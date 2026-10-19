@@ -35,17 +35,24 @@ begin
       add constraint projects_competition_key
       check (competition is null or competition in ('saif', 'ibdaa', 'robotics', 'hackathons', 'programming', 'other'));
   end if;
-  if not exists (select 1 from pg_constraint where conname = 'projects_competition_other') then
-    -- The student's own competition name: only with 'other', never empty, at most 80 characters.
-    alter table public.projects
-      add constraint projects_competition_other
-      check (
-        competition_other is null
-        or (competition = 'other' and char_length(btrim(competition_other)) between 1 and 80)
-      );
-  end if;
 end
 $$;
+
+-- The student's own competition name. "Other" always has one (1–80
+-- characters once trimmed); every other choice, and a project without a
+-- competition, has none (NULL). Dropped and re-added so that a database where
+-- an earlier version of this file already ran gets this rule as well. Existing
+-- projects all have competition and competition_other NULL, so they pass.
+alter table public.projects drop constraint if exists projects_competition_other;
+alter table public.projects
+  add constraint projects_competition_other
+  check (
+    case
+      when competition = 'other' then competition_other is not null
+                                      and char_length(btrim(competition_other)) between 1 and 80
+      else competition_other is null
+    end
+  );
 
 create index if not exists projects_competition_idx on public.projects (competition) where competition is not null;
 

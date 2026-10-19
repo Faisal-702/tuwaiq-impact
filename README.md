@@ -233,7 +233,7 @@ Apply them **before** deploying these branches. Without them, these pages fail t
 
 ### Database migration (competitions)
 
-`supabase/migrations/20261019000000_student_competitions.sql` adds two nullable columns to `projects`: `competition`, checked against the six keys, and `competition_other`, used only with `other` (1–80 characters). It adds a partial index, and a trigger that refuses to turn a draft into a submitted project without a valid competition. It is additive and idempotent: nothing is deleted, and existing projects keep `NULL` (no competition is guessed). Drafts, stored rows and edits of submitted projects are not affected. It needs `20261011000000_project_submissions.sql`.
+`supabase/migrations/20261019000000_student_competitions.sql` adds two nullable columns to `projects`: `competition`, checked against the six keys, and `competition_other`, required with `other` (1–80 characters once trimmed) and `NULL` for every other choice. It adds a partial index, and a trigger that refuses to turn a draft into a submitted project without a valid competition. It is additive and idempotent: nothing is deleted, and existing projects keep `NULL` (no competition is guessed). Drafts, stored rows and edits of submitted projects are not affected. It needs `20261011000000_project_submissions.sql`.
 
 1. **Check** in the Supabase SQL editor (both rows should read `true`):
    ```sql
