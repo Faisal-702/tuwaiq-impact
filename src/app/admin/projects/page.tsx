@@ -1,6 +1,7 @@
 import { Eye, FolderKanban } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "@/components/ui/link";
+import { DeleteSubmissionButton } from "@/components/admin/delete-submission";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { buttonClasses } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -16,8 +17,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Projects submitted by students through the project form ("إضافة مشروع"),
- * newest first: one row per submitted project with the student's name and a
- * read-only preview. Projects are created by students only.
+ * newest first: one row per submitted project with the student's name, a
+ * read-only preview and Delete Project. Projects are created by students only.
  */
 export default async function AdminProjectsPage() {
   const { t, locale } = await getI18n();
@@ -56,15 +57,18 @@ export default async function AdminProjectsPage() {
                       </span>
                     </td>
                     <td className="px-5 py-4 text-end sm:px-6">
-                      <Link
-                        href={`/admin/projects/submissions/${s.id}`}
-                        className={buttonClasses("primary", "sm")}
-                        aria-label={fmt(p.previewOf, { title: s.title || name })}
-                        data-testid="submission-preview"
-                      >
-                        <Eye className="size-4" aria-hidden />
-                        {p.previewProject}
-                      </Link>
+                      <div className="flex flex-wrap justify-end gap-2 sm:flex-nowrap">
+                        <Link
+                          href={`/admin/projects/submissions/${s.id}`}
+                          className={buttonClasses("primary", "sm")}
+                          aria-label={fmt(p.previewOf, { title: s.title || name })}
+                          data-testid="submission-preview"
+                        >
+                          <Eye className="size-4" aria-hidden />
+                          {p.previewProject}
+                        </Link>
+                        <DeleteSubmissionButton submissionId={s.id} title={s.title} student={name} />
+                      </div>
                     </td>
                   </tr>
                 );

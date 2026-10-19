@@ -552,6 +552,135 @@ await check("English labels and mobile layout (Explore Projects, form, Manage Pr
   await ea.close();
 });
 
+// ---------------------------------------------------------------------------
+// Administrator: Delete Project (only this run's own projects are deleted)
+// ---------------------------------------------------------------------------
+
+const [sub1] = await sql`select ps.id from project_submissions ps join projects p on p.id = ps.project_id where p.title = ${P1.title} and ps.status = 'submitted'`;
+const [sub2] = await sql`select ps.id, ps.project_id, ps.student_id from project_submissions ps join projects p on p.id = ps.project_id where p.title = ${P2.title} and ps.status = 'submitted'`;
+const [{ slug: slug2 }] = await sql`select slug from projects where title = ${P2.title}`;
+let actionId = null;
+current = ap;
+const row2 = () => ap.locator(`[data-submission="${sub2.id}"]`);
+
+await check("admin: Delete Project sits beside Preview Project in the same cell (still two columns)", async () => {
+  await ap.goto(BASE + "/admin/projects");
+  await row2().waitFor();
+  const heads = await ap.locator('[data-testid="admin-submissions"] thead th').allInnerTexts();
+  assert(heads.length === 2, `columns ${heads}`);
+  const cells = row2().locator("td");
+  assert((await cells.count()) === 2, "cells per row");
+  const cell = cells.nth(1);
+  assert((await cell.getByTestId("submission-preview").innerText()).trim() === "معاينة المشروع", "preview button unchanged");
+  const del = cell.getByTestId("submission-delete");
+  assert((await del.innerText()).trim() === "حذف المشروع", "delete label");
+  assert(/bg-danger-ink/.test(await del.getAttribute("class")) && (await del.locator("svg").count()) === 1, "red button with a trash icon");
+  const [a, b] = await Promise.all([cell.getByTestId("submission-preview").boundingBox(), del.boundingBox()]);
+  assert(Math.abs(a.y - b.y) < 2, "buttons side by side");
+  await shot(ap, "H-admin-delete-button");
+});
+
+await check("admin: Delete asks for confirmation naming the project and student; Cancel changes nothing", async () => {
+  await row2().getByTestId("submission-delete").click();
+  const dialog = ap.getByTestId("delete-dialog");
+  await dialog.waitFor();
+  const text = await dialog.innerText();
+  assert(text.includes("تأكيد حذف المشروع"), "title");
+  assert(text.includes("هل أنت متأكد من حذف هذا المشروع؟ لا يمكن التراجع عن الحذف."), "message");
+  assert((await ap.getByTestId("delete-title").innerText()).trim() === P2.title, "project title");
+  assert((await ap.getByTestId("delete-student").innerText()).trim() === n2.ar, "student name");
+  assert((await ap.getByTestId("delete-cancel").innerText()).trim() === "إلغاء" && (await ap.getByTestId("delete-confirm").innerText()).trim() === "تأكيد الحذف", "buttons");
+  await ap.waitForTimeout(400); // let the opening animation finish before the screenshot
+  await shot(ap, "I-admin-delete-dialog");
+  await ap.getByTestId("delete-cancel").click();
+  await dialog.waitFor({ state: "detached" });
+  const [{ n }] = await sql`select count(*)::int as n from project_submissions where id = ${sub2.id}`;
+  const [{ p }] = await sql`select count(*)::int as p from projects where id = ${sub2.project_id}`;
+  assert(n === 1 && p === 1, "cancel deleted something");
+});
+
+await check("admin: a failed deletion shows an error message and deletes nothing", async () => {
+  const seen = errors.length;
+  await ap.route("**/*", async (route) => {
+    const headers = route.request().headers();
+    if (route.request().method() === "POST" && headers["next-action"]) {
+      actionId = headers["next-action"];
+      return route.fulfill({ status: 500, body: "" });
+    }
+    return route.continue();
+  });
+  await row2().getByTestId("submission-delete").click();
+  await ap.getByTestId("delete-confirm").click();
+  await ap.getByText("تعذّر حذف المشروع. حاول مرة أخرى.").waitFor();
+  assert(await ap.getByTestId("delete-dialog").isVisible(), "dialog closed on failure");
+  await ap.unrouteAll({ behavior: "wait" });
+  await ap.getByTestId("delete-cancel").click();
+  const [{ n }] = await sql`select count(*)::int as n from project_submissions where id = ${sub2.id}`;
+  assert(n === 1, "deleted despite the failure");
+  assert(actionId, "action request captured");
+  errors.splice(seen); // the forced 500 is logged by the browser on purpose
+});
+
+await check("admin: Confirm deletes exactly that project (once), refreshes the table and keeps everything else", async () => {
+  const [{ before: projectsBefore }] = await sql`select count(*)::int as before from projects`;
+  let calls = 0;
+  ap.on("request", (r) => {
+    if (r.method() === "POST" && r.headers()["next-action"]) calls += 1;
+  });
+  await row2().getByTestId("submission-delete").click();
+  await ap.getByTestId("delete-dialog").waitFor();
+  // Two clicks in the same instant: only one request may go out.
+  await ap.evaluate(() => {
+    const b = document.querySelector('[data-testid="delete-confirm"]');
+    b.click();
+    b.click();
+  });
+  await ap.getByText(`تم حذف المشروع «${P2.title}».`).waitFor();
+  await row2().waitFor({ state: "detached" });
+  assert(calls === 1, `${calls} delete requests`);
+  assert((await ap.locator(`[data-submission="${sub1.id}"]`).count()) === 1, "the other project's row");
+  const [{ subs }] = await sql`select count(*)::int as subs from project_submissions where id = ${sub2.id} or project_id = ${sub2.project_id}`;
+  const [{ projects }] = await sql`select count(*)::int as projects from projects where id = ${sub2.project_id}`;
+  const [{ links }] = await sql`select (select count(*) from project_students where project_id = ${sub2.project_id}) + (select count(*) from project_media where project_id = ${sub2.project_id})::int as links`;
+  assert(subs === 0 && projects === 0 && Number(links) === 0, `left behind: ${subs} submissions, ${projects} projects, ${links} links`);
+  const [{ after: projectsAfter }] = await sql`select count(*)::int as after from projects`;
+  assert(projectsAfter === projectsBefore - 1, `projects ${projectsBefore} → ${projectsAfter}`);
+  const [{ student }] = await sql`select count(*)::int as student from students where id = ${sub2.student_id}`;
+  const [{ profile }] = await sql`select count(*)::int as profile from student_profiles where student_id = ${sub2.student_id}`;
+  assert(student === 1 && profile === 1, "student account or profile touched");
+  const [{ other }] = await sql`select count(*)::int as other from project_submissions ps join projects p on p.id = ps.project_id where ps.id = ${sub1.id}`;
+  assert(other === 1, "another student's project was touched");
+});
+
+await check("deleted project is gone for students (Explore Projects and its page)", async () => {
+  const sp = s3.page;
+  await sp.goto(BASE + "/projects");
+  await sp.getByTestId("results-count").waitFor();
+  assert((await sp.locator(`[data-testid="explore-card"]:has-text("${P2.title}")`).count()) === 0, "still listed");
+  assert((await sp.locator(`[data-testid="explore-card"]:has-text("${P1.title}")`).count()) === 1, "other project missing");
+  const res = await s3.context.request.get(BASE + `/projects/${slug2}`);
+  assert(res.status() === 404, `project page ${res.status()}`);
+});
+
+await check("server: the delete action refuses a student and a visitor (checked on the server, not only in the page)", async () => {
+  const replay = (context, path) =>
+    context.request.post(BASE + path, {
+      headers: { "Next-Action": actionId, "Content-Type": "text/plain;charset=UTF-8", Accept: "text/x-component" },
+      data: JSON.stringify([sub1.id]),
+      maxRedirects: 0,
+    });
+  await replay(s3.context, "/home");
+  const anon = await newContext("ar");
+  await replay(anon, "/");
+  await anon.close();
+  const [{ n }] = await sql`select count(*)::int as n from project_submissions ps join projects p on p.id = ps.project_id where ps.id = ${sub1.id}`;
+  assert(n === 1, "a non-administrator deleted a project");
+  // Control: the same request with the administrator's session does delete (this run's own project).
+  await replay(adminContext, "/admin/projects");
+  const [{ gone }] = await sql`select count(*)::int as gone from project_submissions where id = ${sub1.id}`;
+  assert(gone === 0, "the replayed request never reached the action (the checks above prove nothing)");
+});
+
 await check("no browser errors", async () => {
   assert(errors.length === 0, errors.slice(0, 3).join(" | "));
 });

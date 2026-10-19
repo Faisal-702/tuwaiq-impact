@@ -26,7 +26,7 @@ import {
 } from "@/lib/submission";
 import { VARIANT_MIME } from "@/lib/media-rules";
 import { logActivity } from "../activity";
-import { getStudentSession } from "../auth";
+import { getStudentSession, requireAdmin } from "../auth";
 import { sql } from "../db";
 import { getStudentProfile, isProfileComplete, type StudentProfile } from "../profiles";
 import { isSafeObjectPath, mediaUrl, privateStorage, storage } from "../storage";
@@ -624,4 +624,88 @@ export async function saveProjectEdit(input: { projectId: string; acknowledged: 
   await logActivity({ action: "project.edited", targetType: "project", targetId: projectId, targetLabel: normalized.title, details: { by: "student" } });
   revalidatePath("/", "layout");
   return { ok: true, data: { title: normalized.title } };
+}
+
+// ---------------------------------------------------------------------------
+// Administrators: delete a student's submitted project
+// ---------------------------------------------------------------------------
+
+/**
+ * Permanently deletes one submitted student project, chosen by its
+ * submission id (Manage Projects → Delete Project). Administrators only,
+ * checked here on the server.
+ *
+ * In one transaction: the submission, any pending edits of the same project
+ * and the published project itself. The database then removes only that
+ * project's own rows (student links, media rows, views, recorded support and
+ * the student's activity entries for it). The student's account, profile and
+ * other projects are never touched. If another submission were linked to the
+ * same project, nothing is deleted. Files are removed after the commit, except
+ * those another record still uses.
+ */
+export async function deleteStudentSubmission(submissionId: string): Promise<Result> {
+  await requireAdmin();
+  if (typeof submissionId !== "string" || !/^[0-9a-f-]{36}$/.test(submissionId)) return fail("not_found");
+
+  type Media = { storage_path: string | null; preview_path: string | null; thumb_path: string | null };
+  let removed: { rows: SubmissionRow[]; media: Media[]; projectId: string | null; title: string };
+  try {
+    removed = await sql.begin(async (tx) => {
+      const [target] = await tx<SubmissionRow[]>`
+        select * from project_submissions where id = ${submissionId} and status = 'submitted' for update`;
+      if (!target) throw new Error("not_found");
+      const projectId = target.project_id;
+      let rows: SubmissionRow[] = [target];
+      let media: Media[] = [];
+      let title = sanitizeAnswers(target.answers).title.trim();
+      if (projectId) {
+        const [project] = await tx<{ id: string; title: string }[]>`
+          select id, title from projects where id = ${projectId} for update`;
+        const [{ others }] = await tx<{ others: number }[]>`
+          select count(*)::int as others from project_submissions
+           where project_id = ${projectId} and status = 'submitted' and id <> ${submissionId}`;
+        if (others > 0) throw new Error("shared_project");
+        const pending = await tx<SubmissionRow[]>`
+          select * from project_submissions where project_id = ${projectId} and status = 'editing' for update`;
+        rows = [target, ...pending];
+        if (project) {
+          title = project.title;
+          media = await tx<Media[]>`select storage_path, preview_path, thumb_path from project_media where project_id = ${projectId}`;
+        }
+      }
+      await tx`delete from project_submissions where id = any(${rows.map((r) => r.id)})`;
+      if (projectId) await tx`delete from projects where id = ${projectId}`;
+      return { rows, media, projectId, title };
+    });
+  } catch (error) {
+    if (error instanceof Error && (error.message === "not_found" || error.message === "shared_project")) return fail(error.message);
+    console.error("Deleting a student project failed", error instanceof Error ? error.message : "unknown");
+    return fail("server");
+  }
+
+  // Files no record uses any more: the project's media, the forms' covers and supporting files.
+  const mediaPaths = removed.media.flatMap((m) => [m.storage_path, m.preview_path, m.thumb_path]).filter((p): p is string => !!p && isSafeObjectPath(p));
+  if (mediaPaths.length) {
+    const used = await sql<{ p: string }[]>`
+      select unnest(array[storage_path, preview_path, thumb_path]) as p from project_media
+       where storage_path = any(${mediaPaths}) or preview_path = any(${mediaPaths}) or thumb_path = any(${mediaPaths})
+      union
+      select unnest(array[cover->>'storage_path', cover->>'preview_path', cover->>'thumb_path']) from project_submissions
+       where cover->>'storage_path' = any(${mediaPaths})`;
+    const keep = new Set(used.map((r) => r.p));
+    const remove = mediaPaths.filter((p) => !keep.has(p));
+    if (remove.length) await storage().remove(remove).catch(() => console.error("Could not remove project media"));
+  }
+  for (const row of removed.rows) if (row.cover) await removeCoverFiles(row.cover);
+  await removeEvidenceFiles([...new Set(removed.rows.flatMap((r) => (r.evidence ?? []).map((e) => e.path)))]);
+
+  await logActivity({
+    action: "project.purged",
+    targetType: "project",
+    targetId: removed.projectId ?? submissionId,
+    targetLabel: removed.title,
+    details: { by: "admin", source: "student_submission" },
+  });
+  revalidatePath("/", "layout");
+  return { ok: true, data: undefined };
 }
