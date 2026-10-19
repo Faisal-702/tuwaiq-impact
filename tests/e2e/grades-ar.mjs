@@ -141,6 +141,7 @@ await check("AR · Edit Project form grade options", async () => {
   await adm.page.getByRole("link", { name: "طالب تجريبي أ", exact: true }).click();
   await adm.page.getByRole("link", { name: /Demo: Smart Irrigation Prototype/ }).click();
   await adm.page.waitForURL(/\/edit$/);
+  await adm.page.locator("#project-grade option").nth(3).waitFor({ state: "attached" });
   const options = await adm.page.locator("#project-grade option").allTextContents();
   for (const l of AR) assert(options.includes(l), `missing ${l} in ${options}`);
   const values = await adm.page.locator("#project-grade option").evaluateAll((os) => os.map((o) => o.value));
