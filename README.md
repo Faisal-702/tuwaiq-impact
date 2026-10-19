@@ -128,6 +128,7 @@ Signed-in students add their own projects at `/add-project` (the homepage's prim
   - its published project, which also removes that project's own student links, media rows, views, recorded support and activity entries.
 
   The student's account, profile and other projects are untouched. Files are removed afterwards, unless another record still uses them. No migration is needed.
+- **Search by student name.** A search field above the Manage Projects table (`ابحث باسم الطالب...` / `Search by student name...`) narrows the list as the administrator types (debounced, kept in `?q=`). The search runs in the database across every submitted project (`listStudentSubmissions({ q })`), not in the page. Every word must appear, whole or in part and in any order, in one name of that project's student: the account's Arabic or English name, or the full name sent with the form. Names are compared through `ti_normalize` (case, أ/إ/آ/ا, ة/ه, ى/ي, diacritics and tatweel), and extra spaces are ignored. Every matching project keeps its own row with its own Preview and Delete, so a student with several projects shows all of them. While the list loads it stays in place, dimmed, with a spinner in the field. No match shows «لا توجد مشاريع مطابقة لاسم الطالب» / "No projects found for this student name."; clearing the field brings back the full list. No migration is needed.
 - **Privacy.** Every answer, including national ID, mobile number, email, supervisor and supporting files, is kept in `project_submissions` (RLS on, grants revoked). Public queries never read that table. Administrators see the full form under **Edit project → Submission form**. Supporting files live in a private bucket (`project-submissions`; locally `.data/private`). They are downloaded through `/api/admin/submission-files`, which checks the admin session on every request.
 - **Explore Projects** is for signed-in students only. It covers `/projects`, the project pages `/projects/[slug]` and project results from `/api/search`. A visitor is sent to `/welcome?next=…` and returns there after signing in. An administrator is sent to Manage Projects; the explore link is hidden for them and project search returns no projects. Only published projects are shown, as before; drafts and unsubmitted forms never are. The cards show only the cover, title, project field, competition, students, grade, the exact summary and the funding indicator (requested, recorded, remaining and a progress bar; see *My Projects* below). They are not links and have no payment or donation actions. Search also matches the summary and field. The filters dialog has a **Project field** filter. The **المسابقة / Competition** chips (All + the six competitions) filter on `projects.competition` and combine with search, category, the dialog filters and sorting. Older projects without a competition show no badge and appear only under All.
 
@@ -421,7 +422,7 @@ Its projects are named "QA Profile …"; it removes them and both students' prof
   - the choice and the custom name survive Save as draft, a reload, Previous and Next; a stale custom name is dropped
 - submitting stores `saif`, or `other` with the trimmed name, on the project and in the questionnaire; the database refuses a submission without a valid competition
 - Manage Projects:
-  - no Add Project, search, tabs or old columns, and no Add Project in the sidebar
+  - no Add Project, old filters, tabs or old columns, and no Add Project in the sidebar
   - exactly two columns, with one row per submitted project and the student names from their accounts; drafts are not listed
   - `/admin/projects/new` leads back to Manage Projects
 - the preview shows the real submission (title, student, field, custom competition, summary, problem, tools, supervisor, cover), read only, without national ID, mobile or email
@@ -433,9 +434,17 @@ Its projects are named "QA Profile …"; it removes them and both students' prof
   - combined with search and category, with the page reset on change
   - the empty state with Show all competitions
   - older projects show no badge
+- search by student name, on three seeded students and 2,000 seeded projects of 400 more (all carrying the run's marker):
+  - the search field sits above the table, with its icon and placeholder
+  - a full name lists all three projects of that student and nothing else
+  - part of a name, words in any order, repeated spaces and أ/إ/ا spellings match; words from two different names never do
+  - the list updates while typing, with a loading state; no match shows the empty state; clearing brings back every project
+  - among 2,000+ projects one student's five projects come back, quickly
+  - Preview opens that exact project; Delete deletes exactly that submission and keeps the search
+  - English names and labels, and the mobile layout
 - English labels, mobile without sideways scrolling, no browser errors
 
-It removes the projects, drafts and profiles it created.
+It removes the projects, drafts, profiles and seeded students it created.
 
 `npm run test:language-switch` (same variables) checks switching between English and Arabic on the entry page, student pages and admin pages:
 - text, direction, `lang` and the tab title switch in place, without reloading and without a half-switched state (also on a slow server, where the loading indicator shows)

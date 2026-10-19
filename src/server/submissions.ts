@@ -279,12 +279,45 @@ export type StudentSubmissionRow = {
 };
 
 /**
+ * A student-name search as words, spelled the way ti_normalize() stores
+ * names: lower case, أ/إ/آ/ٱ → ا, ة → ه, ى → ي, no tatweel or diacritics.
+ * Extra and repeated spaces are ignored.
+ */
+function nameSearchTerms(q: string | undefined): string[] {
+  if (!q) return [];
+  return q
+    .slice(0, 100)
+    .toLowerCase()
+    .replace(/[أإآٱ]/g, "ا")
+    .replace(/ة/g, "ه")
+    .replace(/ى/g, "ي")
+    .replace(/[ً-ْٰـ]/g, "")
+    .split(/[\s,،]+/)
+    .filter(Boolean)
+    .slice(0, 6);
+}
+
+/**
  * Every project a student has submitted through the project form, newest
  * first. Drafts and pending edits are not listed; projects created by
  * administrators (no submission) are not either. Callers must have passed
  * requireAdmin().
+ *
+ * `q` searches the student's name, in the database across all submissions:
+ * every word must appear in one name of that submission's student (the
+ * account's Arabic or English name, or the full name sent with the form), in
+ * any order, whole or in part. Each matching submission stays its own row,
+ * tied to its own student.
  */
-export async function listStudentSubmissions(): Promise<StudentSubmissionRow[]> {
+export async function listStudentSubmissions(opts: { q?: string } = {}): Promise<StudentSubmissionRow[]> {
+  const terms = nameSearchTerms(opts.q);
+  // Every word in the same name: the account's Arabic or English name, or the submission's.
+  const hasAll = (name: ReturnType<typeof sql>) => terms.map((term) => sql`strpos(${name}, ${term}) > 0`).reduce((acc, m) => sql`${acc} and ${m}`);
+  const nameFilter = terms.length
+    ? sql`and ((${hasAll(sql`ti_normalize(s.name_ar)`)})
+            or (${hasAll(sql`ti_normalize(s.name_en)`)})
+            or (${hasAll(sql`ti_normalize(ps.answers->>'studentName')`)}))`
+    : sql``;
   const rows = await sql<
     { id: string; name_ar: string | null; name_en: string | null; has_student: boolean; profile_name: string | null; title: string | null; submitted_at: Date | null }[]
   >`
@@ -292,7 +325,7 @@ export async function listStudentSubmissions(): Promise<StudentSubmissionRow[]> 
            ps.answers->>'studentName' as profile_name, ps.answers->>'title' as title, ps.submitted_at
       from project_submissions ps
       left join students s on s.id = ps.student_id
-     where ps.status = 'submitted'
+     where ps.status = 'submitted' ${nameFilter}
      order by ps.submitted_at desc nulls last, ps.created_at desc`;
   return rows.map((r) => ({
     id: r.id,

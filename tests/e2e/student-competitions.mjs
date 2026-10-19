@@ -10,6 +10,8 @@
  *  - the administrator's Manage Projects lists exactly the submitted
  *    projects (student name + Preview Project), and the read-only preview
  *    shows the project, its competition and no identity/contact details;
+ *  - administrators search Manage Projects by student name (seeded students
+ *    and 2,000 seeded projects);
  *  - signed-in students filter Explore Projects by competition, together
  *    with search and category; visitors and administrators can not open
  *    Explore Projects, project pages or project search.
@@ -320,14 +322,15 @@ await adminLogin(ap, BASE, ADMIN);
 const n1 = await studentName(S1);
 const n2 = await studentName(S2);
 
-await check("admin: Manage Projects has no Add Project button, search, tabs or old columns; sidebar has no Add Project", async () => {
+await check("admin: Manage Projects has no Add Project button, old filters, tabs or old columns; sidebar has no Add Project", async () => {
   await ap.goto(BASE + "/admin/projects");
   await ap.getByRole("heading", { name: "إدارة المشاريع", level: 1 }).waitFor();
   const main = await ap.locator("main").innerText();
   for (const gone of ["إضافة مشروع", "البحث في المشاريع", "المسودات", "المنشورة", "المميزة", "التصنيف", "النقاط", "المشاهدات", "آخر تحديث"]) {
     assert(!main.includes(gone), `still shows «${gone}»`);
   }
-  assert((await ap.locator('main input[type="search"], main [role="search"]').count()) === 0, "search box");
+  // The only search is the student-name search (checked below), not the old project filters.
+  assert((await ap.locator('main input[type="search"], main select').count()) === 1, "old search or filters");
   const sidebar = ap.locator("aside").first();
   assert((await sidebar.locator('a[href="/admin/projects/new"]').count()) === 0, "sidebar Add Project");
   assert((await sidebar.getByRole("link", { name: "إدارة المشاريع" }).count()) === 1, "sidebar Manage Projects");
@@ -563,6 +566,254 @@ let actionId = null;
 current = ap;
 const row2 = () => ap.locator(`[data-submission="${sub2.id}"]`);
 
+// ---------------------------------------------------------------------------
+// Administrator: search by student name (this run's own students and projects)
+// ---------------------------------------------------------------------------
+// Seeded straight into the database: three named students (one with three
+// projects; one whose name differs only in hamza spelling) and a load of 2,000
+// submitted projects from 400 more students, all carrying this run's marker.
+
+const SEARCH = {
+  multi: { ar: `إبراهيم خالد الحربي ${RUN}`, en: `Ibrahim Khalid Alharbi ${RUN}`, titles: [1, 2, 3].map((i) => `مشروع البحث ${i} ${RUN}`) },
+  variant: { ar: `ابراهيم سالم القحطاني ${RUN}`, en: `Ebrahim Salem Alqahtani ${RUN}`, titles: [`مشروع الطاقة ${RUN}`] },
+  other: { ar: `سارة محمد العمري ${RUN}`, en: `Sara Mohammed Alomari ${RUN}`, titles: [`مشروع المياه ${RUN}`] },
+};
+const LOAD = { students: 400, perStudent: 5 };
+const seedSlug = `qa-search-${RUN.toLowerCase()}`;
+async function removeSearchSeed() {
+  await sql`delete from project_submissions where student_id in (select id from students where slug like ${seedSlug + "-%"})`;
+  await sql`delete from students where slug like ${seedSlug + "-%"}`;
+}
+async function seedStudent(key, s, minutesAgo) {
+  const [{ id }] = await sql`insert into students (slug, name_ar, name_en, grade, section) values (${`${seedSlug}-${key}`}, ${s.ar}, ${s.en}, 11, 2) returning id`;
+  await sql`insert into student_profiles (student_id, full_name, national_id, phone, email, grade, section)
+            values (${id}, ${s.ar}, ${validNationalId()}, '0500000000', ${`${key}.${RUN.toLowerCase()}@example.com`}, 11, 2)`;
+  s.ids = [];
+  for (const [i, title] of s.titles.entries()) {
+    const answers = { title, studentName: s.ar, targetCompetition: "saif", field: "ai", summary: `ملخص ${title}` };
+    const [row] = await sql`insert into project_submissions (student_id, status, answers, submitted_at)
+                            values (${id}, 'submitted', ${sql.json(answers)}, now() - make_interval(mins => ${minutesAgo + i})) returning id`;
+    s.ids.push(row.id);
+  }
+}
+await removeSearchSeed();
+await seedStudent("multi", SEARCH.multi, 1);
+await seedStudent("variant", SEARCH.variant, 10);
+await seedStudent("other", SEARCH.other, 20);
+await sql`insert into students (slug, name_ar, name_en, grade, section)
+          select ${seedSlug} || '-load-' || g, 'طالب أداء ' || g || ' ' || ${RUN}, 'Load Student ' || g || ' ' || ${RUN}, 10, 1
+            from generate_series(1, ${LOAD.students}) g`;
+await sql`insert into student_profiles (student_id, full_name, national_id, phone, email, grade, section)
+          select id, name_ar, ${validNationalId()}, '0500000000', 'load@example.com', 10, 1 from students where slug like ${seedSlug + "-load-%"}`;
+await sql`insert into project_submissions (student_id, status, answers, submitted_at)
+          select s.id, 'submitted',
+                 jsonb_build_object('title', 'مشروع حمل ' || n || ' ' || s.name_en, 'studentName', s.name_ar, 'targetCompetition', 'saif', 'field', 'ai'),
+                 now() - interval '1 day' - make_interval(mins => n)
+            from students s cross join generate_series(1, ${LOAD.perStudent}) n
+           where s.slug like ${seedSlug + "-load-%"}`;
+
+const searchRows = (page) =>
+  page.locator('[data-testid="admin-submission-row"]').evaluateAll((els) =>
+    els.map((e) => ({ id: e.getAttribute("data-submission"), name: e.querySelector('[data-testid="submission-student"]').textContent.trim(), href: e.querySelector('[data-testid="submission-preview"]').getAttribute("href"), del: !!e.querySelector('[data-testid="submission-delete"]') })),
+  );
+const settled = (page) => until(async () => (await page.getByTestId("submission-results").getAttribute("aria-busy")) === null, "results still loading");
+/** Types into the search (no Enter) and waits for the list of that search. */
+async function searchFor(page, text) {
+  await page.getByTestId("submission-search").fill(text);
+  const want = text.trim().replace(/\s+/g, " ");
+  await page.waitForURL((u) => (u.searchParams.get("q") ?? "") === want);
+  await settled(page);
+}
+const same = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
+current = ap;
+
+await check("search: «ابحث باسم الطالب...» sits above the table, with a search icon, in the Athar style", async () => {
+  await ap.goto(BASE + "/admin/projects");
+  const box = ap.getByTestId("submission-search");
+  await box.waitFor();
+  assert((await box.getAttribute("placeholder")) === "ابحث باسم الطالب...", "placeholder");
+  assert((await box.evaluate((el) => getComputedStyle(el).direction)) === "rtl", "Arabic placeholder reads right to left");
+  assert((await ap.getByLabel("البحث باسم الطالب").count()) === 1, "accessible label");
+  const form = ap.locator('form[role="search"]');
+  assert((await form.locator("svg.lucide-search").count()) === 1, "search icon");
+  const [b, tbl] = await Promise.all([box.boundingBox(), ap.getByTestId("admin-submissions").boundingBox()]);
+  assert(b.y + b.height <= tbl.y, "search box is not above the table");
+  assert(Math.abs(b.width - tbl.width) < 2, `search box ${b.width}px vs table ${tbl.width}px`);
+  const icon = await form.locator("svg.lucide-search").boundingBox();
+  assert(icon.x > b.x + b.width / 2, "icon on the start (right) side in Arabic");
+  const style = await box.evaluate((el) => getComputedStyle(el).borderRadius);
+  assert(parseFloat(style) >= 12, `rounded corners ${style}`);
+  await box.focus();
+  const ring = await box.evaluate((el) => getComputedStyle(el).boxShadow);
+  assert(ring !== "none", "focus ring");
+  await box.blur();
+  await shot(ap, "J-admin-search-bar");
+});
+
+await check("search: the full name lists all of that student's projects (one row each), and only theirs", async () => {
+  await searchFor(ap, SEARCH.multi.ar);
+  const rows = await searchRows(ap);
+  assert(same(rows.map((r) => r.id), SEARCH.multi.ids), `rows ${rows.length}: ${rows.map((r) => r.name).join(" / ")}`);
+  for (const r of rows) {
+    assert(r.name === SEARCH.multi.ar, `name ${r.name}`);
+    assert(r.href === `/admin/projects/submissions/${r.id}` && r.del, "each row keeps Preview and Delete for its own project");
+  }
+  const heads = await ap.locator('[data-testid="admin-submissions"] thead th').allInnerTexts();
+  assert(JSON.stringify(heads.map((h) => h.trim())) === JSON.stringify(["اسم الطالب", "معاينة المشروع"]), `headers ${heads}`);
+  assert((await ap.getByTestId("submission-search").inputValue()) === SEARCH.multi.ar, "the search stays in the field");
+  await shot(ap, "K-admin-search-multiple-projects");
+});
+
+await check("search: part of a name, any word order, extra spaces and أ/إ/ا spellings all match", async () => {
+  await searchFor(ap, `إبراه ${RUN}`);
+  assert(same((await searchRows(ap)).map((r) => r.id), [...SEARCH.multi.ids, ...SEARCH.variant.ids]), "partial word: إبراه / ابراه");
+  await searchFor(ap, `  الحربي    ${RUN}   خالد `);
+  assert(same((await searchRows(ap)).map((r) => r.id), SEARCH.multi.ids), "words out of order with repeated spaces");
+  await searchFor(ap, `ابراهيم خالد ${RUN}`);
+  assert(same((await searchRows(ap)).map((r) => r.id), SEARCH.multi.ids), "ابراهيم finds إبراهيم");
+  await searchFor(ap, `أبراهيم سالم ${RUN}`);
+  assert(same((await searchRows(ap)).map((r) => r.id), SEARCH.variant.ids), "أبراهيم finds ابراهيم");
+  await searchFor(ap, `ابراهيم ${RUN}`);
+  const both = await searchRows(ap);
+  assert(same(both.map((r) => r.id), [...SEARCH.multi.ids, ...SEARCH.variant.ids]), "both Ibrahims");
+  for (const r of both) assert(r.name === (SEARCH.multi.ids.includes(r.id) ? SEARCH.multi.ar : SEARCH.variant.ar), "a row shows another student's name");
+  // Words from two different names (or students) never combine into a match.
+  await searchFor(ap, `إبراهيم العمري ${RUN}`);
+  assert((await searchRows(ap)).length === 0, "words from different students matched");
+  await searchFor(ap, `ابراهيم Alqahtani ${RUN}`);
+  assert((await searchRows(ap)).length === 0, "words from the Arabic and the English name combined");
+});
+
+await check("search: updates while typing, shows a loading state, and the empty state for no match", async () => {
+  await ap.getByTestId("submission-search").fill("");
+  await ap.waitForURL((u) => !u.searchParams.has("q"));
+  await settled(ap);
+  // Slow the list down so the loading state can be seen.
+  await ap.route((u) => u.pathname === "/admin/projects" && u.searchParams.has("q"), async (route) => {
+    await new Promise((r) => setTimeout(r, 1200));
+    await route.continue().catch(() => {});
+  });
+  await ap.getByTestId("submission-search").pressSequentially(`سارة ${RUN}`, { delay: 30 });
+  await ap.getByTestId("submission-search-loading").waitFor({ timeout: 5000 });
+  assert((await ap.getByTestId("submission-results").getAttribute("aria-busy")) === "true", "results not marked busy");
+  await ap.waitForURL((u) => u.searchParams.get("q") === `سارة ${RUN}`);
+  await settled(ap);
+  await ap.unrouteAll({ behavior: "wait" });
+  assert(same((await searchRows(ap)).map((r) => r.id), SEARCH.other.ids), "typed search result");
+  await searchFor(ap, `اسم غير موجود ${RUN}`);
+  assert((await searchRows(ap)).length === 0, "rows for no match");
+  const empty = await ap.getByTestId("submission-search-empty").innerText();
+  assert(empty.includes("لا توجد مشاريع مطابقة لاسم الطالب"), `empty state: ${empty}`);
+  await shot(ap, "L-admin-search-empty");
+});
+
+await check("search: clearing the field brings back every submitted project", async () => {
+  await ap.getByTestId("submission-search-clear").click();
+  await ap.waitForURL((u) => !u.searchParams.has("q"));
+  await settled(ap);
+  assert((await ap.getByTestId("submission-search").inputValue()) === "", "field not cleared");
+  const [{ n }] = await sql`select count(*)::int as n from project_submissions where status = 'submitted'`;
+  const rows = await searchRows(ap);
+  assert(rows.length === n, `rows ${rows.length} vs submitted ${n}`);
+  assert(rows.some((r) => r.id === sub1.id) && rows.some((r) => r.id === sub2.id), "the form-submitted projects are back");
+});
+
+await check(`search: ${LOAD.students * LOAD.perStudent + 5}+ projects — the server finds one student's projects quickly and exactly`, async () => {
+  const [{ n }] = await sql`select count(*)::int as n from project_submissions where status = 'submitted'`;
+  assert(n >= LOAD.students * LOAD.perStudent + 5, `only ${n} projects`);
+  const name = `طالب اداء 137 ${RUN}`; // «أداء» stored with hamza
+  const wanted = await sql`select ps.id from project_submissions ps join students s on s.id = ps.student_id where s.slug = ${seedSlug + "-load-137"} and ps.status = 'submitted'`;
+  const t0 = Date.now();
+  await searchFor(ap, name);
+  const ms = Date.now() - t0;
+  const rows = await searchRows(ap);
+  assert(same(rows.map((r) => r.id), wanted.map((w) => w.id)), `rows ${rows.length}`);
+  assert(rows.every((r) => r.name === `طالب أداء 137 ${RUN}`), "another student's row");
+  assert(ms < 5000, `search took ${ms}ms`);
+  const t1 = Date.now();
+  const res = await adminContext.request.get(BASE + `/admin/projects?q=${encodeURIComponent("Load Student 250 " + RUN)}`);
+  const serverMs = Date.now() - t1;
+  assert(res.ok() && (await res.text()).includes(`طالب أداء 250 ${RUN}`), "server-rendered result");
+  console.log(`      ${n} submitted projects: search in the browser ${ms}ms, server page ${serverMs}ms`);
+  assert(serverMs < 3000, `server page took ${serverMs}ms`);
+});
+
+await check("search: Preview Project in the results opens that exact project", async () => {
+  await searchFor(ap, SEARCH.multi.ar);
+  const rows = await searchRows(ap);
+  const target = rows[1];
+  const i = SEARCH.multi.ids.indexOf(target.id);
+  await ap.locator(`[data-submission="${target.id}"]`).getByTestId("submission-preview").click();
+  await ap.waitForURL((u) => u.pathname === `/admin/projects/submissions/${target.id}`);
+  assert((await ap.getByTestId("preview-title").innerText()).trim() === SEARCH.multi.titles[i], "preview of another project");
+  assert((await ap.getByTestId("preview-student").innerText()).trim() === SEARCH.multi.ar, "preview student");
+  await ap.goBack();
+  await ap.waitForURL((u) => u.searchParams.get("q") === SEARCH.multi.ar);
+  await ap.getByTestId("admin-submissions").waitFor();
+  assert((await ap.getByTestId("submission-search").inputValue()) === SEARCH.multi.ar, "search kept after Back");
+});
+
+await check("search: Delete Project in the results deletes exactly that submission and keeps the search", async () => {
+  await settled(ap);
+  const victim = SEARCH.multi.ids[2];
+  const i = 2;
+  const row = ap.locator(`[data-submission="${victim}"]`);
+  await row.getByTestId("submission-delete").click();
+  await ap.getByTestId("delete-dialog").waitFor();
+  assert((await ap.getByTestId("delete-title").innerText()).trim() === SEARCH.multi.titles[i], "dialog names another project");
+  assert((await ap.getByTestId("delete-student").innerText()).trim() === SEARCH.multi.ar, "dialog names another student");
+  const [{ before: total }] = await sql`select count(*)::int as before from project_submissions where status = 'submitted'`;
+  await ap.getByTestId("delete-confirm").click();
+  await ap.getByText(`تم حذف المشروع «${SEARCH.multi.titles[i]}».`).waitFor();
+  await row.waitFor({ state: "detached" });
+  const [{ gone }] = await sql`select count(*)::int as gone from project_submissions where id = ${victim}`;
+  const [{ after }] = await sql`select count(*)::int as after from project_submissions where status = 'submitted'`;
+  assert(gone === 0 && after === total - 1, `deleted ${total - after} submissions`);
+  assert(new URL(ap.url()).searchParams.get("q") === SEARCH.multi.ar, "search lost after deleting");
+  await settled(ap);
+  assert(same((await searchRows(ap)).map((r) => r.id), SEARCH.multi.ids.slice(0, 2)), "the student's other projects");
+});
+
+await check("search: English names and labels, and the mobile layout", async () => {
+  const en = await newContext("en", { width: 1440, height: 1000 });
+  await en.addCookies((await adminContext.cookies()).filter((c) => /admin/.test(c.name)));
+  const pe = await en.newPage();
+  watch(pe);
+  await pe.goto(BASE + "/admin/projects");
+  const box = pe.getByTestId("submission-search");
+  await box.waitFor();
+  assert((await box.getAttribute("placeholder")) === "Search by student name...", "English placeholder");
+  assert((await box.evaluate((el) => getComputedStyle(el).direction)) === "ltr", "English placeholder reads left to right");
+  const [b, icon] = await Promise.all([box.boundingBox(), pe.locator('form[role="search"] svg.lucide-search').boundingBox()]);
+  assert(icon.x < b.x + b.width / 2, "icon on the start (left) side in English");
+  await searchFor(pe, `  ibrahim   KHALID ${RUN.toLowerCase()} `);
+  const rows = await searchRows(pe);
+  assert(same(rows.map((r) => r.id), SEARCH.multi.ids.slice(0, 2)), `English search rows ${rows.length}`);
+  assert(rows.every((r) => r.name === SEARCH.multi.en), "English names");
+  await searchFor(pe, `Nobody Here ${RUN}`);
+  assert((await pe.getByTestId("submission-search-empty").innerText()).includes("No projects found for this student name."), "English empty state");
+  await en.close();
+
+  const m = await newContext("ar", { width: 390, height: 844 });
+  await m.addCookies((await adminContext.cookies()).filter((c) => /admin/.test(c.name)));
+  const pm = await m.newPage();
+  watch(pm);
+  await pm.goto(BASE + "/admin/projects?q=" + encodeURIComponent(SEARCH.multi.ar));
+  await pm.getByTestId("admin-submissions").waitFor();
+  assert((await pm.getByTestId("submission-search").inputValue()) === SEARCH.multi.ar, "search from the address");
+  assert(same((await searchRows(pm)).map((r) => r.id), SEARCH.multi.ids.slice(0, 2)), "mobile rows");
+  const overflow = await pm.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  assert(overflow <= 0, `overflows by ${overflow}px`);
+  const [mb, mt] = await Promise.all([pm.getByTestId("submission-search").boundingBox(), pm.getByTestId("admin-submissions").boundingBox()]);
+  assert(mb.y + mb.height <= mt.y && mb.width >= 300, "mobile search box");
+  await shot(pm, "M-admin-search-mobile");
+  await m.close();
+  current = ap;
+});
+
+await removeSearchSeed();
+
+
 await check("admin: Delete Project sits beside Preview Project in the same cell (still two columns)", async () => {
   await ap.goto(BASE + "/admin/projects");
   await row2().waitFor();
@@ -697,6 +948,7 @@ for (const title of [P1.title, P2.title]) {
     await sql`delete from projects where id = ${p.id}`;
   }
 }
+await removeSearchSeed();
 await sql`delete from project_submissions where status in ('draft', 'editing') and student_id in (select id from students where name_en in (${S1}, ${S2}, ${S3}))`;
 await sql`delete from student_profiles where student_id in (select id from students where name_en in (${S1}, ${S2}, ${S3}))`;
 await sql.end();
