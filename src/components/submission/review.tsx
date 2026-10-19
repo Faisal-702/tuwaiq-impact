@@ -7,6 +7,7 @@ import { useI18n } from "@/i18n/client";
 import { fmt, formatBytes, formatNumber, gradeLabel } from "@/i18n/format";
 import {
   cleanSupervisors,
+  competitionLabel,
   fieldLabel,
   parseAmount,
   SUBMISSION_SECTIONS_LIST,
@@ -32,7 +33,7 @@ const SECTION_ICONS: Record<SubmissionSection, LucideIcon> = {
 /** Answers that never leave the school's records. */
 const PRIVATE: StepField[] = ["nationalId", "phone", "email", "toolsCost", "evidence"];
 /** Answers shown on the public project card. */
-const PUBLIC: StepField[] = ["title", "summary", "field", "requestedAmount", "cover", "grade"];
+const PUBLIC: StepField[] = ["title", "summary", "field", "targetCompetition", "targetCompetitionOther", "requestedAmount", "cover", "grade"];
 
 export function SubmissionReview({
   headingRef,
@@ -82,6 +83,8 @@ export function SubmissionReview({
         return t.submit.options.projectStatus[a.projectStatus as keyof typeof t.submit.options.projectStatus] ?? "";
       case "field":
         return fieldLabel(a.field, null, locale) ?? "";
+      case "targetCompetition":
+        return competitionLabel(a.targetCompetition, null, locale) ?? "";
       case "toolsCost":
       case "requestedAmount":
         return a[field] ? amount(a[field]) : "";
@@ -144,7 +147,8 @@ export function SubmissionReview({
               (f) =>
                 f !== "acknowledged" &&
                 !(f === "competitionName" && answers.competition !== "yes") &&
-                !(f === "fieldOther" && answers.field !== "other"),
+                !(f === "fieldOther" && answers.field !== "other") &&
+                !(f === "targetCompetitionOther" && answers.targetCompetition !== "other"),
             );
           return (
             <section key={section} className="overflow-hidden rounded-2xl ring-1 ring-line" data-review-section={section}>

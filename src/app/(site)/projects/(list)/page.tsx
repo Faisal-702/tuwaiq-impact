@@ -1,4 +1,4 @@
-import { FolderKanban, FolderSearch, SearchX, UsersRound } from "lucide-react";
+import { FolderKanban, FolderSearch, SearchX, Trophy, UsersRound } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "@/components/ui/link";
 import { ExploreProjectCard } from "@/components/projects/explore-card";
@@ -8,13 +8,14 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { getI18n } from "@/i18n/server";
 import { fmt, formatNumber, projectCount } from "@/i18n/format";
-import { FIELD_KEYS } from "@/lib/submission";
+import { COMPETITION_KEYS, FIELD_KEYS } from "@/lib/submission";
 import type { ContentTypeFilter, ProjectSort } from "@/lib/types";
 import { getFilterOptions, getHomeStats, getPublicCategories, searchProjects } from "@/server/queries/public";
-import { requireViewer } from "@/server/auth";
+import { requireStudentViewer } from "@/server/auth";
 
 const PAGE_SIZE = 12;
 const SORTS = new Set(["newest", "views", "points", "active"]);
+const COMPETITION_SET = new Set<string>(COMPETITION_KEYS);
 const TYPES = new Set(["image", "video", "document", "link", "text"]);
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -31,6 +32,7 @@ export default async function ProjectsPage(props: PageProps<"/projects">) {
   const q = str(sp.q)?.slice(0, 100);
   const category = str(sp.category);
   const field = (FIELD_KEYS as string[]).includes(str(sp.field) ?? "") ? str(sp.field) : undefined;
+  const competition = COMPETITION_SET.has(str(sp.competition) ?? "") ? str(sp.competition) : undefined;
   const gradeNum = Number(str(sp.grade));
   const grade = Number.isInteger(gradeNum) && gradeNum > 0 && gradeNum <= 12 ? gradeNum : undefined;
   const year = str(sp.year);
@@ -39,16 +41,21 @@ export default async function ProjectsPage(props: PageProps<"/projects">) {
   const sort = SORTS.has(str(sp.sort) ?? "") ? (str(sp.sort) as ProjectSort) : "newest";
   const page = Math.min(Math.max(Number(str(sp.page)) || 1, 1), 50);
 
-  // The session check and the page's queries run concurrently; nothing is
-  // rendered unless the check passes (requireViewer redirects otherwise).
-  const [, results, categories, options, stats] = await Promise.all([
-    requireViewer(),
-    searchProjects({ q, category, field, grade, year, type, student, sort, limit: page * PAGE_SIZE }),
+  // Explore Projects is for signed-in students only. Visitors sign in first
+  // (and come back here); administrators review projects in the dashboard.
+  const here = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) if (typeof v === "string") here.set(k, v);
+  await requireStudentViewer(here.size ? `/projects?${here}` : "/projects");
+  const [results, categories, options, stats] = await Promise.all([
+    searchProjects({ q, category, field, competition, grade, year, type, student, sort, limit: page * PAGE_SIZE }),
     getPublicCategories(),
     getFilterOptions(),
     getHomeStats(),
   ]);
-  const filtered = Boolean(q || category || field || grade || year || type || student);
+  const filtered = Boolean(q || category || field || competition || grade || year || type || student);
+  const allCompetitions = new URLSearchParams(here);
+  allCompetitions.delete("competition");
+  allCompetitions.delete("page");
   const totalPublic = stats.projects + stats.activities;
 
   const nextParams = new URLSearchParams();
@@ -103,7 +110,23 @@ export default async function ProjectsPage(props: PageProps<"/projects">) {
             {projectCount(results.total, locale)}
           </p>
           {results.items.length === 0 ? (
-            filtered ? (
+            competition ? (
+              <EmptyState
+                icon={Trophy}
+                title={t.projects.competitionEmptyTitle}
+                body={t.projects.competitionEmptyBody}
+                action={
+                  <Link
+                    href={allCompetitions.size ? `/projects?${allCompetitions}` : "/projects"}
+                    scroll={false}
+                    className={buttonClasses("secondary", "md")}
+                    data-testid="show-all-competitions"
+                  >
+                    {t.projects.showAllCompetitions}
+                  </Link>
+                }
+              />
+            ) : filtered ? (
               <EmptyState icon={SearchX} title={t.projects.emptyTitle} body={t.projects.emptyBody} />
             ) : (
               <EmptyState icon={FolderSearch} title={t.projects.noneYetTitle} body={t.projects.noneYetBody} />

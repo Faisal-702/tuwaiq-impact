@@ -5,10 +5,10 @@ import { DotMotif } from "@/components/brand/wordmark";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { HOME_PATH } from "@/lib/routes";
 
-export function SiteFooter({ t }: { t: Dictionary }) {
+export function SiteFooter({ t, isAdmin = false }: { t: Dictionary; isAdmin?: boolean }) {
   const links = [
     { href: HOME_PATH, label: t.nav.home },
-    { href: "/projects", label: t.nav.projects },
+    ...(isAdmin ? [] : [{ href: "/projects", label: t.nav.projects }]),
     { href: "/students", label: t.nav.students },
     { href: "/leaderboard", label: t.nav.leaderboard },
     { href: "/about", label: t.nav.about },

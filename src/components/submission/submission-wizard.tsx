@@ -27,6 +27,7 @@ import Link from "@/components/ui/link";
 import { useI18n } from "@/i18n/client";
 import { fmt, formatNumber } from "@/i18n/format";
 import {
+  COMPETITIONS,
   PROJECT_FIELDS,
   PROJECT_STATUSES,
   PROJECT_TYPES,
@@ -165,6 +166,7 @@ export function SubmissionWizard({
       // Conditional follow-up questions are cleared when they no longer apply.
       if (key === "competition" && value !== "yes") next.competitionName = "";
       if (key === "field" && value !== "other") next.fieldOther = "";
+      if (key === "targetCompetition" && value !== "other") next.targetCompetitionOther = "";
       return next;
     });
     setErrors((prev) => {
@@ -294,6 +296,8 @@ export function SubmissionWizard({
 
   const errorText = (field: StepField) => {
     const code = errors[field];
+    if (code === "required" && field === "targetCompetition") return t.submit.errors.competition;
+    if (code === "required" && field === "targetCompetitionOther") return t.submit.errors.competitionOther;
     return code ? t.submit.errors[code] : undefined;
   };
 
@@ -386,11 +390,29 @@ export function SubmissionWizard({
       }
       case "title":
       case "competitionName":
-      case "fieldOther": {
+      case "fieldOther":
+      case "targetCompetitionOther": {
         const p = text(field);
         return (
           <FieldShell key={field} {...p.shell} required className="sm:col-span-2">
-            <TextInput {...p.input} autoComplete="off" maxLength={field === "fieldOther" ? 80 : 150} />
+            <TextInput {...p.input} autoComplete="off" maxLength={field === "fieldOther" || field === "targetCompetitionOther" ? 80 : 150} />
+          </FieldShell>
+        );
+      }
+      case "targetCompetition": {
+        const error = errorText(field);
+        const hint = t.submit.hints.targetCompetition;
+        return (
+          <FieldShell key={field} id={field} label={t.submit.questions.targetCompetition} required error={error} hint={hint} className="sm:col-span-2">
+            <SelectInput
+              id={field}
+              value={answers.targetCompetition}
+              onChange={(v) => set("targetCompetition", v)}
+              invalid={Boolean(error)}
+              describedById={describedBy(field, error, hint)}
+              placeholder={t.submit.placeholders.targetCompetition}
+              options={COMPETITIONS.map((c) => ({ value: c.key, label: locale === "ar" ? c.ar : c.en }))}
+            />
           </FieldShell>
         );
       }
@@ -512,7 +534,10 @@ export function SubmissionWizard({
   }
 
   const visibleFields = step.fields.filter(
-    (f) => !(f === "competitionName" && answers.competition !== "yes") && !(f === "fieldOther" && answers.field !== "other"),
+    (f) =>
+      !(f === "competitionName" && answers.competition !== "yes") &&
+      !(f === "fieldOther" && answers.field !== "other") &&
+      !(f === "targetCompetitionOther" && answers.targetCompetition !== "other"),
   );
   const Arrow = dir === "rtl" ? ArrowLeft : ArrowRight;
   const Back = dir === "rtl" ? ArrowRight : ArrowLeft;

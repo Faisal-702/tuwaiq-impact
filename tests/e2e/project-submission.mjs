@@ -229,7 +229,9 @@ await check("classification: 22 project fields, أخرى asks for the field", as
   await page.locator("#tools").fill(A.tools);
   await page.getByTestId("wizard-next").click();
   await fieldError("fieldOther").waitFor();
+  await fieldError("targetCompetition").waitFor();
   await page.locator("#fieldOther").fill(A.fieldOther);
+  await page.locator("#targetCompetition").selectOption("hackathons");
   await next("classification-2");
 });
 
@@ -474,10 +476,8 @@ await check("admin sees the private form and files, can download and hide the pr
   const href = await ap.getByTestId("evidence-download").getAttribute("href");
   const res = await adminContext.request.get(BASE + href);
   assert(res.status() === 200 && (await res.body()).subarray(0, 5).toString() === "%PDF-", "admin downloads the file");
-  // Hide it with the existing unpublish action.
-  await ap.goto(BASE + `/admin/projects?q=${encodeURIComponent(A.title)}`);
-  await ap.getByRole("button", { name: `More actions: ${A.title}` }).click();
-  await ap.getByRole("menuitem", { name: "Unpublish" }).click();
+  // Hide it with the editor's existing unpublish action (Manage Projects is now the read-only submissions list).
+  await ap.getByRole("button", { name: "Move to drafts" }).click();
   await until(async () => {
     const [p] = await sql`select status from projects where id = ${projectId}`;
     return p.status === "draft";

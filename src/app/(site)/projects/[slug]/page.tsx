@@ -5,10 +5,10 @@ import { ViewTracker } from "@/components/projects/detail/view-tracker";
 import { getI18n } from "@/i18n/server";
 import { excerpt } from "@/lib/utils";
 import { getPublicProject, getRelatedProjects } from "@/server/queries/public";
-import { getViewer, requireViewer } from "@/server/auth";
+import { getViewer, requireStudentViewer } from "@/server/auth";
 
 export async function generateMetadata(props: PageProps<"/projects/[slug]">): Promise<Metadata> {
-  if (!(await getViewer())) return {};
+  if ((await getViewer())?.kind !== "student") return {};
   const { slug } = await props.params;
   const project = await getPublicProject(decodeURIComponent(slug));
   if (!project) return {};
@@ -22,9 +22,10 @@ export async function generateMetadata(props: PageProps<"/projects/[slug]">): Pr
 export default async function ProjectPage(props: PageProps<"/projects/[slug]">) {
   const { slug } = await props.params;
   const { t, locale } = await getI18n();
-  // The session check and the page's queries run concurrently; nothing is
-  // rendered unless the check passes (requireViewer redirects otherwise).
-  const [, project] = await Promise.all([requireViewer(), getPublicProject(decodeURIComponent(slug))]);
+  // Project pages are part of the students' project discovery: signed-in
+  // students only (visitors sign in first; administrators use the dashboard).
+  await requireStudentViewer(`/projects/${slug}`);
+  const project = await getPublicProject(decodeURIComponent(slug));
   if (!project) notFound();
   const related = await getRelatedProjects(project.id, project.category_id, 3);
   return (

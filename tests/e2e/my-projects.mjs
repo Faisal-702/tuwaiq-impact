@@ -527,7 +527,7 @@ await check("a single-supervisor project edits without extra inputs (legacy comp
 // Admin, unauthenticated access, language, mobile
 // ---------------------------------------------------------------------------
 
-await check("admin sees the manual support entries and all supervisors; admin delete still works", async () => {
+await check("admin sees the manual support entries and all supervisors; a deleted project leaves My Projects", async () => {
   const { context, page: admin } = await newPage("en");
   await adminLogin(admin, BASE, ADMIN);
   await admin.goto(BASE + `/admin/projects/${p1}/edit`);
@@ -536,12 +536,8 @@ await check("admin sees the manual support entries and all supervisors; admin de
   assert((await table.locator("tbody tr").count()) === 3 && (await table.locator('[data-reversed="true"]').count()) === 1, "three entries, one reversed");
   assert((await admin.locator("main").innerText()).includes("Amounts entered manually by the student"), "marked as manual");
   assert((await admin.locator("main").innerText()).includes(`أ. خالد ${RUN}`), "supervisors in the submission");
-  // Move project 2 to the trash with the existing admin action.
-  await admin.goto(BASE + `/admin/projects?q=${encodeURIComponent(`QA MyProj ${RUN}`)}`);
-  const row = admin.getByTestId("admin-project-row").filter({ hasText: P2.title });
-  await row.getByRole("button", { name: /More actions/ }).click();
-  await admin.getByRole("menuitem", { name: "Move to Trash" }).click();
-  await admin.getByRole("alertdialog").getByRole("button", { name: "Move to Trash" }).click();
+  // Move project 2 to the trash (Manage Projects no longer has a delete menu, so in the database).
+  await sql`update projects set deleted_at = now() where id = ${p2}`;
   await until(async () => (await sql`select deleted_at from projects where id = ${p2}`)[0].deleted_at !== null, "trashed");
   await context.close();
   await page.goto(BASE + "/my-projects");

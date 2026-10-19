@@ -202,3 +202,16 @@ export async function requireViewer(): Promise<Viewer> {
   if (!viewer) redirect("/welcome");
   return viewer;
 }
+
+/**
+ * Guards the students' own project discovery (Explore Projects, project
+ * pages and project search): only a signed-in student. Without a session the
+ * visitor signs in first and comes back to `next`; an administrator, who
+ * reviews student projects in the dashboard, is sent there.
+ */
+export async function requireStudentViewer(next: string): Promise<StudentSession> {
+  const viewer = await getViewer();
+  if (viewer?.kind === "student") return viewer.student;
+  if (viewer?.kind === "admin") redirect("/admin/projects");
+  redirect(`/welcome?next=${encodeURIComponent(next)}`);
+}

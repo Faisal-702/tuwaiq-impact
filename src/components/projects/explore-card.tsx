@@ -1,11 +1,11 @@
-import { GraduationCap, Star, UsersRound } from "lucide-react";
+import { GraduationCap, Star, Trophy, UsersRound } from "lucide-react";
 import { FundingBar } from "@/components/my-projects/funding-bar";
 import { CategoryChip } from "@/components/ui/chip";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { fmt, formatNumber, gradeLabel, localName } from "@/i18n/format";
 import { funding, type Funding } from "@/lib/funding";
-import { fieldLabel } from "@/lib/submission";
+import { competitionLabel, fieldLabel } from "@/lib/submission";
 import type { ProjectCardData } from "@/lib/types";
 import { excerpt } from "@/lib/utils";
 import { ProjectCover } from "./project-cover";
@@ -18,12 +18,14 @@ function studentLine(project: ProjectCardData, locale: Locale) {
 
 /**
  * Card on the Explore Projects page. It shows only public information (cover,
- * name, field, students, grade, the student's own summary and the funding
+ * name, field, competition, students, grade, the student's own summary and the funding
  * status: requested, recorded and remaining amounts) and is deliberately not
  * a link: there is no detail, support or donation action here.
  */
 export function ExploreProjectCard({ project, t, locale }: { project: ProjectCardData; t: Dictionary; locale: Locale }) {
   const field = fieldLabel(project.field, project.field_other, locale);
+  // Only projects entered for a competition show one; older projects show none (nothing is guessed).
+  const competition = competitionLabel(project.competition, project.competition_other, locale);
   const category = locale === "ar" ? project.category.name_ar : project.category.name_en;
   const students = studentLine(project, locale);
   // Submitted projects show the summary exactly as written; older projects
@@ -62,6 +64,19 @@ export function ExploreProjectCard({ project, t, locale }: { project: ProjectCar
           ) : (
             <CategoryChip name={category} icon={project.category.icon} accent={project.category.accent} size="xs" />
           )}
+          {competition ? (
+            <span
+              className="inline-flex max-w-full items-center gap-1 rounded-full bg-mint-soft px-2.5 py-1 text-xs font-semibold text-teal-deep ring-1 ring-inset ring-teal-deep/15"
+              data-testid="card-competition"
+              data-competition={project.competition}
+            >
+              <Trophy className="size-3.5 shrink-0" aria-hidden />
+              <span className="sr-only">{t.projects.competitionLabel}: </span>
+              <span className="truncate" dir="auto">
+                {competition}
+              </span>
+            </span>
+          ) : null}
         </div>
 
         {students || project.grade ? (

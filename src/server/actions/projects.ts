@@ -70,8 +70,9 @@ function validateMedia(media: z.infer<typeof mediaSchema>): string | null {
 }
 
 /**
- * Creates or updates a project. `intent` decides the resulting status:
- * "draft" keeps it admin-only, "publish" makes it public.
+ * Updates an existing project. `intent` decides the resulting status:
+ * "draft" keeps it admin-only, "publish" makes it public. Administrators can
+ * not create projects: students create them through the project form.
  */
 export async function saveProject(
   input: ProjectInput,
@@ -81,6 +82,7 @@ export async function saveProject(
   const parsed = projectSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "invalid" };
   const data = parsed.data;
+  if (!data.id) return { ok: false, error: "students_only" };
   const amount = data.requestedAmount == null ? null : Math.round(data.requestedAmount * 100) / 100;
 
   for (const m of data.media) {

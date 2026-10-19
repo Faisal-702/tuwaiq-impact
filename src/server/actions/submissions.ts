@@ -382,6 +382,8 @@ function normalizedAnswers(answers: SubmissionAnswers, supervisors: string[], pe
     requestedAmount: String(parseAmount(answers.requestedAmount)),
     competitionName: answers.competition === "yes" ? answers.competitionName.trim() : "",
     fieldOther: answers.field === "other" ? answers.fieldOther.trim() : "",
+    // A custom competition name is kept only with "other" (a stale one never travels with another choice).
+    targetCompetitionOther: answers.targetCompetition === "other" ? answers.targetCompetitionOther.replace(/\s+/g, " ").trim() : "",
     summary: answers.summary.trim().slice(0, SUMMARY_MAX),
     title: answers.title.trim(),
     supervisor: supervisors[0] ?? answers.supervisor.trim(),
@@ -460,10 +462,12 @@ export async function submitProject(input: { acknowledged: boolean }): Promise<S
       if (!locked) throw new Error("already_submitted");
       const [project] = await tx<{ id: string }[]>`
         insert into projects (slug, title, description, summary, category_id, grade, academic_year, points,
-                              status, published_at, requested_amount, field, field_other, supervisors)
+                              status, published_at, requested_amount, field, field_other, supervisors,
+                              competition, competition_other)
         values (${slug}, ${title}, ${summary}, ${summary}, ${categoryId}, ${profile.grade}, ${academicYear}, 0,
                 'published', now(), ${parseAmount(answers.requestedAmount)}, ${field.key},
-                ${field.key === "other" ? normalized.fieldOther : null}, ${supervisors})
+                ${field.key === "other" ? normalized.fieldOther : null}, ${supervisors},
+                ${normalized.targetCompetition}, ${normalized.targetCompetitionOther || null})
         returning id`;
       const [media] = await tx<{ id: string }[]>`
         insert into project_media (project_id, kind, position, storage_path, preview_path, thumb_path,
@@ -483,6 +487,10 @@ export async function submitProject(input: { acknowledged: boolean }): Promise<S
   } catch (error) {
     if (error instanceof Error && error.message === "already_submitted") return fail("not_found");
     if ((error as { hint?: string })?.hint === "profile_incomplete") return fail("profile_incomplete");
+    // The database's own check (should the server's validation ever be bypassed).
+    if ((error as { hint?: string })?.hint === "competition_required") {
+      return { ok: false, error: "validation", fields: { targetCompetition: "required" } };
+    }
     console.error("Project submission failed", error instanceof Error ? error.message : "unknown");
     return fail("server");
   }
@@ -505,7 +513,8 @@ export async function submitProject(input: { acknowledged: boolean }): Promise<S
 /** Answers whose change is recorded in the student's activity (personal details are not listed). */
 const TRACKED: AnswerKey[] = [
   "projectType", "participants", "title", "description", "goals", "idea", "competition", "competitionName", "summary",
-  "field", "fieldOther", "problem", "tools", "toolsCost", "requestedAmount", "projectStatus", "supervisor",
+  "field", "fieldOther", "targetCompetition", "targetCompetitionOther", "problem", "tools", "toolsCost", "requestedAmount",
+  "projectStatus", "supervisor",
 ];
 
 /**
@@ -581,6 +590,7 @@ export async function saveProjectEdit(input: { projectId: string; acknowledged: 
            set title = ${normalized.title}, description = ${normalized.summary}, summary = ${normalized.summary},
                category_id = ${categoryId}, requested_amount = ${requested},
                field = ${field.key}, field_other = ${field.key === "other" ? normalized.fieldOther : null},
+               competition = ${normalized.targetCompetition}, competition_other = ${normalized.targetCompetitionOther || null},
                supervisors = ${supervisors}, cover_media_id = ${coverMediaId}
          where id = ${projectId}`;
       await tx`

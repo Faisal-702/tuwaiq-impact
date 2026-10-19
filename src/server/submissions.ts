@@ -231,14 +231,19 @@ export type AdminSubmissionView = {
  * and supporting files. Callers must have passed requireAdmin().
  */
 export async function getSubmissionForProject(projectId: string): Promise<AdminSubmissionView | null> {
-  const [row] = await sql<(SubmissionRow & { name_ar: string | null; name_en: string | null; has_student: boolean })[]>`
+  const [row] = await sql<AdminRow[]>`
     select ps.*, s.name_ar, s.name_en, (s.id is not null) as has_student
       from project_submissions ps
       left join students s on s.id = ps.student_id
      where ps.project_id = ${projectId} and ps.status = 'submitted'
      order by ps.submitted_at desc
      limit 1`;
-  if (!row) return null;
+  return row ? toAdminView(row) : null;
+}
+
+type AdminRow = SubmissionRow & { name_ar: string | null; name_en: string | null; has_student: boolean };
+
+function toAdminView(row: AdminRow): AdminSubmissionView {
   const raw = row.answers as Record<string, unknown>;
   return {
     id: row.id,
@@ -259,6 +264,77 @@ export async function getSubmissionForProject(projectId: string): Promise<AdminS
         uploaded: true,
         href: `/api/admin/submission-files?${new URLSearchParams({ path: e.path })}`,
       })),
+  };
+}
+
+/** A row of the administrators' "Manage Projects" list: one per submitted student project. */
+export type StudentSubmissionRow = {
+  id: string;
+  /** The student's name from their student account (the session that submitted the project). */
+  studentName: { name_ar: string | null; name_en: string | null } | null;
+  /** The name copied from the student's profile when the project was submitted (when the account is gone). */
+  profileName: string;
+  title: string;
+  submittedAt: string | null;
+};
+
+/**
+ * Every project a student has submitted through the project form, newest
+ * first. Drafts and pending edits are not listed; projects created by
+ * administrators (no submission) are not either. Callers must have passed
+ * requireAdmin().
+ */
+export async function listStudentSubmissions(): Promise<StudentSubmissionRow[]> {
+  const rows = await sql<
+    { id: string; name_ar: string | null; name_en: string | null; has_student: boolean; profile_name: string | null; title: string | null; submitted_at: Date | null }[]
+  >`
+    select ps.id, s.name_ar, s.name_en, (s.id is not null) as has_student,
+           ps.answers->>'studentName' as profile_name, ps.answers->>'title' as title, ps.submitted_at
+      from project_submissions ps
+      left join students s on s.id = ps.student_id
+     where ps.status = 'submitted'
+     order by ps.submitted_at desc nulls last, ps.created_at desc`;
+  return rows.map((r) => ({
+    id: r.id,
+    studentName: r.has_student ? { name_ar: r.name_ar, name_en: r.name_en } : null,
+    profileName: (r.profile_name ?? "").trim(),
+    title: (r.title ?? "").trim(),
+    submittedAt: r.submitted_at ? new Date(r.submitted_at).toISOString() : null,
+  }));
+}
+
+/** Answers never shown in the project preview (identity and contact details). */
+const PREVIEW_HIDDEN = ["nationalId", "phone", "email"] as const;
+
+export type AdminSubmissionPreview = Omit<AdminSubmissionView, "answers"> & {
+  answers: Omit<AdminSubmissionView["answers"], (typeof PREVIEW_HIDDEN)[number]>;
+  profileName: string;
+  coverUrl: string | null;
+};
+
+/**
+ * A submitted project as the student sent it, for the administrators'
+ * read-only preview: everything the form collected about the project, the
+ * student's name, grade and section, the cover and the supporting files, but
+ * not their national ID, mobile or email. Callers must have passed requireAdmin().
+ */
+export async function getSubmissionPreview(submissionId: string): Promise<AdminSubmissionPreview | null> {
+  if (!/^[0-9a-f-]{36}$/.test(submissionId)) return null;
+  const [row] = await sql<AdminRow[]>`
+    select ps.*, s.name_ar, s.name_en, (s.id is not null) as has_student
+      from project_submissions ps
+      left join students s on s.id = ps.student_id
+     where ps.id = ${submissionId} and ps.status = 'submitted'`;
+  if (!row) return null;
+  const view = toAdminView(row);
+  const answers = { ...view.answers } as Record<string, unknown>;
+  for (const key of PREVIEW_HIDDEN) delete answers[key];
+  const cover = row.cover?.uploaded ? row.cover : null;
+  return {
+    ...view,
+    answers: answers as AdminSubmissionPreview["answers"],
+    profileName: view.answers.studentName.trim(),
+    coverUrl: cover ? mediaUrl(cover.preview_path ?? cover.storage_path) : null,
   };
 }
 

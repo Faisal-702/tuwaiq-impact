@@ -134,8 +134,13 @@ await check("AR · Admin login", async () => {
   await adm.page.waitForURL(BASE + "/admin");
 });
 
-await check("AR · Add Project form grade options", async () => {
-  await adm.page.goto(BASE + "/admin/projects/new");
+// Administrators no longer create projects (students do); the project editor
+// is reached from a student's page (Students → student → project).
+await check("AR · Edit Project form grade options", async () => {
+  await adm.page.goto(BASE + "/admin/students");
+  await adm.page.getByRole("link", { name: "طالب تجريبي أ", exact: true }).click();
+  await adm.page.getByRole("link", { name: /Demo: Smart Irrigation Prototype/ }).click();
+  await adm.page.waitForURL(/\/edit$/);
   const options = await adm.page.locator("#project-grade option").allTextContents();
   for (const l of AR) assert(options.includes(l), `missing ${l} in ${options}`);
   const values = await adm.page.locator("#project-grade option").evaluateAll((os) => os.map((o) => o.value));
@@ -146,9 +151,7 @@ await check("AR · Add Project form grade options", async () => {
 });
 
 await check("AR · Edit Project form shows the saved grade in Arabic", async () => {
-  await adm.page.goto(BASE + "/admin/projects?q=Smart%20Irrigation");
-  await adm.page.getByRole("link", { name: "Demo: Smart Irrigation Prototype", exact: true }).click();
-  await adm.page.waitForURL(/\/edit$/);
+  await adm.page.reload();
   const selected = await adm.page.locator("#project-grade").evaluate((s) => [s.value, s.options[s.selectedIndex].text]);
   assert(selected[0] === "11" && selected[1] === "ثاني ثانوي", JSON.stringify(selected));
 });
