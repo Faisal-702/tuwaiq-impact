@@ -81,7 +81,10 @@ $$;
 
 revoke all on function public.ti_require_competition() from public;
 
+-- Named to fire after project_submissions_require_profile (triggers on the
+-- same event run in name order): an incomplete profile is reported first.
 drop trigger if exists project_submissions_require_competition on public.project_submissions;
-create trigger project_submissions_require_competition
+drop trigger if exists project_submissions_validate_competition on public.project_submissions;
+create trigger project_submissions_validate_competition
   before insert or update of status on public.project_submissions
   for each row execute function public.ti_require_competition();
