@@ -524,6 +524,7 @@ await check("English labels and mobile layout (Explore Projects, form, Manage Pr
   watch(mp);
   await mp.goto(BASE + "/projects?competition=saif");
   await mp.getByTestId("competition-filter").waitFor();
+  await mp.getByTestId("results-count").waitFor();
   const chips = await mp.locator('[data-testid="competition-filter"] button').allInnerTexts();
   assert(JSON.stringify(chips.map((c) => c.trim())) === JSON.stringify(["All", "SAIF", "Ibdaa", "Robotics", "Hackathons", "Programming Competitions", "Other"]), `chips ${chips}`);
   assert((await mp.getByTestId("competition-filter").innerText()).includes("Competition"), "label");
@@ -542,6 +543,7 @@ await check("English labels and mobile layout (Explore Projects, form, Manage Pr
   const ma = await ea.newPage();
   watch(ma);
   await ma.goto(BASE + "/admin/projects");
+  await ma.getByTestId("admin-submissions").waitFor();
   const heads = await ma.locator('[data-testid="admin-submissions"] thead th').allInnerTexts();
   assert(JSON.stringify(heads.map((h) => h.trim())) === JSON.stringify(["Student Name", "Preview Project"]), `headers ${heads}`);
   const overflow2 = await ma.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
