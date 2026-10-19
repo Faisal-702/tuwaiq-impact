@@ -144,6 +144,7 @@ async function fillProjectAndSubmit(p, { extraSupervisors = [], removeExtra = nu
   await page.locator("#summary").fill(`ملخص ${p.title}`);
   await next("classification-1");
   await page.locator("#field").selectOption(p.field);
+  await page.locator("#targetCompetition").selectOption("programming");
   await page.locator("#problem").fill("المشكلة");
   await page.locator("#tools").fill("الأدوات");
   await next("classification-2");

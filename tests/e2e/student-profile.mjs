@@ -295,6 +295,7 @@ async function fillProject() {
   await page.locator("#summary").fill(`ملخص ${RUN}`);
   await next("classification-1");
   await page.locator("#field").selectOption("ai");
+  await page.locator("#targetCompetition").selectOption("saif");
   await page.locator("#problem").fill(`مشكلة ${RUN}`);
   await page.locator("#tools").fill(`أدوات ${RUN}`);
   await next("classification-2");
