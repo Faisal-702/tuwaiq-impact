@@ -1,4 +1,4 @@
-import { MessageSquareText, PlusCircle } from "lucide-react";
+import { MessageSquareText } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "@/components/ui/link";
 import { AdminPageHeader } from "@/components/admin/page-header";
@@ -42,12 +42,6 @@ export default async function AdminSuggestionsPage(props: PageProps<"/admin/sugg
       <AdminPageHeader
         title={s.title}
         description={s.intro}
-        actions={
-          <Link href="/admin/projects/new" className={buttonClasses("primary", "md")}>
-            <PlusCircle className="size-4" aria-hidden />
-            {t.admin.nav.addProject}
-          </Link>
-        }
       />
       <section className="rounded-[1.25rem] bg-white shadow-soft ring-1 ring-line-soft">
         <div className="flex items-center justify-end border-b border-line-soft px-5 py-4">

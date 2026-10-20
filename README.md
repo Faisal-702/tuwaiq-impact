@@ -121,9 +121,16 @@ Signed-in students add their own projects at `/add-project` (the homepage's prim
 
 - **Drafts.** Answers autosave a few seconds after typing, on every step change, and on **Save as draft**. One open draft per student, tied to the student session (never to a submitted ID). **Cancel** deletes the draft and its files. Opening the page never writes anything.
 - **Validation** runs in the browser for each screen and again on the server at submit: required answers, amounts in SAR (no negatives, up to 2 decimals), and the 300-character **project summary** (also a database constraint).
-- **Submitting** publishes the project immediately: title, summary, project field, grade (from the profile), requested amount, cover image and the student link. The student's profile details are copied into the stored questionnaire at that moment, so administrators see who submitted it. The project field maps to one of the existing categories, so category chips keep working. Administrators hide a project with the existing **Move to drafts** / Trash actions. Points start at 0.
+- **Competition** («المسابقة التي ترغب بالمشاركة فيها», right under «مجال المشروع»): required at submit. The choices are SAIF, Ibdaa, Robotics, Hackathons, Programming Competitions and Other; **Other** asks for the competition's name (required, at most 80 characters, trimmed). Keys are stored as `saif | ibdaa | robotics | hackathons | programming | other` in the questionnaire (`targetCompetition`, `targetCompetitionOther`) and on the project (`projects.competition`, `projects.competition_other`). Drafts may leave it empty. A custom name is dropped when another choice is picked. The competition is separate from the project field and category. The older question «هل سبق أن شاركت بمشروعك في أي مسابقة…» (past participation) is unchanged.
+- **Submitting** publishes the project immediately: title, summary, project field, competition, grade (from the profile), requested amount, cover image and the student link. **There is no approval step.** This is the existing behaviour, and it is unchanged. The student's profile details are copied into the stored questionnaire at that moment, so administrators see who submitted it. The project field maps to one of the existing categories, so category chips keep working. Points start at 0.
+- **Students only create projects.** Administrators have no **Add Project** (sidebar, dashboard and suggestions buttons removed; `/admin/projects/new` leads to Manage Projects; `saveProject` refuses to create). **Manage Projects** (`/admin/projects`) lists every submitted student project, newest first, in two columns: the student's name (from their student account) and **Preview Project**. Drafts and pending edits are not listed. The preview (`/admin/projects/submissions/[id]`) is read only: it shows the project, the competition (with the custom name), the team, supervisors, requirements, previous competitions, the cover and the supporting files. It never shows the national ID, mobile or email. Administrators can still move a project to drafts or feature it from the project editor (Students → student → project). **Delete Project** (red, next to the preview) asks for confirmation, naming the project and the student, then permanently deletes that one submission on the server (`deleteStudentSubmission`, administrators only). It runs in a single transaction and removes:
+  - the submission and any pending edits of it;
+  - its published project, which also removes that project's own student links, media rows, views, recorded support and activity entries.
+
+  The student's account, profile and other projects are untouched. Files are removed afterwards, unless another record still uses them. No migration is needed.
+- **Search by student name.** A search field above the Manage Projects table (`ابحث باسم الطالب...` / `Search by student name...`) narrows the list as the administrator types (debounced, kept in `?q=`). The search runs in the database across every submitted project (`listStudentSubmissions({ q })`), not in the page. Every word must appear, whole or in part and in any order, in one name of that project's student: the account's Arabic or English name, or the full name sent with the form. Names are compared through `ti_normalize` (case, أ/إ/آ/ا, ة/ه, ى/ي, diacritics and tatweel), and extra spaces are ignored. Every matching project keeps its own row with its own Preview and Delete, so a student with several projects shows all of them. While the list loads it stays in place, dimmed, with a spinner in the field. No match shows «لا توجد مشاريع مطابقة لاسم الطالب» / "No projects found for this student name."; clearing the field brings back the full list. No migration is needed.
 - **Privacy.** Every answer, including national ID, mobile number, email, supervisor and supporting files, is kept in `project_submissions` (RLS on, grants revoked). Public queries never read that table. Administrators see the full form under **Edit project → Submission form**. Supporting files live in a private bucket (`project-submissions`; locally `.data/private`). They are downloaded through `/api/admin/submission-files`, which checks the admin session on every request.
-- **Explore Projects** cards show only the cover, title, project field, students, grade, the exact summary and the funding indicator (requested, recorded, remaining and a progress bar; see *My Projects* below). They are not links and have no payment or donation actions. Search also matches the summary and field; the filters dialog has a **Project field** filter.
+- **Explore Projects** is for signed-in students only. It covers `/projects`, the project pages `/projects/[slug]` and project results from `/api/search`. A visitor is sent to `/welcome?next=…` and returns there after signing in. An administrator is sent to Manage Projects; the explore link is hidden for them and project search returns no projects. Only published projects are shown, as before; drafts and unsubmitted forms never are. The cards show only the cover, title, project field, competition, students, grade, the exact summary and the funding indicator (requested, recorded, remaining and a progress bar; see *My Projects* below). They are not links and have no payment or donation actions. Search also matches the summary and field. The filters dialog has a **Project field** filter. The **المسابقة / Competition** chips (All + the six competitions) filter on `projects.competition` and combine with search, category, the dialog filters and sorting. Older projects without a competition show no badge and appear only under All.
 
 ### Landing page and partners (الشركاء)
 
@@ -228,6 +235,20 @@ Both are additive and idempotent (safe to run twice). They delete nothing and ch
    ```
 
 Apply them **before** deploying these branches. Without them, these pages fail to load or save, because they read the new tables and columns: `/my-projects`, the edit pages, **إضافة رصيد**, Explore Projects, the project pages, the profile page and the project form.
+
+### Database migration (competitions)
+
+`supabase/migrations/20261019000000_student_competitions.sql` adds two nullable columns to `projects`: `competition`, checked against the six keys, and `competition_other`, required with `other` (1–80 characters once trimmed) and `NULL` for every other choice. It adds a partial index, and a trigger that refuses to turn a draft into a submitted project without a valid competition. It is additive and idempotent: nothing is deleted, and existing projects keep `NULL` (no competition is guessed). Drafts, stored rows and edits of submitted projects are not affected. It needs `20261011000000_project_submissions.sql`.
+
+1. **Check** in the Supabase SQL editor (both rows should read `true`):
+   ```sql
+   select 'project_submissions (20261011000000)' as needs, to_regclass('public.project_submissions') is not null as ok
+   union all select 'not yet applied: projects.competition absent (20261019000000)', not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'projects' and column_name = 'competition');
+   ```
+2. **Apply** the file: paste it whole into the SQL editor and run it once.
+3. **Optionally record it:** `insert into public._ti_migrations (name) values ('20261019000000_student_competitions.sql') on conflict do nothing;`
+
+Apply it **before** deploying this branch. Explore Projects, project pages and project submission read and write the new columns.
 
 ### Homepage statistics
 
@@ -392,6 +413,38 @@ Its rows are named "QA MyProj …" and are removed at the start and the end (`KE
 - signed-out redirect, administrators' notice, English (LTR), mobile and tablet without sideways scrolling, no browser errors
 
 Its projects are named "QA Profile …"; it removes them and both students' profiles at the start and the end.
+
+`npm run test:student-competitions` (same variables; needs `DATABASE_URL`) checks competitions, Manage Projects and students-only Explore Projects with *Demo Student E*, *F* and *G*:
+- the form:
+  - the competition dropdown sits right under the project field, with its six options
+  - it is required, with its own message
+  - **Other** reveals a required name field
+  - the choice and the custom name survive Save as draft, a reload, Previous and Next; a stale custom name is dropped
+- submitting stores `saif`, or `other` with the trimmed name, on the project and in the questionnaire; the database refuses a submission without a valid competition
+- Manage Projects:
+  - no Add Project, old filters, tabs or old columns, and no Add Project in the sidebar
+  - exactly two columns, with one row per submitted project and the student names from their accounts; drafts are not listed
+  - `/admin/projects/new` leads back to Manage Projects
+- the preview shows the real submission (title, student, field, custom competition, summary, problem, tools, supervisor, cover), read only, without national ID, mobile or email
+- access:
+  - administrators are sent from Explore Projects and project pages to Manage Projects and get no projects from search
+  - visitors are redirected to sign-in (and come back to the filtered page afterwards), and the search API returns 401
+- Explore Projects:
+  - All and each competition (SAIF, Ibdaa, Robotics, Hackathons, Programming Competitions, Other with the custom name)
+  - combined with search and category, with the page reset on change
+  - the empty state with Show all competitions
+  - older projects show no badge
+- search by student name, on three seeded students and 2,000 seeded projects of 400 more (all carrying the run's marker):
+  - the search field sits above the table, with its icon and placeholder
+  - a full name lists all three projects of that student and nothing else
+  - part of a name, words in any order, repeated spaces and أ/إ/ا spellings match; words from two different names never do
+  - the list updates while typing, with a loading state; no match shows the empty state; clearing brings back every project
+  - among 2,000+ projects one student's five projects come back, quickly
+  - Preview opens that exact project; Delete deletes exactly that submission and keeps the search
+  - English names and labels, and the mobile layout
+- English labels, mobile without sideways scrolling, no browser errors
+
+It removes the projects, drafts, profiles and seeded students it created.
 
 `npm run test:language-switch` (same variables) checks switching between English and Arabic on the entry page, student pages and admin pages:
 - text, direction, `lang` and the tab title switch in place, without reloading and without a half-switched state (also on a slow server, where the loading indicator shows)

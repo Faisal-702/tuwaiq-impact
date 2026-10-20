@@ -1,10 +1,9 @@
-import { CheckCircle2, FolderKanban, PlusCircle, Star, Users } from "lucide-react";
+import { CheckCircle2, FolderKanban, Star, Users } from "lucide-react";
 import Link from "@/components/ui/link";
 import { ActivityList } from "@/components/admin/activity-list";
 import { Columns, HorizontalBars } from "@/components/admin/charts";
 import { AdminPageHeader, Panel } from "@/components/admin/page-header";
 import { LeaderboardList } from "@/components/leaderboard/leaderboard-list";
-import { buttonClasses } from "@/components/ui/button";
 import { getI18n } from "@/i18n/server";
 import { formatMonth, formatNumber } from "@/i18n/format";
 import { getLeaderboard } from "@/server/queries/public";
@@ -37,12 +36,6 @@ export default async function AdminOverviewPage() {
       <AdminPageHeader
         title={t.admin.overview.title}
         description={t.admin.overview.intro}
-        actions={
-          <Link href="/admin/projects/new" className={buttonClasses("primary", "md")}>
-            <PlusCircle className="size-4" aria-hidden />
-            {t.admin.nav.addProject}
-          </Link>
-        }
       />
 
       <dl className="grid grid-cols-2 gap-4 xl:grid-cols-4">

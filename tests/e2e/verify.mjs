@@ -14,6 +14,15 @@ import { adminCredentials, signInAdmin, ensureStudentCode, fillAdminLogin, stude
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const ADMIN = adminCredentials();
 const QA_IMAGE = process.env.QA_IMAGE;
+// Names carry this run's marker so records left by earlier runs never collide.
+const RUN = Date.now().toString(36).toUpperCase();
+const CAT = `QA Category ${RUN}`;
+const ST1 = `QA Student One ${RUN}`;
+const ST2 = `QA Student Two ${RUN}`;
+const PROJ = `QA Verification Project ${RUN}`;
+const PROJ_SLUG = `qa-verification-project-${RUN.toLowerCase()}`;
+const { default: postgres } = await import("postgres");
+const sql = process.env.DATABASE_URL ? postgres(process.env.DATABASE_URL, { max: 1, onnotice: () => {} }) : null;
 const ASSETS = path.join(process.cwd(), "scripts", "demo-assets");
 if (!QA_IMAGE) throw new Error("QA_IMAGE is required");
 
@@ -193,7 +202,8 @@ await check("Search by grade", async () => {
 
 await check("Category filter chip works", async () => {
   await vp.goto(BASE + "/projects");
-  await vp.getByRole("button", { name: "Robotics" }).click();
+  // The category chips (the competition chips have their own list, which also has "Robotics").
+  await vp.getByRole("list", { name: "Categories" }).getByRole("button", { name: "Robotics" }).click();
   await vp.waitForURL(/category=robotics/);
   await vp.waitForLoadState("networkidle");
   const titles = await vp.locator("article h3").allInnerTexts();
@@ -374,36 +384,48 @@ await check("Correct email + password signs in and redirects to /admin", async (
 await check("Admin can create a category", async () => {
   await ap.goto(BASE + "/admin/categories");
   await ap.getByRole("button", { name: "Add Category" }).click();
-  await ap.getByLabel("Name (English)").fill("QA Category");
+  await ap.getByLabel("Name (English)").fill(CAT);
   await ap.getByLabel("Name (Arabic)").fill("تصنيف اختبار");
   await ap.getByLabel("Search keywords").fill("qa, verification");
   await ap.getByRole("radio", { name: "rocket" }).click();
   await ap.getByRole("button", { name: "Create" }).click();
   await ap.getByText("Category created").waitFor();
-  await ap.getByRole("row", { name: /QA Category/ }).waitFor();
+  await ap.getByRole("row", { name: new RegExp(CAT) }).waitFor();
 });
 
 await check("Admin can create a student", async () => {
   await ap.goto(BASE + "/admin/students");
   await ap.getByRole("button", { name: "Add Student", exact: true }).click();
-  await ap.getByLabel("Name (English)").fill("QA Student One");
+  await ap.getByLabel("Name (English)").fill(ST1);
   await ap.getByLabel("Name (Arabic)").fill("طالب الاختبار الأول");
   await ap.getByLabel("Grade").selectOption("11");
   await ap.getByRole("button", { name: "Create" }).click();
   await ap.getByText("Student created").waitFor();
-  await ap.getByRole("row", { name: /QA Student One/ }).waitFor();
+  await ap.getByRole("row", { name: new RegExp(ST1) }).waitFor();
 });
 
 let projectEditUrl = "";
-await check("Admin creates a project: multiple students, uploads, draft", async () => {
+await check("Administrators can not create projects (students do): no Add Project, the old address returns to Manage Projects", async () => {
+  await ap.goto(BASE + "/admin");
+  assert((await ap.locator('a[href="/admin/projects/new"]').count()) === 0, "a link to admin project creation");
   await ap.goto(BASE + "/admin/projects/new");
-  await ap.getByLabel("Project title").fill("QA Verification Project");
-  await ap.getByLabel("Category").selectOption({ label: "QA Category" });
+  await ap.waitForURL((u) => u.pathname === "/admin/projects");
+  await ap.getByRole("heading", { level: 1, name: "Manage Projects" }).waitFor();
+});
+
+await check("Admin edits a project: multiple students, uploads, draft", async () => {
+  // Projects come from students; this one is seeded as a draft so the editor can be exercised.
+  if (!sql) throw new Error("needs DATABASE_URL");
+  const [project] = await sql`
+    insert into projects (slug, title, description, category_id, status)
+    select ${PROJ_SLUG}, ${PROJ}, 'Seeded by the verification run.', id, 'draft' from categories where name_en = ${CAT}
+    returning id`;
+  await sql`insert into project_students (project_id, student_id, position) select ${project.id}, id, 0 from students where name_en = ${ST1}`;
+  projectEditUrl = BASE + `/admin/projects/${project.id}/edit`;
+  await ap.goto(projectEditUrl);
   await ap.getByLabel("Description").fill("Automated verification project.\n\nSecond paragraph.");
   const students = ap.locator("#project-students");
-  await students.fill("QA Student");
-  await ap.getByRole("option", { name: /QA Student One/ }).click();
-  await students.fill("QA Student Two");
+  await students.fill(ST2);
   await ap.getByRole("option", { name: /Create student/ }).click();
   await ap.getByLabel("Grade").selectOption("11");
   await ap.getByLabel("Academic year").fill("1447");
@@ -419,12 +441,12 @@ await check("Admin creates a project: multiple students, uploads, draft", async 
     { timeout: 60000 },
   );
   await ap.getByRole("button", { name: "Save Draft" }).click();
-  await ap.waitForURL(/\/admin\/projects\/[0-9a-f-]+\/edit/, { timeout: 20000 });
-  projectEditUrl = ap.url();
   await ap.getByText("Draft saved").waitFor();
 });
 
 await check("Original 4K upload is preserved and optimised variants exist", async () => {
+  await ap.reload();
+  await ap.waitForFunction(() => document.querySelectorAll("[data-testid=media-item]").length === 3);
   const sizes = await ap.evaluate(async () => {
     const imgs = [...document.querySelectorAll("[data-testid=media-item] img")];
     const thumb = imgs[0]?.getAttribute("src");
@@ -449,17 +471,15 @@ await check("Original 4K upload is preserved and optimised variants exist", asyn
 });
 
 await check("Draft is admin-only (not public)", async () => {
-  const res = await vp.request.get(BASE + "/projects/qa-verification-project");
+  const res = await vp.request.get(BASE + `/projects/${PROJ_SLUG}`);
   assert(res.status() === 404, `draft public status ${res.status()}`);
-  await ap.goto(BASE + "/admin/projects?status=draft");
-  await ap.getByRole("link", { name: "QA Verification Project", exact: true }).waitFor();
 });
 
 await check("Preview shows the draft", async () => {
   const id = projectEditUrl.match(/projects\/([0-9a-f-]+)\/edit/)[1];
   await ap.goto(BASE + `/admin/projects/${id}/preview`);
   await ap.getByText("Preview — this is how the project will appear to visitors.").waitFor();
-  await ap.getByRole("heading", { level: 1, name: "QA Verification Project" }).waitFor();
+  await ap.getByRole("heading", { level: 1, name: PROJ }).waitFor();
 });
 
 await check("Publish with Featured → appears on homepage featured section", async () => {
@@ -469,22 +489,22 @@ await check("Publish with Featured → appears on homepage featured section", as
   await ap.getByText("Project published").waitFor();
   await vp.goto(BASE + "/home");
   const featured = vp.locator("section[aria-labelledby=featured-title]");
-  await featured.getByText("QA Verification Project").waitFor();
-  const pub = await vp.request.get(BASE + "/projects/qa-verification-project");
+  await featured.getByText(PROJ).waitFor();
+  const pub = await vp.request.get(BASE + `/projects/${PROJ_SLUG}`);
   assert(pub.status() === 200, "published page not reachable");
 });
 
 await check("Published project shows both students, video and attachment", async () => {
-  await vp.goto(BASE + "/projects/qa-verification-project");
+  await vp.goto(BASE + `/projects/${PROJ_SLUG}`);
   const text = await vp.locator("main").innerText();
-  assert(/QA Student One/.test(text) && /QA Student Two/.test(text), "students missing");
+  assert(text.includes(ST1) && text.includes(ST2), "students missing");
   assert((await vp.locator("video").count()) === 1, "video missing");
   assert((await vp.getByRole("button", { name: /Preview: demo-document.pdf/ }).count()) === 1, "attachment missing");
 });
 
 await check("Points change updates the leaderboard", async () => {
   await ap.goto(BASE + "/admin/leaderboard");
-  const input = ap.getByLabel("Points: QA Verification Project");
+  const input = ap.getByLabel(`Points: ${PROJ}`);
   await input.fill("500");
   await input.press("Enter");
   await ap.getByText("Points updated").waitFor();
@@ -493,58 +513,46 @@ await check("Points change updates the leaderboard", async () => {
   assert(/QA Student/.test(first), `top of leaderboard: ${first}`);
 });
 
-await check("Unfeature / unpublish / publish actions from Manage Projects", async () => {
-  await ap.goto(BASE + "/admin/projects?q=QA%20Verification");
-  const row = ap.getByTestId("admin-project-row").filter({ hasText: "QA Verification Project" });
-  await row.getByRole("button", { name: /More actions/ }).click();
-  await ap.getByRole("menuitem", { name: "Unfeature" }).click();
-  await ap.getByText("Project removed from featured").waitFor();
-  await row.getByRole("button", { name: /More actions/ }).click();
-  await ap.getByRole("menuitem", { name: "Unpublish" }).click();
+await check("Unfeature / unpublish / publish from the project editor", async () => {
+  await ap.goto(projectEditUrl);
+  await ap.getByRole("switch", { name: "Feature on homepage" }).click();
+  await ap.getByRole("button", { name: "Save changes" }).click();
+  await ap.getByText("Changes saved").first().waitFor();
+  await ap.reload();
+  await ap.getByRole("button", { name: "Move to drafts" }).click();
   await ap.getByText("Project moved to drafts").first().waitFor();
-  await row.getByRole("button", { name: /More actions/ }).click();
-  await ap.getByRole("menuitem", { name: "Publish" }).click();
+  await ap.reload();
+  await ap.getByRole("button", { name: "Publish" }).click();
   await ap.getByText("Project published").first().waitFor();
+  const [p] = await sql`select status, is_featured from projects where slug = ${PROJ_SLUG}`;
+  assert(p.status === "published" && !p.is_featured, JSON.stringify(p));
 });
 
-await check("Delete moves to Trash; restore works", async () => {
-  await ap.goto(BASE + "/admin/projects?q=QA%20Verification");
-  const row = ap.getByTestId("admin-project-row").filter({ hasText: "QA Verification Project" });
-  await row.getByRole("button", { name: /More actions/ }).click();
-  await ap.getByRole("menuitem", { name: "Move to Trash" }).click();
-  await ap.getByRole("alertdialog").getByRole("button", { name: "Move to Trash" }).click();
-  await ap.getByText("Project moved to Trash").waitFor();
-  const gone = await vp.request.get(BASE + "/projects/qa-verification-project");
+await check("Trash: a deleted project can be restored, then deleted permanently", async () => {
+  // Manage Projects no longer has a delete menu; the project reaches Trash from the database.
+  await sql`update projects set deleted_at = now() where slug = ${PROJ_SLUG}`;
+  const gone = await vp.request.get(BASE + `/projects/${PROJ_SLUG}`);
   assert(gone.status() === 404, "trashed project still public");
   await ap.goto(BASE + "/admin/trash");
-  await ap.getByTestId("trash-row").filter({ hasText: "QA Verification Project" }).getByRole("button", { name: "Restore" }).click();
+  await ap.getByTestId("trash-row").filter({ hasText: PROJ }).getByRole("button", { name: "Restore" }).click();
   await ap.getByText("Project restored as a draft").waitFor();
-  await ap.goto(BASE + "/admin/projects?status=draft");
-  await ap.getByRole("link", { name: "QA Verification Project", exact: true }).waitFor();
-});
-
-await check("Delete permanently from Trash", async () => {
-  await ap.goto(BASE + "/admin/projects?q=QA%20Verification");
-  const row = ap.getByTestId("admin-project-row").filter({ hasText: "QA Verification Project" });
-  await row.getByRole("button", { name: /More actions/ }).click();
-  await ap.getByRole("menuitem", { name: "Move to Trash" }).click();
-  await ap.getByRole("alertdialog").getByRole("button", { name: "Move to Trash" }).click();
-  await ap.getByText("Project moved to Trash").waitFor();
+  const [restored] = await sql`select status, deleted_at from projects where slug = ${PROJ_SLUG}`;
+  assert(restored.status === "draft" && restored.deleted_at === null, "restored as draft");
+  await sql`update projects set deleted_at = now() where slug = ${PROJ_SLUG}`;
   await ap.goto(BASE + "/admin/trash");
-  await ap.getByTestId("trash-row").filter({ hasText: "QA Verification Project" }).getByRole("button", { name: "Delete permanently" }).click();
+  await ap.getByTestId("trash-row").filter({ hasText: PROJ }).getByRole("button", { name: "Delete permanently" }).click();
   await ap.getByRole("alertdialog").getByRole("button", { name: "Delete permanently" }).click();
   await ap.getByText("Project permanently deleted").waitFor();
 });
 
 await check("Activity log recorded the administrative actions", async () => {
   await ap.goto(BASE + "/admin/activity");
+  await ap.locator("main").getByText(PROJ).first().waitFor();
   const text = await ap.locator("main").innerText();
   for (const label of [
-    "Project created",
     "Project published",
     "Project featured",
     "Points changed",
-    "Project deleted",
     "Project restored",
     "Student created",
     "Category created",
@@ -556,12 +564,12 @@ await check("Activity log recorded the administrative actions", async () => {
 
 await check("Archive category hides it from public filters", async () => {
   await ap.goto(BASE + "/admin/categories");
-  const row = ap.getByTestId("admin-category-row").filter({ hasText: "QA Category" });
+  const row = ap.getByTestId("admin-category-row").filter({ hasText: CAT });
   await row.getByRole("button", { name: /Archive: QA Category/ }).click();
   await ap.getByRole("alertdialog").getByRole("button", { name: "Archive" }).click();
   await ap.getByText("Category archived").waitFor();
   await vp.goto(BASE + "/projects");
-  assert((await vp.getByRole("button", { name: "QA Category" }).count()) === 0, "archived category still listed");
+  assert((await vp.getByRole("button", { name: CAT }).count()) === 0, "archived category still listed");
 });
 
 await check("Admin overview, analytics, settings render", async () => {
@@ -594,6 +602,7 @@ await check("Sign out ends the session", async () => {
 });
 
 await browser.close();
+if (sql) await sql.end();
 
 const hydration = consoleErrors.filter((e) => /hydrat/i.test(e));
 console.log("\n──────── Summary ────────");

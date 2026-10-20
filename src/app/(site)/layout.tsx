@@ -13,7 +13,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       <main id="main" className="flex-1">
         {children}
       </main>
-      <SiteFooter t={t} />
+      <SiteFooter t={t} isAdmin={viewer.kind === "admin"} />
     </div>
   );
 }

@@ -57,6 +57,10 @@ export type ProjectCardData = {
   /** Project field key from the submission form (see PROJECT_FIELDS). */
   field: string | null;
   field_other: string | null;
+  /** Competition the project is entered for (see COMPETITIONS); null for older projects. */
+  competition: string | null;
+  /** The student's own competition name when competition is "other". */
+  competition_other: string | null;
 };
 
 export type ProjectMedia = {

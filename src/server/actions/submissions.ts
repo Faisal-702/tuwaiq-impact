@@ -26,7 +26,7 @@ import {
 } from "@/lib/submission";
 import { VARIANT_MIME } from "@/lib/media-rules";
 import { logActivity } from "../activity";
-import { getStudentSession } from "../auth";
+import { getStudentSession, requireAdmin } from "../auth";
 import { sql } from "../db";
 import { getStudentProfile, isProfileComplete, type StudentProfile } from "../profiles";
 import { isSafeObjectPath, mediaUrl, privateStorage, storage } from "../storage";
@@ -382,6 +382,8 @@ function normalizedAnswers(answers: SubmissionAnswers, supervisors: string[], pe
     requestedAmount: String(parseAmount(answers.requestedAmount)),
     competitionName: answers.competition === "yes" ? answers.competitionName.trim() : "",
     fieldOther: answers.field === "other" ? answers.fieldOther.trim() : "",
+    // A custom competition name is kept only with "other" (a stale one never travels with another choice).
+    targetCompetitionOther: answers.targetCompetition === "other" ? answers.targetCompetitionOther.replace(/\s+/g, " ").trim() : "",
     summary: answers.summary.trim().slice(0, SUMMARY_MAX),
     title: answers.title.trim(),
     supervisor: supervisors[0] ?? answers.supervisor.trim(),
@@ -460,10 +462,12 @@ export async function submitProject(input: { acknowledged: boolean }): Promise<S
       if (!locked) throw new Error("already_submitted");
       const [project] = await tx<{ id: string }[]>`
         insert into projects (slug, title, description, summary, category_id, grade, academic_year, points,
-                              status, published_at, requested_amount, field, field_other, supervisors)
+                              status, published_at, requested_amount, field, field_other, supervisors,
+                              competition, competition_other)
         values (${slug}, ${title}, ${summary}, ${summary}, ${categoryId}, ${profile.grade}, ${academicYear}, 0,
                 'published', now(), ${parseAmount(answers.requestedAmount)}, ${field.key},
-                ${field.key === "other" ? normalized.fieldOther : null}, ${supervisors})
+                ${field.key === "other" ? normalized.fieldOther : null}, ${supervisors},
+                ${normalized.targetCompetition}, ${normalized.targetCompetitionOther || null})
         returning id`;
       const [media] = await tx<{ id: string }[]>`
         insert into project_media (project_id, kind, position, storage_path, preview_path, thumb_path,
@@ -483,6 +487,10 @@ export async function submitProject(input: { acknowledged: boolean }): Promise<S
   } catch (error) {
     if (error instanceof Error && error.message === "already_submitted") return fail("not_found");
     if ((error as { hint?: string })?.hint === "profile_incomplete") return fail("profile_incomplete");
+    // The database's own check (should the server's validation ever be bypassed).
+    if ((error as { hint?: string })?.hint === "competition_required") {
+      return { ok: false, error: "validation", fields: { targetCompetition: "required" } };
+    }
     console.error("Project submission failed", error instanceof Error ? error.message : "unknown");
     return fail("server");
   }
@@ -505,7 +513,8 @@ export async function submitProject(input: { acknowledged: boolean }): Promise<S
 /** Answers whose change is recorded in the student's activity (personal details are not listed). */
 const TRACKED: AnswerKey[] = [
   "projectType", "participants", "title", "description", "goals", "idea", "competition", "competitionName", "summary",
-  "field", "fieldOther", "problem", "tools", "toolsCost", "requestedAmount", "projectStatus", "supervisor",
+  "field", "fieldOther", "targetCompetition", "targetCompetitionOther", "problem", "tools", "toolsCost", "requestedAmount",
+  "projectStatus", "supervisor",
 ];
 
 /**
@@ -581,6 +590,7 @@ export async function saveProjectEdit(input: { projectId: string; acknowledged: 
            set title = ${normalized.title}, description = ${normalized.summary}, summary = ${normalized.summary},
                category_id = ${categoryId}, requested_amount = ${requested},
                field = ${field.key}, field_other = ${field.key === "other" ? normalized.fieldOther : null},
+               competition = ${normalized.targetCompetition}, competition_other = ${normalized.targetCompetitionOther || null},
                supervisors = ${supervisors}, cover_media_id = ${coverMediaId}
          where id = ${projectId}`;
       await tx`
@@ -614,4 +624,88 @@ export async function saveProjectEdit(input: { projectId: string; acknowledged: 
   await logActivity({ action: "project.edited", targetType: "project", targetId: projectId, targetLabel: normalized.title, details: { by: "student" } });
   revalidatePath("/", "layout");
   return { ok: true, data: { title: normalized.title } };
+}
+
+// ---------------------------------------------------------------------------
+// Administrators: delete a student's submitted project
+// ---------------------------------------------------------------------------
+
+/**
+ * Permanently deletes one submitted student project, chosen by its
+ * submission id (Manage Projects → Delete Project). Administrators only,
+ * checked here on the server.
+ *
+ * In one transaction: the submission, any pending edits of the same project
+ * and the published project itself. The database then removes only that
+ * project's own rows (student links, media rows, views, recorded support and
+ * the student's activity entries for it). The student's account, profile and
+ * other projects are never touched. If another submission were linked to the
+ * same project, nothing is deleted. Files are removed after the commit, except
+ * those another record still uses.
+ */
+export async function deleteStudentSubmission(submissionId: string): Promise<Result> {
+  await requireAdmin();
+  if (typeof submissionId !== "string" || !/^[0-9a-f-]{36}$/.test(submissionId)) return fail("not_found");
+
+  type Media = { storage_path: string | null; preview_path: string | null; thumb_path: string | null };
+  let removed: { rows: SubmissionRow[]; media: Media[]; projectId: string | null; title: string };
+  try {
+    removed = await sql.begin(async (tx) => {
+      const [target] = await tx<SubmissionRow[]>`
+        select * from project_submissions where id = ${submissionId} and status = 'submitted' for update`;
+      if (!target) throw new Error("not_found");
+      const projectId = target.project_id;
+      let rows: SubmissionRow[] = [target];
+      let media: Media[] = [];
+      let title = sanitizeAnswers(target.answers).title.trim();
+      if (projectId) {
+        const [project] = await tx<{ id: string; title: string }[]>`
+          select id, title from projects where id = ${projectId} for update`;
+        const [{ others }] = await tx<{ others: number }[]>`
+          select count(*)::int as others from project_submissions
+           where project_id = ${projectId} and status = 'submitted' and id <> ${submissionId}`;
+        if (others > 0) throw new Error("shared_project");
+        const pending = await tx<SubmissionRow[]>`
+          select * from project_submissions where project_id = ${projectId} and status = 'editing' for update`;
+        rows = [target, ...pending];
+        if (project) {
+          title = project.title;
+          media = await tx<Media[]>`select storage_path, preview_path, thumb_path from project_media where project_id = ${projectId}`;
+        }
+      }
+      await tx`delete from project_submissions where id = any(${rows.map((r) => r.id)})`;
+      if (projectId) await tx`delete from projects where id = ${projectId}`;
+      return { rows, media, projectId, title };
+    });
+  } catch (error) {
+    if (error instanceof Error && (error.message === "not_found" || error.message === "shared_project")) return fail(error.message);
+    console.error("Deleting a student project failed", error instanceof Error ? error.message : "unknown");
+    return fail("server");
+  }
+
+  // Files no record uses any more: the project's media, the forms' covers and supporting files.
+  const mediaPaths = removed.media.flatMap((m) => [m.storage_path, m.preview_path, m.thumb_path]).filter((p): p is string => !!p && isSafeObjectPath(p));
+  if (mediaPaths.length) {
+    const used = await sql<{ p: string }[]>`
+      select unnest(array[storage_path, preview_path, thumb_path]) as p from project_media
+       where storage_path = any(${mediaPaths}) or preview_path = any(${mediaPaths}) or thumb_path = any(${mediaPaths})
+      union
+      select unnest(array[cover->>'storage_path', cover->>'preview_path', cover->>'thumb_path']) from project_submissions
+       where cover->>'storage_path' = any(${mediaPaths})`;
+    const keep = new Set(used.map((r) => r.p));
+    const remove = mediaPaths.filter((p) => !keep.has(p));
+    if (remove.length) await storage().remove(remove).catch(() => console.error("Could not remove project media"));
+  }
+  for (const row of removed.rows) if (row.cover) await removeCoverFiles(row.cover);
+  await removeEvidenceFiles([...new Set(removed.rows.flatMap((r) => (r.evidence ?? []).map((e) => e.path)))]);
+
+  await logActivity({
+    action: "project.purged",
+    targetType: "project",
+    targetId: removed.projectId ?? submissionId,
+    targetLabel: removed.title,
+    details: { by: "admin", source: "student_submission" },
+  });
+  revalidatePath("/", "layout");
+  return { ok: true, data: undefined };
 }

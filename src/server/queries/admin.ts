@@ -92,28 +92,6 @@ function mapAdminRow(row: AdminProjectRow & { thumb_path: string | null }): Admi
   return { ...row, thumb: mediaUrl(row.thumb_path) };
 }
 
-export async function listAdminProjects(opts: { status?: "draft" | "published" | "featured"; q?: string }) {
-  const statusFilter =
-    opts.status === "featured"
-      ? sql`and p.is_featured`
-      : opts.status
-        ? sql`and p.status = ${opts.status}`
-        : sql``;
-  const q = opts.q?.trim().replace(/[\\%_]/g, (c) => `\\${c}`);
-  const search = q
-    ? sql`and (ti_normalize(p.title) like ${"%" + q.toLowerCase() + "%"}
-              or exists (select 1 from project_students ps join students s on s.id = ps.student_id
-                          where ps.project_id = p.id
-                            and ti_normalize(concat_ws(' ', s.name_en, s.name_ar)) like ${"%" + q.toLowerCase() + "%"}))`
-    : sql``;
-  const rows = await sql<(AdminProjectRow & { thumb_path: string | null })[]>`
-    select ${ADMIN_ROW}
-      from projects p join categories c on c.id = p.category_id
-     where ${LIVE} ${statusFilter} ${search}
-     order by p.updated_at desc`;
-  return rows.map(mapAdminRow);
-}
-
 export async function listTrash() {
   const rows = await sql<(AdminProjectRow & { thumb_path: string | null })[]>`
     select ${ADMIN_ROW}
@@ -127,17 +105,6 @@ export async function listTrash() {
 export async function getTrashCount(): Promise<number> {
   const [row] = await sql<{ trash: number }[]>`select count(*)::int as trash from projects where deleted_at is not null`;
   return row.trash;
-}
-
-export async function getStatusCounts() {
-  const [row] = await sql<{ all: number; draft: number; published: number; featured: number; trash: number }[]>`
-    select count(*) filter (where deleted_at is null)::int as all,
-           count(*) filter (where deleted_at is null and status = 'draft')::int as draft,
-           count(*) filter (where deleted_at is null and status = 'published')::int as published,
-           count(*) filter (where deleted_at is null and is_featured)::int as featured,
-           count(*) filter (where deleted_at is not null)::int as trash
-      from projects`;
-  return row;
 }
 
 export type EditableProject = {

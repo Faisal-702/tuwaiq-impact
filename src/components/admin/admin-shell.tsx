@@ -13,7 +13,6 @@ import {
   Menu,
   MessageSquareText,
   MonitorPlay,
-  PlusCircle,
   Settings,
   Tags,
   Trash2,
@@ -43,7 +42,6 @@ export function AdminShell({ children, trashCount }: { children: ReactNode; tras
 
   const items = [
     { href: "/admin", label: t.admin.nav.overview, icon: LayoutDashboard, exact: true },
-    { href: "/admin/projects/new", label: t.admin.nav.addProject, icon: PlusCircle, exact: true },
     { href: "/admin/projects", label: t.admin.nav.manageProjects, icon: FolderKanban },
     { href: "/admin/students", label: t.admin.nav.students, icon: Users },
     { href: "/admin/categories", label: t.admin.nav.categories, icon: Tags },
@@ -56,10 +54,7 @@ export function AdminShell({ children, trashCount }: { children: ReactNode; tras
     { href: "/admin/trash", label: t.admin.nav.trash, icon: Trash2, badge: trashCount },
     { href: "/admin/settings", label: t.admin.nav.settings, icon: Settings },
   ];
-  const isActive = (href: string, exact?: boolean) =>
-    exact
-      ? pathname === href
-      : pathname === href || (pathname.startsWith(href + "/") && !pathname.startsWith("/admin/projects/new"));
+  const isActive = (href: string, exact?: boolean) => (exact ? pathname === href : pathname === href || pathname.startsWith(href + "/"));
 
   const nav = (
     <div className="flex h-full flex-col">

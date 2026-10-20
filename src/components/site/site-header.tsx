@@ -62,7 +62,8 @@ export function SiteHeader({
 
   const links = [
     { href: HOME_PATH, label: t.nav.home },
-    { href: "/projects", label: t.nav.projects },
+    // Explore Projects is the students' own (administrators review projects in the dashboard).
+    ...(isAdmin ? [] : [{ href: "/projects", label: t.nav.projects }]),
     { href: "/students", label: t.nav.students },
     { href: "/leaderboard", label: t.nav.leaderboard },
     { href: "/about", label: t.nav.about },

@@ -62,7 +62,7 @@ export default async function AddProjectPage() {
             </span>
             <h2 className="mt-5 text-xl font-bold text-ink">{t.submit.adminTitle}</h2>
             <p className="mt-2 leading-relaxed text-muted">{t.submit.adminBody}</p>
-            <Link href="/admin/projects/new" className={`${buttonClasses("primary", "md")} mt-6`}>
+            <Link href="/admin/projects" className={`${buttonClasses("primary", "md")} mt-6`}>
               {t.submit.adminCta}
             </Link>
           </div>

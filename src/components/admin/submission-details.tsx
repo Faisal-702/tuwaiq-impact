@@ -3,7 +3,7 @@ import { Panel } from "@/components/admin/page-header";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { fmt, formatBytes, formatDateTime, formatNumber, gradeLabel, localName } from "@/i18n/format";
-import { fieldLabel, parseAmount, PERSONAL_FIELDS, QUESTIONNAIRE_SECTIONS, SUBMISSION_STEPS, type AnswerKey, type StepField } from "@/lib/submission";
+import { competitionLabel, fieldLabel, parseAmount, PERSONAL_FIELDS, QUESTIONNAIRE_SECTIONS, SUBMISSION_STEPS, type AnswerKey, type StepField } from "@/lib/submission";
 import type { AdminSubmissionView } from "@/server/submissions";
 
 const KIND_ICON = { image: ImageIcon, video: Film, document: FileText } as const;
@@ -31,6 +31,8 @@ export function SubmissionDetails({ submission, t, locale }: { submission: Admin
         return t.submit.options.projectStatus[a.projectStatus as keyof typeof t.submit.options.projectStatus] ?? a.projectStatus;
       case "field":
         return fieldLabel(a.field, null, locale) ?? a.field;
+      case "targetCompetition":
+        return competitionLabel(a.targetCompetition, null, locale) ?? a.targetCompetition;
       case "toolsCost":
       case "requestedAmount": {
         const n = parseAmount(a[field]);

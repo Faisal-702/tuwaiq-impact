@@ -55,6 +55,38 @@ export function fieldLabel(key: string | null | undefined, other: string | null 
   return locale === "ar" ? field.ar : field.en;
 }
 
+/**
+ * The competition the student wants to enter the project for ("المسابقة
+ * التي ترغب بالمشاركة فيها"). Separate from the project field and the
+ * category. Stored as these stable keys (projects.competition); "other"
+ * keeps the student's own competition name (projects.competition_other).
+ */
+export const COMPETITIONS = [
+  { key: "saif", ar: "سيف", en: "SAIF" },
+  { key: "ibdaa", ar: "إبداع", en: "Ibdaa" },
+  { key: "robotics", ar: "الروبوتات", en: "Robotics" },
+  { key: "hackathons", ar: "الهاكاثونات", en: "Hackathons" },
+  { key: "programming", ar: "مسابقات البرمجة", en: "Programming Competitions" },
+  { key: "other", ar: "أخرى", en: "Other" },
+] as const;
+
+export type CompetitionKey = (typeof COMPETITIONS)[number]["key"];
+export const COMPETITION_KEYS = COMPETITIONS.map((c) => c.key) as CompetitionKey[];
+/** Longest custom competition name (also checked by the database). */
+export const COMPETITION_OTHER_MAX = 80;
+
+export function competition(key: string | null | undefined) {
+  return COMPETITIONS.find((c) => c.key === key) ?? null;
+}
+
+/** The label shown for a project's competition ("Other" shows the student's own name). */
+export function competitionLabel(key: string | null | undefined, other: string | null | undefined, locale: "ar" | "en") {
+  const c = competition(key);
+  if (!c) return null;
+  if (c.key === "other" && other?.trim()) return other.trim();
+  return locale === "ar" ? c.ar : c.en;
+}
+
 /** School grades offered on the form, as stored by the platform (10 = أولى ثانوي). */
 export const SUBMISSION_GRADES = [10, 11, 12] as const;
 export const SUBMISSION_SECTIONS = [1, 2, 3] as const;
@@ -84,6 +116,8 @@ export type SubmissionAnswers = {
   summary: string;
   field: string;
   fieldOther: string;
+  targetCompetition: string;
+  targetCompetitionOther: string;
   problem: string;
   tools: string;
   toolsCost: string;
@@ -114,6 +148,8 @@ export const ANSWER_LIMITS: Record<AnswerKey, number> = {
   summary: SUMMARY_MAX,
   field: 40,
   fieldOther: 80,
+  targetCompetition: 12,
+  targetCompetitionOther: COMPETITION_OTHER_MAX,
   problem: 2000,
   tools: 2000,
   toolsCost: 20,
@@ -256,7 +292,7 @@ export const SUBMISSION_STEPS: SubmissionStep[] = [
   { id: "details-1", section: "details", fields: ["projectType", "participants", "title", "description"] },
   { id: "details-2", section: "details", fields: ["goals", "idea"] },
   { id: "details-3", section: "details", fields: ["competition", "competitionName", "summary"] },
-  { id: "classification-1", section: "classification", fields: ["field", "fieldOther", "problem", "tools"] },
+  { id: "classification-1", section: "classification", fields: ["field", "fieldOther", "targetCompetition", "targetCompetitionOther", "problem", "tools"] },
   { id: "classification-2", section: "classification", fields: ["toolsCost", "requestedAmount"] },
   { id: "attachments-1", section: "attachments", fields: ["projectStatus", "supervisor", "cover"] },
   { id: "attachments-2", section: "attachments", fields: ["evidence"] },
@@ -332,6 +368,15 @@ export function validateSubmission(
         break;
       case "fieldOther":
         if (a.field === "other") requireText("fieldOther");
+        break;
+      case "targetCompetition":
+        if (!oneOf(a.targetCompetition, COMPETITION_KEYS)) errors.targetCompetition = "required";
+        break;
+      case "targetCompetitionOther":
+        if (a.targetCompetition === "other") {
+          if (!filled(a.targetCompetitionOther)) errors.targetCompetitionOther = "required";
+          else if (a.targetCompetitionOther.trim().length > COMPETITION_OTHER_MAX) errors.targetCompetitionOther = "tooLong";
+        }
         break;
       case "toolsCost":
       case "requestedAmount":

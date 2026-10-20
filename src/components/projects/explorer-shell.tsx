@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowDownWideNarrow, LoaderCircle, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowDownWideNarrow, LoaderCircle, Search, SlidersHorizontal, Trophy, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Field, Select } from "@/components/ui/field";
 import { useI18n } from "@/i18n/client";
 import { gradeLabel, localName } from "@/i18n/format";
 import { CategoryIcon } from "@/lib/categories";
-import { fieldLabel } from "@/lib/submission";
+import { COMPETITIONS, fieldLabel } from "@/lib/submission";
 import type { ContentTypeFilter, ProjectSort } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -76,6 +76,7 @@ export function ExplorerShell({ options, children }: { options: ExplorerOptions;
   }, [q]);
 
   const category = params.get("category");
+  const competition = params.get("competition");
   const sort = (params.get("sort") as ProjectSort) || "newest";
   const activeFilters = FILTER_KEYS.filter((k) => params.get(k));
 
@@ -193,6 +194,32 @@ export function ExplorerShell({ options, children }: { options: ExplorerOptions;
         </ul>
       </div>
 
+      {/* Competition chips: the competition the project is entered for (separate from its category). */}
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3" data-testid="competition-filter">
+        <p id="competition-filter-label" className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-ink">
+          <Trophy className="size-4 text-purple" aria-hidden />
+          {t.projects.competitionLabel}
+        </p>
+        <ul
+          aria-labelledby="competition-filter-label"
+          className="scrollbar-none -mx-5 flex gap-2 overflow-x-auto px-5 pb-1 sm:mx-0 sm:flex-wrap sm:px-0"
+        >
+          <li className="shrink-0">
+            <CompetitionButton active={!competition} onClick={() => navigate({ competition: null })} label={t.projects.allCompetitions} />
+          </li>
+          {COMPETITIONS.map((c) => (
+            <li key={c.key} className="shrink-0">
+              <CompetitionButton
+                active={competition === c.key}
+                onClick={() => navigate({ competition: competition === c.key ? null : c.key })}
+                label={locale === "ar" ? c.ar : c.en}
+                value={c.key}
+              />
+            </li>
+          ))}
+        </ul>
+      </div>
+
       {/* Active filter pills */}
       <AnimatePresence initial={false}>
         {activeFilters.length > 0 ? (
@@ -272,6 +299,25 @@ function CategoryButton({
       )}
     >
       {icon ? <CategoryIcon name={icon} aria-hidden className={cn("size-4", active ? "text-mint" : "text-teal-deep")} /> : null}
+      {label}
+    </button>
+  );
+}
+
+function CompetitionButton({ active, onClick, label, value }: { active: boolean; onClick: () => void; label: string; value?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      data-competition={value ?? "all"}
+      className={cn(
+        "inline-flex items-center rounded-full px-3.5 py-1.5 text-sm transition-[background-color,color,box-shadow] duration-200",
+        active
+          ? "bg-purple text-white shadow-[0_6px_16px_-8px_rgb(93_57_255/0.7)]"
+          : "bg-white text-ink-soft ring-1 ring-line hover:text-ink hover:ring-[#cfd3da]",
+      )}
+    >
       {label}
     </button>
   );

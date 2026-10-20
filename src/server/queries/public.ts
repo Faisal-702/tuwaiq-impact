@@ -33,6 +33,7 @@ type CardRow = Omit<ProjectCardData, "cover"> & {
 const CARD_COLUMNS = sql`
   p.id, p.slug, p.title, p.description, p.grade, p.points, p.view_count, p.is_featured, p.award,
   p.published_at, p.summary, p.requested_amount::float8 as requested_amount, p.field, p.field_other,
+  p.competition, p.competition_other,
   coalesce((select sum(se.amount) from project_support_entries se
              where se.project_id = p.id and se.reversed_at is null), 0)::float8 as recorded_support,
   json_build_object('id', c.id, 'slug', c.slug, 'name_en', c.name_en, 'name_ar', c.name_ar,
@@ -76,6 +77,8 @@ function toCard(row: CardRow): ProjectCardData {
     recorded_support: row.recorded_support ?? 0,
     field: row.field,
     field_other: row.field_other,
+    competition: row.competition,
+    competition_other: row.competition_other,
     cover: coverPath
       ? { url: mediaUrl(coverPath)!, width: row.cover_width, height: row.cover_height }
       : null,
@@ -141,6 +144,8 @@ export type ProjectQuery = {
   q?: string;
   category?: string;
   field?: string;
+  /** Competition key (see COMPETITIONS); projects without one only appear unfiltered. */
+  competition?: string;
   grade?: number;
   year?: string;
   type?: ContentTypeFilter;
@@ -184,6 +189,7 @@ export async function searchProjects(query: ProjectQuery): Promise<{ items: Proj
      where ${PUBLIC}
        ${query.category ? sql`and c.slug = ${query.category}` : sql``}
        ${query.field ? sql`and p.field = ${query.field}` : sql``}
+       ${query.competition ? sql`and p.competition = ${query.competition}` : sql``}
        ${query.grade ? sql`and p.grade = ${query.grade}` : sql``}
        ${query.year ? sql`and p.academic_year = ${query.year}` : sql``}
        ${query.student
