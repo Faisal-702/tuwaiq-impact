@@ -1,0 +1,220 @@
+import "server-only";
+import { createHmac, timingSafeEqual } from "node:crypto";
+import { mkdir, rm, stat } from "node:fs/promises";
+import path from "node:path";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { env } from "../env";
+
+export type UploadTarget = {
+  /** Fully-qualified URL the browser PUTs the file to. */
+  url: string;
+  headers: Record<string, string>;
+};
+
+export interface StorageDriver {
+  createUploadTarget(objectPath: string, contentType: string): Promise<UploadTarget>;
+  publicUrl(objectPath: string): string;
+  remove(objectPaths: string[]): Promise<void>;
+  /** Whether an uploaded object is present (used to confirm direct uploads). */
+  exists(objectPath: string): Promise<boolean>;
+}
+
+// ---------------------------------------------------------------------------
+// Supabase Storage (production)
+// ---------------------------------------------------------------------------
+
+let supabase: SupabaseClient | null = null;
+function supabaseAdmin(): SupabaseClient {
+  supabase ??= createClient(env.supabaseUrl, env.supabaseServiceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  return supabase;
+}
+
+const supabaseDriver: StorageDriver = {
+  async createUploadTarget(objectPath, contentType) {
+    const { data, error } = await supabaseAdmin()
+      .storage.from(env.storageBucket)
+      .createSignedUploadUrl(objectPath);
+    if (error || !data) throw new Error(`Could not create upload URL: ${error?.message ?? "unknown"}`);
+    return {
+      url: data.signedUrl,
+      headers: { "content-type": contentType, "cache-control": "max-age=31536000", "x-upsert": "false" },
+    };
+  },
+  publicUrl(objectPath) {
+    return `${env.supabaseUrl}/storage/v1/object/public/${env.storageBucket}/${encodePath(objectPath)}`;
+  },
+  async remove(objectPaths) {
+    if (objectPaths.length === 0) return;
+    const { error } = await supabaseAdmin().storage.from(env.storageBucket).remove(objectPaths);
+    if (error) throw new Error(`Could not remove media: ${error.message}`);
+  },
+  async exists(objectPath) {
+    const { data, error } = await supabaseAdmin().storage.from(env.storageBucket).exists(objectPath);
+    return !error && data === true;
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Local disk (development only)
+// ---------------------------------------------------------------------------
+
+export const LOCAL_STORAGE_ROOT = path.join(process.cwd(), ".data", "uploads");
+
+/** Private files (student supporting documents): never served by /media. */
+export const LOCAL_PRIVATE_ROOT = path.join(process.cwd(), ".data", "private");
+
+type LocalScope = "public" | "private";
+
+function signLocal(objectPath: string, contentType: string, expires: number, scope: LocalScope = "public"): string {
+  return createHmac("sha256", env.sessionSecret)
+    .update(`${scope === "private" ? "upload-private" : "upload"}:${objectPath}:${contentType}:${expires}`)
+    .digest("hex");
+}
+
+export function verifyLocalUploadSignature(
+  objectPath: string,
+  contentType: string,
+  expires: number,
+  signature: string,
+  scope: LocalScope = "public",
+): boolean {
+  if (!Number.isFinite(expires) || expires < Date.now()) return false;
+  const expected = Buffer.from(signLocal(objectPath, contentType, expires, scope), "hex");
+  const given = Buffer.from(signature, "hex");
+  return expected.length === given.length && timingSafeEqual(expected, given);
+}
+
+export function resolveLocalPath(objectPath: string): string | null {
+  if (!isSafeObjectPath(objectPath)) return null;
+  const full = path.join(LOCAL_STORAGE_ROOT, objectPath);
+  return full.startsWith(LOCAL_STORAGE_ROOT + path.sep) ? full : null;
+}
+
+const localDriver: StorageDriver = {
+  async createUploadTarget(objectPath, contentType) {
+    const expires = Date.now() + 2 * 60 * 60 * 1000;
+    const params = new URLSearchParams({
+      path: objectPath,
+      ct: contentType,
+      exp: String(expires),
+      sig: signLocal(objectPath, contentType, expires),
+    });
+    return { url: `/api/uploads/local?${params}`, headers: { "content-type": contentType } };
+  },
+  publicUrl(objectPath) {
+    return `/media/${encodePath(objectPath)}`;
+  },
+  async remove(objectPaths) {
+    for (const objectPath of objectPaths) {
+      const full = resolveLocalPath(objectPath);
+      if (full) await rm(full, { force: true });
+    }
+  },
+  async exists(objectPath) {
+    const full = resolveLocalPath(objectPath);
+    return full ? stat(full).then((s) => s.isFile(), () => false) : false;
+  },
+};
+
+export async function ensureLocalDir(full: string) {
+  await mkdir(path.dirname(full), { recursive: true });
+}
+
+// ---------------------------------------------------------------------------
+
+export function storage(): StorageDriver {
+  return env.storageDriver === "local" ? localDriver : supabaseDriver;
+}
+
+/** Object paths are generated by the server: media/<yyyy>/<mm>/<uuid>/<variant>.<ext> */
+export function isSafeObjectPath(objectPath: string): boolean {
+  return /^media\/\d{4}\/\d{2}\/[0-9a-f-]{36}\/(original|large|thumb|poster)\.[a-z0-9]{2,5}$/.test(objectPath);
+}
+
+function encodePath(objectPath: string): string {
+  return objectPath.split("/").map(encodeURIComponent).join("/");
+}
+
+export function mediaUrl(objectPath: string | null | undefined): string | null {
+  return objectPath ? storage().publicUrl(objectPath) : null;
+}
+
+// ---------------------------------------------------------------------------
+// Private storage (student supporting files)
+// ---------------------------------------------------------------------------
+
+/** Private object paths are generated by the server: submissions/<submission id>/<uuid>.<ext> */
+export function isSafePrivatePath(objectPath: string): boolean {
+  return /^submissions\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.[a-z0-9]{2,5}$/.test(objectPath);
+}
+
+export function resolveLocalPrivatePath(objectPath: string): string | null {
+  if (!isSafePrivatePath(objectPath)) return null;
+  const full = path.join(LOCAL_PRIVATE_ROOT, objectPath);
+  return full.startsWith(LOCAL_PRIVATE_ROOT + path.sep) ? full : null;
+}
+
+export interface PrivateStorageDriver {
+  createUploadTarget(objectPath: string, contentType: string): Promise<UploadTarget>;
+  exists(objectPath: string): Promise<boolean>;
+  remove(objectPaths: string[]): Promise<void>;
+  /** A short-lived signed download link (Supabase; null for local storage). */
+  downloadUrl(objectPath: string, fileName: string): Promise<string | null>;
+}
+
+const supabasePrivateDriver: PrivateStorageDriver = {
+  async createUploadTarget(objectPath, contentType) {
+    const { data, error } = await supabaseAdmin().storage.from(env.privateStorageBucket).createSignedUploadUrl(objectPath);
+    if (error || !data) throw new Error(`Could not create upload URL: ${error?.message ?? "unknown"}`);
+    return { url: data.signedUrl, headers: { "content-type": contentType, "x-upsert": "false" } };
+  },
+  async exists(objectPath) {
+    const { data, error } = await supabaseAdmin().storage.from(env.privateStorageBucket).exists(objectPath);
+    return !error && data === true;
+  },
+  async remove(objectPaths) {
+    if (objectPaths.length === 0) return;
+    const { error } = await supabaseAdmin().storage.from(env.privateStorageBucket).remove(objectPaths);
+    if (error) throw new Error(`Could not remove files: ${error.message}`);
+  },
+  async downloadUrl(objectPath, fileName) {
+    const { data, error } = await supabaseAdmin()
+      .storage.from(env.privateStorageBucket)
+      .createSignedUrl(objectPath, 300, { download: fileName });
+    return error || !data ? null : data.signedUrl;
+  },
+};
+
+const localPrivateDriver: PrivateStorageDriver = {
+  async createUploadTarget(objectPath, contentType) {
+    const expires = Date.now() + 2 * 60 * 60 * 1000;
+    const params = new URLSearchParams({
+      scope: "private",
+      path: objectPath,
+      ct: contentType,
+      exp: String(expires),
+      sig: signLocal(objectPath, contentType, expires, "private"),
+    });
+    return { url: `/api/uploads/local?${params}`, headers: { "content-type": contentType } };
+  },
+  async exists(objectPath) {
+    const full = resolveLocalPrivatePath(objectPath);
+    return full ? stat(full).then((s) => s.isFile(), () => false) : false;
+  },
+  async remove(objectPaths) {
+    for (const objectPath of objectPaths) {
+      const full = resolveLocalPrivatePath(objectPath);
+      if (full) await rm(full, { force: true });
+    }
+  },
+  async downloadUrl() {
+    // Local files are streamed by the admin-only route itself.
+    return null;
+  },
+};
+
+export function privateStorage(): PrivateStorageDriver {
+  return env.storageDriver === "local" ? localPrivateDriver : supabasePrivateDriver;
+}

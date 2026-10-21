@@ -1,0 +1,614 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter/wght.css";
+@import "@fontsource/ibm-plex-sans-arabic/400.css";
+@import "@fontsource/ibm-plex-sans-arabic/500.css";
+@import "@fontsource/ibm-plex-sans-arabic/600.css";
+@import "@fontsource/ibm-plex-sans-arabic/700.css";
+/* Cairo: the public landing page and its header (and the أثر wordmark). */
+@import "./fonts/cairo/cairo.css";
+
+/* ---------------------------------------------------------------------------
+   Athar Platform design tokens (light mode only)
+   Palette from the platform visual identity reference.
+   --------------------------------------------------------------------------- */
+@theme {
+  --color-teal: #14b8a6;
+  --color-teal-strong: #0d9488;
+  --color-teal-deep: #0f766e;
+  --color-mint: #d1fae5;
+  --color-mint-soft: #ecfdf5;
+
+  --color-purple: #6d4aff;
+  --color-purple-strong: #5b36f0;
+  --color-purple-ink: #33248f;
+  --color-violet: #a78bfa;
+  --color-lavender: #ede9fe;
+  --color-lavender-soft: #f5f3ff;
+  /* Landing page palette, sampled from the approved landing reference. */
+  --color-navy: #0e2242;
+  --color-indigo: #421fbe;
+  --color-indigo-ink: #1c056a;
+  --color-copy: #6d6e80;
+
+  --color-ink: #1f2937;
+  --color-ink-soft: #374151;
+  --color-muted: #6b7280;
+  --color-line: #e5e7eb;
+  --color-line-soft: #eef0f3;
+  --color-canvas: #f8fafc;
+  --color-surface: #ffffff;
+
+  --color-danger: #c2410c;
+  --color-danger-ink: #b42318;
+  --color-danger-soft: #fef3f2;
+  --color-gold: #b88a1b;
+  --color-silver: #7c8594;
+  --color-bronze: #a0623a;
+
+  --font-sans: "Inter Variable", "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
+  --font-arabic: "IBM Plex Sans Arabic", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+
+  --shadow-soft: 0 1px 2px rgb(16 24 40 / 0.04), 0 8px 24px -12px rgb(16 24 40 / 0.1);
+  --shadow-lift: 0 2px 4px rgb(16 24 40 / 0.04), 0 22px 44px -20px rgb(31 41 55 / 0.22);
+  --shadow-panel: 0 1px 1px rgb(16 24 40 / 0.03), 0 30px 80px -30px rgb(45 35 120 / 0.28);
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --animate-drift: drift 22s ease-in-out infinite alternate;
+  --animate-drift-slow: drift 30s ease-in-out infinite alternate-reverse;
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+
+  @keyframes drift {
+    from { transform: translate3d(0, 0, 0) scale(1); }
+    to { transform: translate3d(-2.5%, 1.5%, 0) scale(1.03); }
+  }
+  @keyframes shimmer {
+    0% { background-position: -400px 0; }
+    100% { background-position: 400px 0; }
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --header-h: 4.5rem;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-padding-top: calc(var(--header-h) + 1rem);
+  }
+
+  html[dir="rtl"] {
+    --font-sans: var(--font-arabic);
+  }
+
+  body {
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  html[dir="rtl"] body {
+    font-feature-settings: normal;
+    letter-spacing: 0 !important;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-purple) 18%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-purple);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .container-page {
+    width: 100%;
+    max-width: 82rem;
+    margin-inline: auto;
+    padding-inline: 1.25rem;
+  }
+  @media (min-width: 640px) {
+    .container-page { padding-inline: 2rem; }
+  }
+  @media (min-width: 1280px) {
+    .container-page { padding-inline: 2.5rem; }
+  }
+
+  .eyebrow {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-teal-deep);
+  }
+  html[dir="rtl"] .eyebrow {
+    letter-spacing: 0;
+    font-size: 0.875rem;
+  }
+
+  .text-gradient-brand {
+    background: linear-gradient(100deg, var(--color-teal-deep) 0%, var(--color-teal-strong) 55%, #1aa59a 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .text-gradient-purple {
+    background: linear-gradient(100deg, #4f2fe6 0%, var(--color-purple) 60%, #7c5cff 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* "أثر" logotype: purple to education green, as on the approved landing reference. */
+  .text-gradient-athar {
+    background: linear-gradient(270deg, #3f23a3 0%, #343da3 38%, #057976 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  html[dir="ltr"] .text-gradient-athar {
+    background-image: linear-gradient(90deg, #3f23a3 0%, #343da3 38%, #057976 100%);
+  }
+
+  /* Public landing page typography: Cairo for Arabic (and the Arabic page);
+     English keeps Inter for Latin text, with Cairo for any Arabic in it. */
+  .font-landing {
+    font-family: "Cairo Variable", "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: normal;
+  }
+  html[dir="ltr"] .font-landing {
+    font-family: "Inter Variable", "Cairo Variable", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  .hairline-gradient {
+    background: linear-gradient(90deg, transparent, var(--color-line) 20%, var(--color-line) 80%, transparent);
+  }
+
+  .skeleton {
+    background: linear-gradient(90deg, #f1f3f6 0px, #f8f9fb 120px, #f1f3f6 240px);
+    background-size: 800px 100%;
+    animation: var(--animate-shimmer);
+  }
+
+  .dot-grid {
+    background-image: radial-gradient(circle, color-mix(in srgb, var(--color-teal) 55%, transparent) 1.6px, transparent 1.8px);
+    background-size: 18px 18px;
+  }
+
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+/*
+ * Loading indicators only appear once a wait is noticeable, so fast
+ * transitions never flash them (React also keeps a route fallback up for at
+ * least ~300 ms, hence the delay just above that).
+ */
+.loading-reveal {
+  animation: fade-in 200ms ease-out var(--loading-delay, 450ms) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-reveal { animation-duration: 1ms; }
+}
+@keyframes caret-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+@keyframes dialog-in {
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 10px)) scale(0.98); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* Hero artwork blends into the page instead of sitting in a box. */
+.hero-art-mask {
+  -webkit-mask-image: linear-gradient(to top, transparent 0%, #000 30%);
+  mask-image: linear-gradient(to top, transparent 0%, #000 30%);
+}
+@media (min-width: 1024px) {
+  .hero-art-mask {
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 30%), linear-gradient(to top, transparent 0%, #000 22%);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to right, transparent 0%, #000 30%), linear-gradient(to top, transparent 0%, #000 22%);
+    mask-composite: intersect;
+  }
+  [dir="rtl"] .hero-art-mask {
+    -webkit-mask-image: linear-gradient(to left, transparent 0%, #000 16%), linear-gradient(to top, transparent 0%, #000 22%);
+    mask-image: linear-gradient(to left, transparent 0%, #000 16%), linear-gradient(to top, transparent 0%, #000 22%);
+  }
+}
+
+/* Video player range inputs */
+.video-range {
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 999px;
+  background: linear-gradient(to right, #ffffff var(--fill, 0%), rgb(255 255 255 / 0.3) var(--fill, 0%));
+}
+.video-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgb(109 74 255 / 0.35);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.video-range:hover::-webkit-slider-thumb,
+.video-range:focus-visible::-webkit-slider-thumb {
+  opacity: 1;
+}
+.video-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+}
+
+/* ---------------------------------------------------------------------------
+   Desktop top navigation links: soft teal pill + centre-out underline.
+   Hover effects only apply to precise pointers (mouse/trackpad), never touch.
+   --------------------------------------------------------------------------- */
+.nav-link {
+  --nav-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --nav-dur: 260ms;
+  position: relative;
+  isolation: isolate;
+  display: block;
+  border-radius: 999px;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.9375rem;
+  color: var(--color-ink-soft);
+  transition: color var(--nav-dur) var(--nav-ease);
+}
+
+/* Pill: very light teal with a faint Tuwaiq-purple tint at the far edge. */
+.nav-link__pill {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(100deg, #dff8f4 0%, #dff8f4 62%, #e7f2fa 88%, #ecebff 100%);
+  box-shadow:
+    inset 0 0 0 1px rgb(20 184 166 / 0.14),
+    0 1px 8px -3px rgb(109 74 255 / 0.12);
+  opacity: 0;
+  transform: scale(0.94);
+  transition:
+    opacity var(--nav-dur) var(--nav-ease),
+    transform var(--nav-dur) var(--nav-ease);
+}
+[dir="rtl"] .nav-link__pill {
+  background: linear-gradient(260deg, #dff8f4 0%, #dff8f4 62%, #e7f2fa 88%, #ecebff 100%);
+}
+
+.nav-link__label {
+  display: inline-block;
+  transition: transform var(--nav-dur) var(--nav-ease);
+}
+
+/* Thin underline that grows from the centre. */
+.nav-link__line {
+  position: absolute;
+  inset-inline: 1.125rem;
+  bottom: 0.3rem;
+  height: 1.5px;
+  border-radius: 999px;
+  background: #14b8a6;
+  opacity: 0;
+  transform: scaleX(0);
+  transform-origin: center;
+  transition:
+    transform var(--nav-dur) var(--nav-ease),
+    opacity var(--nav-dur) var(--nav-ease);
+}
+
+/* Current page: same system, calmer. */
+.nav-link[aria-current="page"] {
+  color: var(--color-teal-deep);
+  font-weight: 600;
+}
+.nav-link[aria-current="page"] .nav-link__pill {
+  opacity: 0.55;
+  transform: scale(1);
+}
+.nav-link[aria-current="page"] .nav-link__line {
+  opacity: 0.6;
+  transform: scaleX(1);
+}
+
+/* Hover (precise pointers only) and keyboard focus share the full state. */
+@media (hover: hover) and (pointer: fine) {
+  .nav-link:hover {
+    color: var(--color-teal-deep);
+  }
+  .nav-link:hover .nav-link__pill {
+    opacity: 1;
+    transform: scale(1);
+  }
+  .nav-link:hover .nav-link__label {
+    transform: translateY(-1.5px);
+  }
+  .nav-link:hover .nav-link__line {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+.nav-link:focus-visible {
+  color: var(--color-teal-deep);
+  border-radius: 999px;
+  outline-offset: 2px;
+}
+.nav-link:focus-visible .nav-link__pill {
+  opacity: 1;
+  transform: scale(1);
+}
+.nav-link:focus-visible .nav-link__line {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+/* "Suggestions" nav item: while its form is open it reads as the current item. */
+.nav-link[aria-expanded="true"] {
+  color: var(--color-teal-deep);
+  font-weight: 600;
+}
+.nav-link[aria-expanded="true"] .nav-link__pill {
+  opacity: 1;
+  transform: scale(1);
+}
+.nav-link[aria-expanded="true"] .nav-link__line {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+/* Suggestion popover: subtle drop-in from its nav item. */
+@keyframes suggestion-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes suggestion-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-4px) scale(0.99); }
+}
+.suggestion-popover {
+  transform-origin: var(--radix-popover-content-transform-origin);
+}
+.suggestion-popover[data-state="open"] {
+  animation: suggestion-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.suggestion-popover[data-state="closed"] {
+  animation: suggestion-out 140ms ease-in;
+}
+
+/* Mobile suggestion dialog: centred with `translate`, so animate only opacity/offset. */
+@keyframes suggestion-dialog-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.suggestion-dialog[data-state="open"] {
+  animation: suggestion-dialog-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---------------------------------------------------------------------------
+   Student codes print sheet (Admin → Student Codes). On screen the print root
+   is hidden; when printing, it is the only thing on the page (A4, no admin UI).
+   --------------------------------------------------------------------------- */
+#print-root {
+  display: none;
+}
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm;
+  }
+  body:has(> #print-root) > *:not(#print-root) {
+    display: none !important;
+  }
+  body:has(> #print-root) {
+    background: #fff;
+  }
+  #print-root {
+    display: block;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  #print-root .print-row {
+    break-inside: avoid;
+  }
+  #print-root h2 {
+    break-after: avoid;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Public landing page on large screens (≥1280px), proportional to the
+   approved reference (docs/references/landing-reference-athar.webp, a
+   1672px-wide screenshot). --lu is one reference pixel (100vw / 1672,
+   capped at 1.2px), and the header, hero, artwork and "Why" section are
+   sized in it, so their proportions match the reference at every desktop
+   width (1366, 1440, 1672, 1920…), instead of the artwork growing with the
+   window while the text keeps a fixed size. Mobile and tablet layouts are
+   the utility classes in the components. These rules are unlayered, so on
+   large screens they take precedence over those utilities.
+   --------------------------------------------------------------------------- */
+@media (min-width: 1280px) {
+  :root {
+    --lu: min(calc(100vw / 1672), 1.2px);
+  }
+
+  .lp-container {
+    width: 100%;
+    max-width: calc(1672 * var(--lu));
+    margin-inline: auto;
+    padding-inline: calc(96 * var(--lu));
+  }
+
+  /* Header: Ministry logo, divider, school name | sign in, partners, language. */
+  .lp-header-bar {
+    max-width: calc(1672 * var(--lu));
+    padding-block: calc(37 * var(--lu));
+    padding-inline: calc(79 * var(--lu)) calc(162 * var(--lu));
+    column-gap: calc(19 * var(--lu));
+  }
+  .lp-brand { column-gap: calc(33 * var(--lu)); }
+  .lp-brand img { height: calc(74 * var(--lu)); } /* width follows: the logo keeps its proportions */
+  .lp-brand-divider { height: calc(50 * var(--lu)); }
+  .lp-school { font-size: calc(22.4 * var(--lu)); }
+  .lp-nav { column-gap: calc(17 * var(--lu)); }
+  .lp-nav-btn {
+    height: calc(46 * var(--lu));
+    padding-inline: 0;
+    font-size: calc(17.5 * var(--lu));
+    column-gap: calc(8 * var(--lu));
+  }
+  .lp-nav-btn svg { width: calc(20 * var(--lu)); height: calc(20 * var(--lu)); }
+  .lp-nav-login { width: calc(131 * var(--lu)); }
+  .lp-nav-partners { width: calc(106 * var(--lu)); }
+  .lp-nav-divider { height: calc(46 * var(--lu)); margin-inline: calc(4 * var(--lu)) 0; }
+  .lp-lang [role="group"] { padding: calc(4 * var(--lu)); }
+  .lp-lang [role="group"] button {
+    padding: calc(7 * var(--lu)) calc(18 * var(--lu));
+    font-size: calc(16 * var(--lu));
+  }
+
+  /* Hero. The approved artwork (1672×941) is shown at the reference's
+     framing: 0.8× its size in reference px, from the hero's start edge and
+     slightly above it, so the students sit exactly where the reference has
+     them and the photo is never enlarged on 1× screens (at most 1606px
+     wide, at the largest unit). Its right
+     part fades out (a mask: the file itself is untouched) into the light
+     area behind the text; a light wash keeps the sky behind the header soft. */
+  .lp-hero { min-height: calc(655 * var(--lu)); }
+  .lp-hero-art {
+    left: 0;
+    top: calc(-25 * var(--lu));
+    width: calc(1338 * var(--lu));
+    height: calc(753 * var(--lu));
+    -webkit-mask-image: linear-gradient(to right, #000 68%, rgb(0 0 0 / 0.5) 79%, transparent 89%);
+    mask-image: linear-gradient(to right, #000 68%, rgb(0 0 0 / 0.5) 79%, transparent 89%);
+  }
+  .lp-hero-wash {
+    background: linear-gradient(to bottom, rgb(255 255 255 / 0.3) 0, rgb(255 255 255 / 0.18) calc(190 * var(--lu)), transparent calc(330 * var(--lu)));
+  }
+  /* English mirrors the page but not the photo: the school's logo and name
+     sit over its top-left corner and the (wider) text starts earlier, so a
+     soft light corner goes behind the brand and the photo fades out sooner. */
+  html[dir="ltr"] .lp-hero-art {
+    -webkit-mask-image: linear-gradient(to right, #000 60%, rgb(0 0 0 / 0.5) 72%, transparent 84%);
+    mask-image: linear-gradient(to right, #000 60%, rgb(0 0 0 / 0.5) 72%, transparent 84%);
+  }
+  html[dir="ltr"] .lp-hero-wash {
+    background:
+      radial-gradient(calc(820 * var(--lu)) calc(250 * var(--lu)) at 0 0, rgb(255 255 255 / 0.85), rgb(255 255 255 / 0.55) 55%, transparent),
+      linear-gradient(to bottom, rgb(255 255 255 / 0.3) 0, rgb(255 255 255 / 0.18) calc(190 * var(--lu)), transparent calc(330 * var(--lu)));
+  }
+  .lp-hero-text {
+    width: calc(480 * var(--lu));
+    max-width: none;
+    padding-top: calc(36 * var(--lu));
+    padding-bottom: calc(24 * var(--lu));
+  }
+  html[dir="ltr"] .lp-hero-text { width: calc(540 * var(--lu)); }
+  .lp-wordmark { height: calc(112 * var(--lu)); }
+  .lp-headline {
+    margin-top: calc(17 * var(--lu));
+    font-size: calc(42 * var(--lu));
+    line-height: 1.43;
+  }
+  html[dir="ltr"] .lp-headline { font-size: calc(36 * var(--lu)); line-height: 1.25; }
+  .lp-lede {
+    margin-top: calc(9 * var(--lu));
+    font-size: max(15px, calc(18.2 * var(--lu)));
+    line-height: 1.68;
+  }
+  .lp-actions {
+    margin-top: calc(35 * var(--lu));
+    column-gap: calc(16 * var(--lu));
+  }
+  .lp-cta {
+    height: calc(55 * var(--lu));
+    min-width: 0;
+    padding-inline: 0;
+    font-size: calc(19 * var(--lu));
+    border-radius: calc(10 * var(--lu));
+    column-gap: calc(10 * var(--lu));
+  }
+  .lp-cta svg { width: calc(22 * var(--lu)); height: calc(22 * var(--lu)); }
+  .lp-cta-login { width: calc(198 * var(--lu)); }
+  .lp-cta-partner { width: calc(208 * var(--lu)); }
+
+  /* "Why Athar Platform?" and its four cards. */
+  .lp-why {
+    padding-top: calc(22 * var(--lu));
+    padding-bottom: calc(40 * var(--lu));
+  }
+  .lp-why-head {
+    min-height: calc(45 * var(--lu));
+    column-gap: calc(24 * var(--lu));
+  }
+  .lp-why-title {
+    font-size: calc(36 * var(--lu));
+    column-gap: calc(16 * var(--lu));
+  }
+  .lp-why-title > span { width: calc(47 * var(--lu)); }
+  .lp-why-intro {
+    max-width: calc(560 * var(--lu));
+    font-size: max(13.5px, calc(14.6 * var(--lu)));
+  }
+  .lp-cards {
+    margin-top: calc(19 * var(--lu));
+    gap: calc(19 * var(--lu));
+  }
+  .lp-card {
+    min-height: calc(178 * var(--lu));
+    padding: calc(16 * var(--lu)) calc(13 * var(--lu));
+    border-radius: calc(16 * var(--lu));
+  }
+  .lp-card-tile {
+    width: calc(56 * var(--lu));
+    height: calc(56 * var(--lu));
+    border-radius: calc(13 * var(--lu));
+  }
+  .lp-card-tile svg { width: calc(26 * var(--lu)); height: calc(26 * var(--lu)); }
+  .lp-card-title {
+    margin-top: calc(6 * var(--lu));
+    font-size: calc(18.5 * var(--lu));
+    line-height: 1.375;
+  }
+  .lp-card-body {
+    margin-top: calc(8 * var(--lu));
+    font-size: max(13.5px, calc(14.6 * var(--lu)));
+    line-height: 1.66;
+  }
+}
