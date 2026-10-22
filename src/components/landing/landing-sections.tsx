@@ -21,8 +21,8 @@ import type { Dictionary } from "@/i18n/dictionaries";
 import { fmt, formatNumber } from "@/i18n/format";
 import { cn } from "@/lib/utils";
 import heroArt from "../../../public/images/landing/athar-hero-approved.webp";
-import howArt from "../../../public/images/landing/landing-how.webp";
-import skylineArt from "../../../public/images/landing/landing-skyline.webp";
+import howArt from "../../../public/images/landing/landing-how-robot.webp";
+import skylineArt from "../../../public/images/landing/landing-partners-skyline.webp";
 import { AtharWordmark } from "@/components/brand/athar-wordmark";
 import { Mosaic } from "./decor";
 import { LandingHeader } from "./landing-header";
@@ -171,14 +171,16 @@ export function HowSection({ t, locale }: { t: Dictionary; locale: Locale }) {
       className="relative isolate overflow-hidden bg-gradient-to-b from-[#f1f1fa] to-[#e9ecf6] pb-6"
       data-testid="landing-how"
     >
-      {/* The approved illustration, on the end side of large screens. */}
+      {/* The approved illustration, on the end side of large screens. Both
+          illustrations below are served as-is (unoptimized): the optimizer's
+          AVIF re-encode visibly softened their fine detail. */}
       <div className="pointer-events-none absolute end-0 top-1/2 -z-10 hidden aspect-[418/156] h-[11rem] -translate-y-1/2 lg:block">
         <Image
           src={howArt}
           alt=""
           fill
-          sizes="26rem"
-          className="object-cover rtl:object-left ltr:object-right rtl:[mask-image:linear-gradient(to_left,transparent,#000_16%)] ltr:[mask-image:linear-gradient(to_right,transparent,#000_16%)]"
+          unoptimized
+          className="object-cover object-[50%_44%] rtl:[mask-image:linear-gradient(to_left,transparent,#000_16%)] ltr:[mask-image:linear-gradient(to_right,transparent,#000_16%)]"
         />
       </div>
       <div className="container-page">
@@ -208,7 +210,7 @@ export function HowSection({ t, locale }: { t: Dictionary; locale: Locale }) {
       </div>
       <div className="container-page mt-5 lg:hidden">
         <div className="relative mx-auto h-36 max-w-md overflow-hidden rounded-xl">
-          <Image src={howArt} alt="" fill sizes="28rem" className="object-cover" />
+          <Image src={howArt} alt="" fill unoptimized className="object-cover object-[50%_44%]" />
         </div>
       </div>
     </section>
@@ -239,8 +241,8 @@ export function PartnersBand({ t }: { t: Dictionary }) {
           src={skylineArt}
           alt={l.skylineAlt}
           fill
-          sizes="29rem"
-          className="object-cover object-left [mask-image:linear-gradient(to_left,transparent,#000_10%)] ltr:-scale-x-100"
+          unoptimized
+          className="object-cover object-[0%_36%] [mask-image:linear-gradient(to_left,transparent,#000_10%)] ltr:-scale-x-100"
         />
       </div>
       <div className="container-page py-8 lg:py-7">
